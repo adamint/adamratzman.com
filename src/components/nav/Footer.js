@@ -1,10 +1,25 @@
-import { Center, HStack, Icon } from '@chakra-ui/react';
-import { FaLinkedinIn } from 'react-icons/all';
+import { Box, Center, HStack, Icon, Link, Text } from '@chakra-ui/react';
+import { BiEnvelope, FaLinkedinIn, FiGithub } from 'react-icons/all';
+import { useColorModeColor } from '../text/useColorModeColor';
 
 export function Footer() {
-  return <Center>
-    <HStack spacing={5}>
-      <Icon as={FaLinkedinIn} w={25} h={25} />
+  return <Box my={5}>
+    <Center mb={2}>
+    <HStack spacing={2} color='gray.600' textAlign="center">
+        <FooterLink icon={FaLinkedinIn} link='https://linkedin.com/in/aratzman' />
+        <FooterLink icon={FiGithub} link='https://github.com/adamint' />
+        <FooterLink icon={BiEnvelope} link='mailto:adam@adamratzman.com' />
     </HStack>
-  </Center>;
+    </Center>
+
+    <Text textAlign='center'>Adam Ratzman - &copy; 2021</Text>
+  </Box>;
+}
+
+function FooterLink({ icon, link }) {
+  const colorModeColor = useColorModeColor()
+
+  return <Link href={link} color={colorModeColor}>
+    <Icon as={icon} w={25} h={25} />
+  </Link>;
 }
