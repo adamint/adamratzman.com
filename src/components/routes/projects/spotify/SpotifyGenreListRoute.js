@@ -21,7 +21,7 @@ export function SpotifyGenreListRoute({ spotifyApi, setSpotifyTokenInfo }) {
         website.</Text>
       <UnorderedList>
         {data.map(genre => <ListItem key={genre} fontSize={17} mb={0.3}>
-          <ChakraRouterLink to={`/projects/spotify/category/${genre}`}>{genre}</ChakraRouterLink>
+          <ChakraRouterLink to={`/projects/spotify/categories/${genre}`}>{genre}</ChakraRouterLink>
         </ListItem>)}
       </UnorderedList>
     </>}
