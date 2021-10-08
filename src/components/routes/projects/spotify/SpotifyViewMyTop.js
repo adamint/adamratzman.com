@@ -7,13 +7,12 @@ import { useHistory, useParams } from 'react-router-dom';
 import { SpotifyPlaylist } from './SpotifyPlaylist';
 import { useDocumentTitle } from '../../../utils/useDocumentTitle';
 
-export function SpotifyCategoryViewRoute({ spotifyApi, setSpotifyTokenInfo }) {
-  const { categoryId } = useParams();
+export function SpotifyViewMyTop({ spotifyApi, setSpotifyTokenInfo }) {
   useDocumentTitle(`Spotify Category ${categoryId}`)
   const history = useHistory();
   const { data, loading, error } = useData(async () => {
     return {
-      category: await spotifyApi.getCategory(categoryId),
+      category: (await spotifyApi.getMyTopTracks()),
       categoryPlaylists: (await spotifyApi.getCategoryPlaylists(categoryId)).playlists,
     };
   });

@@ -2,8 +2,11 @@ import { Box, Heading, Link, Text } from '@chakra-ui/react';
 import { TitledSection } from '../containers/TitledSection';
 import { TechnicalSkillsSection } from './home/TechnicalSkillsSection';
 import { DashedSpan } from '../utils/DashedSpan';
+import { useDocumentTitle } from '../utils/useDocumentTitle';
 
 export function ContactRoute() {
+  useDocumentTitle("Contact Me")
+
   return <>
     <Box mb={10}>
       <Heading fontSize='2.5rem' variant='light' mb={3}>So, you'd like to contact me. Here's how.</Heading>

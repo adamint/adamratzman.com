@@ -1,9 +1,12 @@
 import { Box, Heading, Text } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../utils/ChakraRouterLink';
 import { ProjectPage } from './ProjectPage';
+import { useDocumentTitle } from '../../utils/useDocumentTitle';
 
 
 export function ProjectsHomeRoute() {
+  useDocumentTitle("Projects")
+
   return <ProjectPage projectTitle="Projects" descriptionOverride="An incomplete list of online projects and utilities I've created.">
      <ProjectCategory title='spotify'>
       <Project title='Generate Spotify OAuth Token'

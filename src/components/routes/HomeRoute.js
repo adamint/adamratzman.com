@@ -11,8 +11,10 @@ import { JavaIcon } from '../icons/JavaIcon';
 import { CSharpIcon } from '../icons/CSharpIcon';
 import { KotlinIcon } from '../icons/KotlinIcon';
 import { TechnicalSkillsSection } from './home/TechnicalSkillsSection';
+import { useDocumentTitle } from '../utils/useDocumentTitle';
 
 export function HomeRoute() {
+  useDocumentTitle("Home")
   const colorModeColor = useColorModeColor();
 
   return <>

@@ -6,6 +6,8 @@ import { SpotifyLoginButton } from '../../../../spotify-auth/SpotifyLoginButton'
 import { SpotifyCallbackIngestionTokenProducerComponent } from '../../../../spotify-auth/SpotifyCallbackIngestionTokenProducerComponent';
 import SpotifyWebApi from 'spotify-web-api-js';
 import { SpotifyCategoryViewRoute } from './SpotifyCategoryViewRoute';
+import { SpotifyViewAllCategoriesRoute } from './SpotifyViewAllCategoriesRoute';
+import { SpotifyViewMyTop } from './SpotifyViewMyTop';
 
 export function SpotifyRoute() {
   const [codeVerifier, setCodeVerifier] = useState();
@@ -28,6 +30,12 @@ export function SpotifyRoute() {
       <Switch>
         <Route exact path='/projects/spotify/genres/list'>
           <SpotifyGenreListRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+        </Route>
+        <Route exact path='/projects/spotify/mytop'>
+          <SpotifyViewMyTop spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+        </Route>
+        <Route exact path="/projects/spotify/categories">
+          <SpotifyViewAllCategoriesRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
         <Route exact path="/projects/spotify/categories/:categoryId">
           <SpotifyCategoryViewRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />

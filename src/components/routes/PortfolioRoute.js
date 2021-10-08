@@ -1,6 +1,7 @@
 import { Box, Heading, Link, Text } from '@chakra-ui/react';
 import { TitledSection } from '../containers/TitledSection';
 import { TechnicalSkillsSection } from './home/TechnicalSkillsSection';
+import { useDocumentTitle } from '../utils/useDocumentTitle';
 
 const currentProjects = [
   {
@@ -46,6 +47,8 @@ const pastProjects = [
 
 
 export function PortfolioRoute() {
+  useDocumentTitle("Portfolio")
+
   return <>
     <Box mb={10}>
       <Heading fontSize='2.5rem' variant='light' mb={3}>Here are just some of the things I've done.</Heading>

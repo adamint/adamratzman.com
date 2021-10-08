@@ -1,8 +1,10 @@
 import { AspectRatio, Box, Center, Heading, Text } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../utils/ChakraRouterLink';
 import randomColor from 'randomcolor';
+import { useDocumentTitle } from '../utils/useDocumentTitle';
 
 export function NotFoundRoute({ goBackPathName = null, goBackPath = null }) {
+  useDocumentTitle("404 Not Found")
   const backgroundColor = randomColor({ luminosity: 'light' });
 
   return <>

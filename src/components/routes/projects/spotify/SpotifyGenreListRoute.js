@@ -3,8 +3,11 @@ import { SpotifyLogoutButton } from '../../../../spotify-auth/SpotifyLogoutButto
 import { ListItem, Text, UnorderedList, useToast } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
 import { useData } from '../../../utils/useData';
+import { useDocumentTitle } from '../../../utils/useDocumentTitle';
 
 export function SpotifyGenreListRoute({ spotifyApi, setSpotifyTokenInfo }) {
+  useDocumentTitle("Genres")
+
   const { data, loading, error } = useData(async () => (await spotifyApi.getAvailableGenreSeeds()).genres);
   const toast = useToast();
 
