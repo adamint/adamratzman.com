@@ -12,7 +12,7 @@ export function ProjectsRoute() {
       <SpotifyRoute />
     </Route>
     <Route>
-      <NotFoundRoute goBackPath={{name: "the projects page", path: "/projects"}} />
+      <NotFoundRoute goBackPathName="the projects page" goBackPath="/projects" />
     </Route>
   </Switch>
 }

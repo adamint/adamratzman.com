@@ -1,16 +1,11 @@
 import { Box, Heading, Text } from '@chakra-ui/react';
-import { ChakraRouterLink } from '../../text/ChakraRouterLink';
+import { ChakraRouterLink } from '../../utils/ChakraRouterLink';
+import { ProjectPage } from './ProjectPage';
 
 
 export function ProjectsHomeRoute() {
-  return <>
-    <Box mb={5}>
-      <Heading fontSize='2.5rem' variant='semiLight' mb={3}>Projects</Heading>
-      <Heading size='lg' variant='light'>An incomplete list of online projects and utilities I've created.</Heading>
-    </Box>
-
-
-    <ProjectCategory title='spotify'>
+  return <ProjectPage projectTitle="Projects" descriptionOverride="An incomplete list of online projects and utilities I've created.">
+     <ProjectCategory title='spotify'>
       <Project title='Generate Spotify OAuth Token'
                link='/projects/spotify/generate-token'
                description='Quickly and easily generate a Spotify OAuth Token to use in spotify-web-api-kotlin' />
@@ -48,7 +43,7 @@ export function ProjectsHomeRoute() {
                description='Easily convert between different base systems' />
     </ProjectCategory>
 
-  </>;
+  </ProjectPage>;
 }
 
 function ProjectCategory({ title, children }) {

@@ -30,7 +30,7 @@ function App() {
             <ProjectsRoute />
           </Route>
           <Route>
-            <NotFoundRoute goBackPath={{name: "the homepage", path: "/"}} />
+            <NotFoundRoute goBackPathName="the homepage" goBackPath="/" />
           </Route>
         </Switch>
       </Box>

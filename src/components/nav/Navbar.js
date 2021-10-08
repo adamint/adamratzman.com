@@ -2,7 +2,7 @@ import { Box, Flex, Heading, HStack, Icon, Link, Spacer } from '@chakra-ui/react
 import { FaGithub, FaRegPaperPlane } from 'react-icons/all';
 import { Link as RouterLink } from 'react-router-dom';
 import { ColorModeSwitcher } from '../../ColorModeSwitcher';
-import { useColorModeColor } from '../text/useColorModeColor';
+import { useColorModeColor } from '../utils/useColorModeColor';
 
 export function Navbar() {
   return <Flex mx='auto' w='90%' mt={10} mb={7}>

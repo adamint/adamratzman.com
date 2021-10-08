@@ -1,7 +1,7 @@
 import { Box, Heading, Link, Text } from '@chakra-ui/react';
 import { TitledSection } from '../containers/TitledSection';
 import { TechnicalSkillsSection } from './home/TechnicalSkillsSection';
-import { DashedSpan } from '../text/DashedSpan';
+import { DashedSpan } from '../utils/DashedSpan';
 
 export function ContactRoute() {
   return <>

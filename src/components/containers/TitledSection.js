@@ -1,5 +1,5 @@
 import { Box, Heading } from '@chakra-ui/react';
-import { useColorModeColor } from '../text/useColorModeColor';
+import { useColorModeColor } from '../utils/useColorModeColor';
 
 export function TitledSection({ title, children, ...rest }) {
   const colorModeColor = useColorModeColor();

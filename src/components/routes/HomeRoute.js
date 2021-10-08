@@ -1,11 +1,11 @@
 import { Box, Heading, Link, Text } from '@chakra-ui/react';
-import { DashedSpan } from '../text/DashedSpan';
-import { ChakraRouterLink } from '../text/ChakraRouterLink';
+import { DashedSpan } from '../utils/DashedSpan';
+import { ChakraRouterLink } from '../utils/ChakraRouterLink';
 import { TitledSection } from '../containers/TitledSection';
 import { IuTridentIcon } from '../icons/IuTridentIcon';
 import { MicrosoftIcon } from '../icons/MicrosoftIcon';
 import { Experience } from './home/Experience';
-import { useColorModeColor } from '../text/useColorModeColor';
+import { useColorModeColor } from '../utils/useColorModeColor';
 import { ReactIcon } from '../icons/ReactIcon';
 import { JavaIcon } from '../icons/JavaIcon';
 import { CSharpIcon } from '../icons/CSharpIcon';
