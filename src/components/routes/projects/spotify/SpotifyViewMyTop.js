@@ -8,13 +8,11 @@ import { SpotifyPlaylist } from './SpotifyPlaylist';
 import { useDocumentTitle } from '../../../utils/useDocumentTitle';
 
 export function SpotifyViewMyTop({ spotifyApi, setSpotifyTokenInfo }) {
-  useDocumentTitle(`Spotify Category ${categoryId}`)
+  useDocumentTitle(`Your top Spotify tracks and artists`)
   const history = useHistory();
   const { data, loading, error } = useData(async () => {
     return {
-      category: (await spotifyApi.getMyTopTracks()),
-      categoryPlaylists: (await spotifyApi.getCategoryPlaylists(categoryId)).playlists,
-    };
+       };
   });
 
   if (error) {
@@ -25,14 +23,12 @@ export function SpotifyViewMyTop({ spotifyApi, setSpotifyTokenInfo }) {
   console.log(data);
 
   return <ProjectPage
-    projectTitle={<><ChakraRouterLink
-      to='/projects/spotify/categories'>Category</ChakraRouterLink> {data?.category ? <>{data.category.name} <Image
-      display='inline' boxSize={50} src={data.category.icons[0].url} /></> : <>{categoryId}</>}</>}
+    projectTitle="Your top tracks and artists"
     topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}
     isLoading={loading}>
     {data && <>
       <Heading size='mdx' mb={2}>Top Playlists</Heading>
-      {data.categoryPlaylists.items.map(playlist => <SpotifyPlaylist playlist={playlist} mb={3} />)}
+
     </>}
   </ProjectPage>;
 }

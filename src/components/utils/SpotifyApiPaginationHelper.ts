@@ -17,11 +17,12 @@ export const getAllPages = async <Response extends Pagination>(
   const paginatedResponse = await request;
 
   let currentResponse = paginatedResponse;
-  let total = currentResponse.size
-  while (currentResponse.next) {
+  let total = currentResponse.items.length
+  while (currentResponse.next && (limit == null || limit > total)) {
     currentResponse = await spotifyApi.getGeneric(
       currentResponse.next,
     ) as Response;
+    total += currentResponse.items.length
     paginatedResponse.items = paginatedResponse.items.concat(currentResponse.items);
   }
 
