@@ -11,18 +11,20 @@ interface Pagination {
 
 export const getAllPages = async <Response extends Pagination>(
   spotifyApi: SpotifyWebApi.SpotifyWebApiJs,
-  request: Promise<Response>,
-  limit: number | null = null
+  request: Promise<any>,
+  limit: number | null = null,
+  converter: (response: any) => Response = response => response as Response,
 ): Promise<Response> => {
-  const paginatedResponse = await request;
+  const paginatedResponse = converter(await request);
 
   let currentResponse = paginatedResponse;
-  let total = currentResponse.items.length
+
+  let total = currentResponse.items.length;
   while (currentResponse.next && (limit == null || limit > total)) {
-    currentResponse = await spotifyApi.getGeneric(
+    currentResponse = converter(await spotifyApi.getGeneric(
       currentResponse.next,
-    ) as Response;
-    total += currentResponse.items.length
+    ));
+    total += currentResponse.items.length;
     paginatedResponse.items = paginatedResponse.items.concat(currentResponse.items);
   }
 

@@ -7,11 +7,12 @@ export function ProjectPage({
                               topRight = null,
                               descriptionOverride = null,
                               isLoading = false,
+  marginBelowHeadingOverride = null
                             }) {
   return <>
     <Flex mb={5}>
       <Box>
-        <Heading fontSize='2.5rem' variant='semiLight' mb={2}>{projectTitle}</Heading>
+        <Heading fontSize='2.5rem' variant='semiLight' mb={marginBelowHeadingOverride ? marginBelowHeadingOverride : 2}>{projectTitle}</Heading>
         <Heading size='md' variant='light'>{descriptionOverride ? descriptionOverride : <>Not what you're looking for?
           Go back to the <ChakraRouterLink to='/projects'>projects page →</ChakraRouterLink></>}</Heading>
       </Box>

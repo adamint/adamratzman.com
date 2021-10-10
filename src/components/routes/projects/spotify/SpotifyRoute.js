@@ -11,6 +11,8 @@ import { SpotifyViewMyTop } from './SpotifyViewMyTop';
 import { SpotifyGenerateTokenRoute } from './SpotifyGenerateTokenRoute';
 import { RequireSpotifyScopesOrElseShowLogin } from '../../../../spotify-auth/RequireSpotifyScopesOrElseShowLogin';
 import { SpotifyCallbackRoute } from './SpotifyCallbackRoute';
+import { SpotifyTrackViewRoute } from './SpotifyTrackViewRoute';
+import { SpotifyArtistViewRoute } from './SpotifyArtistViewRoute';
 
 export const spotifyClientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
 export const spotifyRedirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI;
@@ -57,6 +59,12 @@ export function SpotifyRoute() {
         </Route>
         <Route exact path='/projects/spotify/categories/:categoryId'>
           <SpotifyCategoryViewRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+        </Route>
+        <Route exact path='/projects/spotify/tracks/:trackId'>
+          <SpotifyTrackViewRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+        </Route>
+        <Route exact path='/projects/spotify/artists/:artistId'>
+          <SpotifyArtistViewRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
         <Route exact path="/projects/spotify/callback">
           <SpotifyCallbackRoute />

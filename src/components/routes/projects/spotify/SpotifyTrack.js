@@ -1,11 +1,11 @@
 import { Box, Flex, Heading, Image, Text } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
 import humanizeDuration from 'humanize-duration';
+import { reduceComponentsToString } from '../../../utils/StringUtils';
 
 export function SpotifyTrack({ track, ...rest }) {
-  const artistsComponent = track.artists.map(artist => <ChakraRouterLink
-    to={`/projects/spotify/artists/${artist.id}`} key={artist.id}>{artist.name}</ChakraRouterLink>)
-    .reduce((prev, curr) => [prev, ', ', curr]);
+  const artistsComponent = reduceComponentsToString(track.artists.map(artist => <ChakraRouterLink
+    to={`/projects/spotify/artists/${artist.id}`} key={artist.id}>{artist.name}</ChakraRouterLink>), ',');
 
   return <Flex {...rest} maxW={{ base: '100%', md: '75%' }}>
     <Image boxSize={75} mr={2.5} src={track.album.images[0].url} />

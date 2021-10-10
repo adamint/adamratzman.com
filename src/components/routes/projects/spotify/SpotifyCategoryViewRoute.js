@@ -16,7 +16,7 @@ export function SpotifyCategoryViewRoute({ spotifyApi, setSpotifyTokenInfo }) {
       category: await spotifyApi.getCategory(categoryId),
       categoryPlaylists: (await spotifyApi.getCategoryPlaylists(categoryId)).playlists,
     };
-  });
+  }, [categoryId]);
 
   if (error) {
     history.push('/projects/spotify');
