@@ -1,5 +1,6 @@
 import { Sha256 } from '@aws-crypto/sha256-browser';
 import base64url from 'base64url';
+import { useEffect } from 'react';
 
 export async function getPkceAuthUrlFull(scopes, clientId, redirectUri, codeVerifier, state) {
   /*
@@ -38,4 +39,29 @@ export function logoutOfSpotify() {
   localStorage.removeItem('spotify_pkce_callback_code');
   localStorage.removeItem('spotify_redirect_after_auth');
   localStorage.removeItem('spotify_token');
+}
+
+export async function redirectToSpotifyLogin(codeVerifier, redirectPathAfter, setCodeVerifier, scopes, clientId, redirectUri, state = null) {
+  localStorage.setItem('spotify_code_verifier', codeVerifier);
+  localStorage.setItem('spotify_redirect_after_auth', redirectPathAfter);
+  setCodeVerifier(codeVerifier);
+  window.location = await getPkceAuthUrlFull(scopes, clientId, redirectUri, codeVerifier, state);
+}
+
+export function RedirectToSpotifyLogin({
+                                         codeVerifier,
+                                         redirectPathAfter,
+                                         setCodeVerifier,
+                                         scopes,
+                                         clientId,
+                                         redirectUri,
+                                         state = null,
+                                       }) {
+  useEffect(() => {
+    (async () => {
+      await redirectToSpotifyLogin(codeVerifier, redirectPathAfter, setCodeVerifier, scopes, clientId, redirectUri, state);
+    })();
+  }, []);
+
+  return null;
 }

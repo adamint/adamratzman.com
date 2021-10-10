@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Route, Switch, useLocation } from 'react-router-dom';
+import { Redirect, Route, Switch, useLocation } from 'react-router-dom';
 import { SpotifyGenreListRoute } from './SpotifyGenreListRoute';
 import { NotFoundRoute } from '../../NotFoundRoute';
 import { SpotifyLoginButton } from '../../../../spotify-auth/SpotifyLoginButton';
@@ -8,11 +8,15 @@ import SpotifyWebApi from 'spotify-web-api-js';
 import { SpotifyCategoryViewRoute } from './SpotifyCategoryViewRoute';
 import { SpotifyViewAllCategoriesRoute } from './SpotifyViewAllCategoriesRoute';
 import { SpotifyViewMyTop } from './SpotifyViewMyTop';
+import { SpotifyGenerateTokenRoute } from './SpotifyGenerateTokenRoute';
+import { RequireSpotifyScopesOrElseShowLogin } from '../../../../spotify-auth/RequireSpotifyScopesOrElseShowLogin';
+import { SpotifyCallbackRoute } from './SpotifyCallbackRoute';
+
+export const spotifyClientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
+export const spotifyRedirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI;
 
 export function SpotifyRoute() {
   const [codeVerifier, setCodeVerifier] = useState();
-  const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
-  const redirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI;
 
   const [spotifyTokenInfo, setSpotifyTokenInfo] = useState(null);
   const [spotifyApi] = useState(new SpotifyWebApi());
@@ -22,8 +26,8 @@ export function SpotifyRoute() {
 
   return <>
     <SpotifyCallbackIngestionTokenProducerComponent setSpotifyTokenInfo={setSpotifyTokenInfo}
-                                                    clientId={clientId}
-                                                    redirectUri={redirectUri}
+                                                    clientId={spotifyClientId}
+                                                    redirectUri={spotifyRedirectUri}
                                                     codeVerifier={codeVerifier} />
 
     {spotifyTokenInfo ? <>
@@ -32,13 +36,33 @@ export function SpotifyRoute() {
           <SpotifyGenreListRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
         <Route exact path='/projects/spotify/mytop'>
-          <SpotifyViewMyTop spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+          <RequireSpotifyScopesOrElseShowLogin requiredScopes={['user-top-read']}
+                                               clientId={spotifyClientId}
+                                               redirectUri={spotifyRedirectUri}
+                                               codeVerifier={codeVerifier}
+                                               setCodeVerifier={setCodeVerifier}
+                                               redirectPathAfter='/projects/spotify/mytop'
+                                               spotifyToken={spotifyTokenInfo.token}>
+            <SpotifyViewMyTop spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+          </RequireSpotifyScopesOrElseShowLogin>
         </Route>
-        <Route exact path="/projects/spotify/categories">
+        <Route exact path='/projects/spotify/categories'>
           <SpotifyViewAllCategoriesRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
-        <Route exact path="/projects/spotify/categories/:categoryId">
+        <Route exact path='/projects/spotify/generate-token'>
+          <SpotifyGenerateTokenRoute spotifyTokenInfo={spotifyTokenInfo}
+                                     setSpotifyTokenInfo={setSpotifyTokenInfo}
+                                     codeVerifier={codeVerifier}
+                                     setCodeVerifier={setCodeVerifier} />
+        </Route>
+        <Route exact path='/projects/spotify/categories/:categoryId'>
           <SpotifyCategoryViewRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+        </Route>
+        <Route exact path="/projects/spotify/callback">
+          <SpotifyCallbackRoute />
+        </Route>
+        <Route exact path="/projects/spotify">
+          <Redirect to="/projects" />
         </Route>
         <Route>
           <NotFoundRoute goBackPathName='the projects homepage' goBackPath='/projects' />
@@ -50,8 +74,8 @@ export function SpotifyRoute() {
     </> : <>
       <SpotifyLoginButton
         scopes={['user-library-read', 'user-top-read', 'user-read-recently-played', 'user-read-playback-position']}
-        clientId={clientId}
-        redirectUri={redirectUri}
+        clientId={spotifyClientId}
+        redirectUri={spotifyRedirectUri}
         codeVerifier={codeVerifier}
         setCodeVerifier={setCodeVerifier}
         redirectPathAfter={location.pathname}
@@ -61,3 +85,4 @@ export function SpotifyRoute() {
 
   </>;
 }
+

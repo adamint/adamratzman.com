@@ -78,7 +78,6 @@ function NavbarLinks() {
   const links = [
     { title: 'Online Projects', path: '/projects' },
     { title: 'Portfolio', path: '/portfolio' },
-    { title: 'Blog', path: '/blog' },
     {
       title: 'GitHub',
       icon: <Icon as={FaGithub} w={30} h={30} />,

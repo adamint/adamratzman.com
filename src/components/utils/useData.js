@@ -5,25 +5,32 @@ export function useData(dataProducer) {
     loading: true,
     data: null,
     error: null,
+    update: updateData,
   });
+
+  async function updateData(producer) {
+    try {
+      setRequest({
+        data: await producer(),
+        error: null,
+        loading: false,
+        update: updateData
+      });
+    } catch (error) {
+      setRequest({
+        data: null,
+        error: error,
+        loading: false,
+        update: updateData
+      });
+    }
+  }
 
   useEffect(() => {
     (async () => {
-      try {
-        setRequest({
-          data: await dataProducer(),
-          error: null,
-          loading: false,
-        });
-      } catch (error) {
-        setRequest({
-          data: null,
-          error: error,
-          loading: false,
-        });
-      }
+      await updateData(dataProducer);
     })();
-  }, [])
+  }, []);
 
 
   return request;

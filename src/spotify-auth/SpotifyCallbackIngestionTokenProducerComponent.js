@@ -29,7 +29,7 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
       params.append('redirect_uri', redirectUri);
       params.append('client_id', clientId);
       params.append('code_verifier', codeVerifier);
-      console.log(params.toString());
+
       try {
         const pkceResponse = await axios.post('https://accounts.spotify.com/api/token', params);
         const tokenInfo = {

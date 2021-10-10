@@ -23,8 +23,6 @@ export function SpotifyCategoryViewRoute({ spotifyApi, setSpotifyTokenInfo }) {
     return null;
   }
 
-  console.log(data);
-
   return <ProjectPage
     projectTitle={<><ChakraRouterLink
       to='/projects/spotify/categories'>Category</ChakraRouterLink> {data?.category ? <>{data.category.name} <Image

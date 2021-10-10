@@ -19,8 +19,6 @@ export function SpotifyViewAllCategoriesRoute({ spotifyApi, setSpotifyTokenInfo 
     return null;
   }
 
-  console.log(data);
-
   return <ProjectPage
     projectTitle='Spotify Category List'
     topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}
