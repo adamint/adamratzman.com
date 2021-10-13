@@ -73,24 +73,24 @@ export function BaseConverterRoute() {
 
     <FormControl isRequired mb={3}>
       <FormLabel>From base</FormLabel>
-      <Select maxW='400px' defaultValue={null} value={baseToConvertFrom} onChange={e => {
-        if (e.target.value !== 'Select base') setBaseToConvertFrom(parseInt(e.target.value));
+      <Select maxW='400px' defaultValue="select" value={baseToConvertFrom ?? "select"} onChange={e => {
+        if (e.target.value !== 'select') setBaseToConvertFrom(parseInt(e.target.value));
         else setBaseToConvertFrom(null);
       }
       }>
-        <option value={null}>Select base</option>
+        <option value="select">Select base</option>
         {validBases.map(base => <option value={base} key={base}>{base}</option>)}
       </Select>
     </FormControl>
 
     <FormControl isRequired mb={5}>
       <FormLabel>To base</FormLabel>
-      <Select maxW='400px' defaultValue={null} value={baseToConvertTo} onChange={e => {
-        if (e.target.value !== 'Select base') setBaseToConvertTo(parseInt(e.target.value));
+      <Select maxW='400px' defaultValue={"select"} value={baseToConvertTo ?? "select"} onChange={e => {
+        if (e.target.value !== 'select') setBaseToConvertTo(parseInt(e.target.value));
         else setBaseToConvertTo(null);
       }
       }>
-        <option value={null}>Select base</option>
+        <option value="select">Select base</option>
         {validBases.map(base => <option value={base} key={base}>{base}</option>)}
       </Select>
     </FormControl>
