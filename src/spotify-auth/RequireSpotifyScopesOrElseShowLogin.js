@@ -11,7 +11,7 @@ export function RequireSpotifyScopesOrElseShowLogin({
                                                spotifyToken,
                                                children,
                                              }) {
-  const hasScopes = spotifyToken.scope.split(' ');
+  const hasScopes = spotifyToken.scope?.split(' ') ?? [];
   if (requiredScopes.some(requiredScope => !hasScopes.includes(requiredScope))) {
     const doesntHaveScopes = requiredScopes.filter(requiredScope => !hasScopes.includes(requiredScope));
     const scopesToAuthorizeWith = hasScopes.concat(doesntHaveScopes);
