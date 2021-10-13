@@ -15,6 +15,7 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
     if (!existingTokenInfo || existingTokenInfo.expiry < Date.now()) {
       if (existingTokenInfo) localStorage.removeItem('spotify_token');
     } else setSpotifyTokenInfo(existingTokenInfo);
+    // eslint-disable-next-line
   }, []);
 
   const history = useHistory();

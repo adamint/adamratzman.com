@@ -61,6 +61,7 @@ export function RedirectToSpotifyLogin({
     (async () => {
       await redirectToSpotifyLogin(codeVerifier, redirectPathAfter, setCodeVerifier, scopes, clientId, redirectUri, state);
     })();
+    // eslint-disable-next-line
   }, []);
 
   return null;

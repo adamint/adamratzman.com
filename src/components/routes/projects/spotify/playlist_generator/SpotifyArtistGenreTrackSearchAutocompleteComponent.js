@@ -25,6 +25,7 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
     (async () => {
       setAllAvailableGenreSeeds((await spotifyApi.getAvailableGenreSeeds()).genres);
     })();
+    // eslint-disable-next-line
   }, []);
 
   async function searchAndFilterResults(query) {

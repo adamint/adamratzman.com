@@ -36,6 +36,8 @@ export function SpotifyRoute() {
       case '/projects/spotify/recommend':
         scopes.push('playlist-modify-public', 'playlist-modify-private', 'playlist-read-collaborative');
         break;
+      default:
+        break;
     }
 
     return scopes;

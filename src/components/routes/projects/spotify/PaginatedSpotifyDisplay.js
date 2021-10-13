@@ -21,15 +21,13 @@ export function PaginatedSpotifyDisplay({
 
   useEffect(() => {
     update(dataProducer);
+    // eslint-disable-next-line
   }, [limitPerPage, pageOffset, timeRange]);
 
   if (error) {
     history.push('/projects/spotify');
     return null;
   }
-
-  console.log(data)
-
 
   if (loading) return null;
   return <>
