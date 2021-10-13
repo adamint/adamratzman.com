@@ -1,5 +1,5 @@
 import {
-  Box,
+  Box, Center,
   Flex,
   Heading,
   HStack,
@@ -54,7 +54,7 @@ export function Navbar() {
 function MobileNavbar() {
   const colorModeColor = useColorModeColor();
   return <>
-    <Flex mx='auto' w='90%' mt={10} mb={7}>
+    <Flex mx='auto' w='90%' mt={4}>
       <Logo />
       <Spacer />
 
@@ -82,9 +82,9 @@ function MobileNavbar() {
 }
 
 function Logo() {
-  return <RouterLink to='/'>
+  return <Center><RouterLink to='/'>
     <Heading size='sm' fontWeight={700} fontFamily="'Rubik', sans-serif">Adam Ratzman</Heading>
-  </RouterLink>;
+  </RouterLink></Center>;
 }
 
 function NavbarLinks() {
