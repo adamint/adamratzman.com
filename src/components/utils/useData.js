@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useDeepCompareEffectNoCheck } from 'use-deep-compare-effect';
 
-export function useData(dataProducer, dependents = []) {
+export function useData(dataProducer, dependents = [], dataProducerArgs = [], setLoadingOnRefresh = false) {
   const [request, setRequest] = useState({
     loading: true,
     data: null,
@@ -8,16 +9,23 @@ export function useData(dataProducer, dependents = []) {
     update: updateData,
   });
 
-  useEffect(() => {
-    (async () => {
-      await updateData(dataProducer);
-    })();
+  useDeepCompareEffectNoCheck(() => {
+    updateData(dataProducer, setLoadingOnRefresh, dataProducerArgs);
   }, dependents);
 
-  async function updateData(producer) {
+  async function updateData(producer, setLoading = false, args = []) {
+    if (setLoading) {
+      setRequest({
+        data: null,
+        error: null,
+        loading: true,
+        update: updateData,
+      });
+    }
+
     try {
       setRequest({
-        data: await producer(),
+        data: await producer(...args),
         error: null,
         loading: false,
         update: updateData,

@@ -13,6 +13,7 @@ import { RequireSpotifyScopesOrElseShowLogin } from '../../../../spotify-auth/Re
 import { SpotifyCallbackRoute } from './SpotifyCallbackRoute';
 import { SpotifyTrackViewRoute } from './SpotifyTrackViewRoute';
 import { SpotifyArtistViewRoute } from './SpotifyArtistViewRoute';
+import { SpotifyPlaylistGeneratorRoute } from './playlist_generator/SpotifyPlaylistGeneratorRoute';
 
 export const spotifyClientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
 export const spotifyRedirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI;
@@ -51,6 +52,17 @@ export function SpotifyRoute() {
         <Route exact path='/projects/spotify/categories'>
           <SpotifyViewAllCategoriesRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
+        <Route exact path='/projects/spotify/recommend'>
+          <RequireSpotifyScopesOrElseShowLogin requiredScopes={['playlist-modify-public', 'playlist-modify-private', 'playlist-read-collaborative']}
+                                               clientId={spotifyClientId}
+                                               redirectUri={spotifyRedirectUri}
+                                               codeVerifier={codeVerifier}
+                                               setCodeVerifier={setCodeVerifier}
+                                               redirectPathAfter='/projects/spotify/recommend'
+                                               spotifyToken={spotifyTokenInfo.token}>
+            <SpotifyPlaylistGeneratorRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+          </RequireSpotifyScopesOrElseShowLogin>
+        </Route>
         <Route exact path='/projects/spotify/generate-token'>
           <SpotifyGenerateTokenRoute spotifyTokenInfo={spotifyTokenInfo}
                                      setSpotifyTokenInfo={setSpotifyTokenInfo}
@@ -66,11 +78,11 @@ export function SpotifyRoute() {
         <Route exact path='/projects/spotify/artists/:artistId'>
           <SpotifyArtistViewRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
-        <Route exact path="/projects/spotify/callback">
+        <Route exact path='/projects/spotify/callback'>
           <SpotifyCallbackRoute />
         </Route>
-        <Route exact path="/projects/spotify">
-          <Redirect to="/projects" />
+        <Route exact path='/projects/spotify'>
+          <Redirect to='/projects' />
         </Route>
         <Route>
           <NotFoundRoute goBackPathName='the projects homepage' goBackPath='/projects' />

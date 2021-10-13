@@ -34,7 +34,8 @@ export function SpotifyTrackViewRoute({ spotifyApi, setSpotifyTokenInfo }) {
       <Box mx='auto' textAlign='center' mt={3} alignContent='center'>
         <Image src={data.album.images[0].url} maxW='300px' mx='auto' mb={2} />
         <iframe src={`https://open.spotify.com/embed/track/${trackId}`} width='300' height='80'
-                style={{ marginLeft: 'auto', marginRight: 'auto' }} />
+                style={{ marginLeft: 'auto', marginRight: 'auto' }}
+                title='Spotify player preview iframe' />
       </Box>
     </>}
   </ProjectPage>;

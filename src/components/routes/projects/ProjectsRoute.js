@@ -3,12 +3,16 @@ import { ProjectsHomeRoute } from './ProjectsHome';
 import { SpotifyRoute } from './spotify/SpotifyRoute';
 import { NotFoundRoute } from '../NotFoundRoute';
 import { BaseConverterRoute } from './utilities/BaseConverterRoute';
-import { ArbitraryPrecisionCalculatorRoute } from './ArbitraryPrecisionCalculatorRoute';
+import { ArbitraryPrecisionCalculatorRoute } from './utilities/ArbitraryPrecisionCalculatorRoute';
+import { CharacterCounterRoute } from './utilities/CharacterCounterRoute';
 
 export function ProjectsRoute() {
   return <Switch>
     <Route exact path="/projects">
       <ProjectsHomeRoute />
+    </Route>
+    <Route exact path="/projects/character-counter">
+      <CharacterCounterRoute />
     </Route>
     <Route exact path="/projects/calculator">
       <ArbitraryPrecisionCalculatorRoute />

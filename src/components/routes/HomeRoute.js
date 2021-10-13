@@ -14,15 +14,16 @@ import { TechnicalSkillsSection } from './home/TechnicalSkillsSection';
 import { useDocumentTitle } from '../utils/useDocumentTitle';
 
 export function HomeRoute() {
-  useDocumentTitle("Home")
+  useDocumentTitle('Home');
   const colorModeColor = useColorModeColor();
 
   return <>
     <Box mb={5}>
-      <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I'm <DashedSpan>Adam Ratzman</DashedSpan>, a graduate
+      <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I'm <DashedSpan
+        tooltip="You thought there was going to be something here, didn't you?">Adam Ratzman</DashedSpan>, a graduate
         student at Indiana University Bloomington and a JVM <JavaIcon w={35} h={35} /> <KotlinIcon w={35} h={35} />,
         React <ReactIcon />, and .NET <CSharpIcon w={35} h={35} /> developer.</Heading>
-      <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink to="/projects">interactive
+      <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink to='/projects'>interactive
         projects →</ChakraRouterLink></Text>
     </Box>
 

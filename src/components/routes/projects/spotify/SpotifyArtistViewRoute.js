@@ -25,7 +25,6 @@ export function SpotifyArtistViewRoute({ spotifyApi, setSpotifyTokenInfo }) {
   useDocumentTitle(data ? `Spotify artist ${data.artist.name}` : 'Loading Spotify artist details...');
   const colorModeColor = useColorModeColor();
 
-  console.log(data);
   const { artist, artistTopTracks, artistAlbums, relatedArtists } = data || {};
 
   if (error) {

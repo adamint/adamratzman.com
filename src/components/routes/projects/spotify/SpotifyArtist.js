@@ -1,6 +1,5 @@
 import { Box, Flex, Heading, Image, Text } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
-import humanizeDuration from 'humanize-duration';
 
 export function SpotifyArtist({ artist, ...rest }) {
   return <Flex {...rest} maxW={{ base: '100%', md: '75%' }}>
@@ -8,7 +7,8 @@ export function SpotifyArtist({ artist, ...rest }) {
     <Box flex='1' my='auto'>
       <Heading size='md'><ChakraRouterLink
         to={`/projects/spotify/artists/${artist.id}`}><b>{artist.name}</b></ChakraRouterLink></Heading>
-      <Text fontSize='md'>Popularity: {artist.popularity}%. <b>{artist.followers.total}</b> followers. Genres: {artist.genres.join(", ")}</Text>
+      <Text fontSize='md'>Popularity: {artist.popularity}%. <b>{artist.followers.total}</b> followers.
+        Genres: {artist.genres.join(', ')}</Text>
     </Box>
   </Flex>;
 }

@@ -37,15 +37,18 @@ export function ProjectsHomeRoute() {
     </ProjectCategory>
 
     <ProjectCategory title='utilities'>
-      <Project title='Arbitrary Precision Calculator'
-               link='/projects/calculator'
-               description={<span>For when you need <b>really</b> big numbers</span>} />
-
       <Project title='Base Converter'
                link='/projects/conversion/base-converter'
                description='Easily convert between different base systems' />
-    </ProjectCategory>
 
+      <Project title='Character counter'
+               link='/projects/character-counter'
+               description='Small project with a character and word counter' />
+
+      <Project title='Arbitrary Precision Calculator'
+               link='/projects/calculator'
+               description={<span>For when you need <b>really</b> big numbers</span>} />
+    </ProjectCategory>
   </ProjectPage>;
 }
 

@@ -11,7 +11,6 @@ export function SpotifyViewAllCategoriesRoute({ spotifyApi, setSpotifyTokenInfo 
   useDocumentTitle(`Spotify Categories`);
   const history = useHistory();
   const { data, loading, error } = useData(async () => {
-    console.log((await spotifyApi.getCategories({ limit: 50 })))
     return (await getAllPages(spotifyApi,  spotifyApi.getCategories({ limit: 50 }), null, response => response.categories));
   });
 

@@ -11,7 +11,8 @@ import {
   NumberInput,
   NumberInputField,
   NumberInputStepper,
-  Select, Text,
+  Select,
+  Text,
   useToast,
 } from '@chakra-ui/react';
 import { useDocumentTitle } from '../../../utils/useDocumentTitle';
@@ -32,23 +33,23 @@ export function BaseConverterRoute() {
   function handleCalculateButtonClicked() {
     if (!baseToConvertFrom || !baseToConvertTo) {
       toast({
-        status: "error",
-        title: "You need to enter bases to convert from and to"
-      })
-      return
+        status: 'error',
+        title: 'You need to enter bases to convert from and to',
+      });
+      return;
     }
     // noinspection JSCheckFunctionSignatures
-    const num = parseInt(numberToConvert, baseToConvertFrom)
+    const num = parseInt(numberToConvert, baseToConvertFrom);
     if (isNaN(num)) {
       toast({
-        status: "error",
-        title: "You need to enter bases to convert from and to"
-      })
-      return
+        status: 'error',
+        title: 'You need to enter bases to convert from and to',
+      });
+      return;
     }
     // noinspection JSCheckFunctionSignatures
-    const result = num.toString(baseToConvertTo)
-    setCalculation(result)
+    const result = num.toString(baseToConvertTo);
+    setCalculation(result);
   }
 
   function handleInverseButtonClicked() {
@@ -56,8 +57,7 @@ export function BaseConverterRoute() {
     setBaseToConvertFrom(baseToConvertTo);
   }
 
-  return <ProjectPage projectTitle='Base Conversion Tool'
-                      isLoading={false}>
+  return <ProjectPage projectTitle='Base Conversion Tool' isLoading={false}>
     <Heading size='lg' mb={5}>I want to convert...</Heading>
 
     <FormControl isRequired mb={3}>
@@ -75,7 +75,7 @@ export function BaseConverterRoute() {
       <FormLabel>From base</FormLabel>
       <Select maxW='400px' defaultValue={null} value={baseToConvertFrom} onChange={e => {
         if (e.target.value !== 'Select base') setBaseToConvertFrom(parseInt(e.target.value));
-        else setBaseToConvertFrom(null)
+        else setBaseToConvertFrom(null);
       }
       }>
         <option value={null}>Select base</option>
@@ -87,7 +87,7 @@ export function BaseConverterRoute() {
       <FormLabel>To base</FormLabel>
       <Select maxW='400px' defaultValue={null} value={baseToConvertTo} onChange={e => {
         if (e.target.value !== 'Select base') setBaseToConvertTo(parseInt(e.target.value));
-        else setBaseToConvertTo(null)
+        else setBaseToConvertTo(null);
       }
       }>
         <option value={null}>Select base</option>
