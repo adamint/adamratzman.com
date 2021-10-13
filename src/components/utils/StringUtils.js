@@ -3,5 +3,5 @@ export function trimStrimToCharacters(string, length) {
 }
 
 export function reduceComponentsToString(components, join) {
-  return components.reduce((prev, curr) => [prev, join, curr]);
+  return components.reduce((prev, curr) => [prev, join, curr], []);
 }
