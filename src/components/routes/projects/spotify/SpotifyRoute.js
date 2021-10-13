@@ -31,7 +31,7 @@ export function SpotifyRoute() {
     const scopes = [...baseScopes];
     switch (location.pathname) {
       case '/projects/spotify/mytop':
-        scopes.push('user-read-top');
+        scopes.push('user-top-read');
         break;
       case '/projects/spotify/recommend':
         scopes.push('playlist-modify-public', 'playlist-modify-private', 'playlist-read-collaborative');
