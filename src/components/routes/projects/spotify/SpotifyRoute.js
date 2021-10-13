@@ -27,6 +27,20 @@ export function SpotifyRoute() {
 
   if (spotifyTokenInfo !== null) spotifyApi.setAccessToken(spotifyTokenInfo.token.access_token);
 
+  function buildSpotifyScopes(baseScopes) {
+    const scopes = [...baseScopes];
+    switch (location.pathname) {
+      case '/projects/spotify/mytop':
+        scopes.push('user-read-top');
+        break;
+      case '/projects/spotify/recommend':
+        scopes.push('playlist-modify-public', 'playlist-modify-private', 'playlist-read-collaborative');
+        break;
+    }
+
+    return scopes;
+  }
+
   return <>
     <SpotifyCallbackIngestionTokenProducerComponent setSpotifyTokenInfo={setSpotifyTokenInfo}
                                                     clientId={spotifyClientId}
@@ -53,13 +67,14 @@ export function SpotifyRoute() {
           <SpotifyViewAllCategoriesRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
         <Route exact path='/projects/spotify/recommend'>
-          <RequireSpotifyScopesOrElseShowLogin requiredScopes={['playlist-modify-public', 'playlist-modify-private', 'playlist-read-collaborative']}
-                                               clientId={spotifyClientId}
-                                               redirectUri={spotifyRedirectUri}
-                                               codeVerifier={codeVerifier}
-                                               setCodeVerifier={setCodeVerifier}
-                                               redirectPathAfter='/projects/spotify/recommend'
-                                               spotifyToken={spotifyTokenInfo.token}>
+          <RequireSpotifyScopesOrElseShowLogin
+            requiredScopes={['playlist-modify-public', 'playlist-modify-private', 'playlist-read-collaborative']}
+            clientId={spotifyClientId}
+            redirectUri={spotifyRedirectUri}
+            codeVerifier={codeVerifier}
+            setCodeVerifier={setCodeVerifier}
+            redirectPathAfter='/projects/spotify/recommend'
+            spotifyToken={spotifyTokenInfo.token}>
             <SpotifyPlaylistGeneratorRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
           </RequireSpotifyScopesOrElseShowLogin>
         </Route>
@@ -88,12 +103,9 @@ export function SpotifyRoute() {
           <NotFoundRoute goBackPathName='the projects homepage' goBackPath='/projects' />
         </Route>
       </Switch>
-
-
-      {/*        <p>You are authorized with token: {spotifyToken}</p>*/}
     </> : <>
       <SpotifyLoginButton
-        scopes={['user-library-read', 'user-top-read', 'user-read-recently-played', 'user-read-playback-position']}
+        scopes={buildSpotifyScopes(['user-library-read', 'user-top-read', 'user-read-recently-played', 'user-read-playback-position'])}
         clientId={spotifyClientId}
         redirectUri={spotifyRedirectUri}
         codeVerifier={codeVerifier}
