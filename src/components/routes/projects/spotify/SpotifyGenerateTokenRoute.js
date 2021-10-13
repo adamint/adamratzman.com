@@ -84,7 +84,7 @@ export function SpotifyGenerateTokenRoute({ spotifyTokenInfo, setSpotifyTokenInf
     topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}>
     <Box mb={5}>
       <Heading size='lg' mb={2}>Your current API access token</Heading>
-      <Text>This API token contains the following scopes: <b>{token.scope.split(' ').join(', ')}</b>.</Text>
+      <Text>This API token contains the following scopes: <b>{token.scope ? token.scope.split(' ').join(', ') : "none"}</b>.</Text>
       <Text mb={3}>It expires <b>{moment(expiry).from(Date.now())}</b>.</Text>
       <Button colorScheme='blue' onClick={handleCopyTokenButtonClicked}>Copy access
         token {hasCopied && <>(again)</>}</Button>
