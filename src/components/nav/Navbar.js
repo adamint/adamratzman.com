@@ -1,5 +1,6 @@
 import {
-  Box, Center,
+  Box,
+  Center,
   Flex,
   Heading,
   HStack,
@@ -73,6 +74,9 @@ function MobileNavbar() {
                   </HStack>
                 </Link>
               </MenuItem>)}
+              <MenuItem>
+                Switch theme <ColorModeSwitcher />
+              </MenuItem>
             </MenuList>
           </>
         )}
