@@ -4,12 +4,13 @@ Taken from https://github.com/JMPerez/spotify-web-api-js/issues/18#issuecomment-
 
 import SpotifyWebApi from 'spotify-web-api-js';
 
-interface Pagination {
+export interface SpotifyPagination<T> {
+  total: number;
   next?: string;
-  items: object[];
+  items: T[];
 }
 
-export const getAllPages = async <Response extends Pagination>(
+export const getAllPages = async <Response extends SpotifyPagination<T>, T>(
   spotifyApi: SpotifyWebApi.SpotifyWebApiJs,
   request: Promise<any>,
   limit: number | null = null,
