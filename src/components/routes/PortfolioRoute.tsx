@@ -16,7 +16,7 @@ const currentProjects = [
     title: 'adamratzman.com',
     url: 'https://adamratzman.com',
     description: 'This site. I\'m currently working on updating it with useful interactive projects!',
-    categories: ['JavaScript', 'React', 'HTTP', 'CSS'],
+    categories: ['JavaScript', 'TypeScript', 'React', 'HTTP', 'CSS'],
   },
 ];
 

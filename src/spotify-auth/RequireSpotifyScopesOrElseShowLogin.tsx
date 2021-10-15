@@ -1,7 +1,8 @@
 import { Box, Heading, Text } from '@chakra-ui/react';
 import { SpotifyLoginButton } from './SpotifyLoginButton';
-import { SpotifyToken } from './SpotifyAuthUtils';
+import { SpotifyToken, SpotifyTokenInfo } from './SpotifyAuthUtils';
 import React from 'react';
+import { useLocalStorage } from '@rehooks/local-storage';
 
 type RequireSpotifyScopesOrElseShowLoginProps = {
   clientId: string;
@@ -25,7 +26,15 @@ export function RequireSpotifyScopesOrElseShowLogin({
                                                       spotifyToken,
                                                       children,
                                                     }: RequireSpotifyScopesOrElseShowLoginProps) {
+  const [spotifyTokenInfoStringLocalStorage] = useLocalStorage<SpotifyTokenInfo | null>(
+    'spotify_token',
+    localStorage.getItem('spotify_token') ? JSON.parse(localStorage.getItem('spotify_token') as string) : null,
+  );
+
   const hasScopes = spotifyToken.scope?.split(' ') ?? [];
+  if (spotifyTokenInfoStringLocalStorage && spotifyTokenInfoStringLocalStorage.expiry < Date.now()) {
+    return null;
+  }
   if (requiredScopes.some(requiredScope => !hasScopes.includes(requiredScope))) {
     const doesntHaveScopes = requiredScopes.filter(requiredScope => !hasScopes.includes(requiredScope));
     const scopesToAuthorizeWith = hasScopes.concat(doesntHaveScopes);

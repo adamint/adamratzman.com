@@ -17,7 +17,13 @@ export function useData<T>(dataProducer: (...args: any[]) => Promise<T>, depende
   });
 
   useDeepCompareEffectNoCheck(() => {
-    updateData(dataProducer, setLoadingOnRefresh, dataProducerArgs);
+    const timeout = setTimeout(() => {
+      updateData(dataProducer, setLoadingOnRefresh, dataProducerArgs);
+    });
+
+    return () => {
+      clearTimeout(timeout);
+    };
   }, dependents);
 
   async function updateData(producer: (...args: any[]) => Promise<T>, setLoading: boolean = false, args: any[] = []) {
