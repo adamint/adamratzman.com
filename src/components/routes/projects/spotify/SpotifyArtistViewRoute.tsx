@@ -6,7 +6,6 @@ import { useData } from '../../../utils/useData';
 import { useHistory, useParams } from 'react-router-dom';
 import { useDocumentTitle } from '../../../utils/useDocumentTitle';
 import { useColorModeColor } from '../../../utils/useColorModeColor';
-import { getAllPages } from '../../../utils/SpotifyApiPaginationHelper';
 import { reduceComponentsToString } from '../../../utils/StringUtils';
 import { SpotifyTrack } from './views/SpotifyTrack';
 import { SpotifyRouteProps } from './SpotifyRoute';
@@ -15,7 +14,7 @@ type SpotifyArtistViewRouteParams = {
   artistId: string;
 }
 
-export function SpotifyArtistViewRoute({guardedSpotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
+export function SpotifyArtistViewRoute({ guardedSpotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
   const { artistId } = useParams<SpotifyArtistViewRouteParams>();
   const history = useHistory();
   const { data, loading, error } = useData(async () => {
@@ -23,7 +22,7 @@ export function SpotifyArtistViewRoute({guardedSpotifyApi, setSpotifyTokenInfo }
     return {
       artist: await spotifyApi.getArtist(artistId),
       artistTopTracks: await spotifyApi.getArtistTopTracks(artistId, 'US'),
-      artistAlbums: await getAllPages<SpotifyApi.ArtistsAlbumsResponse, SpotifyApi.AlbumObjectSimplified>(spotifyApi, spotifyApi.getArtistAlbums(artistId)),
+      artistAlbums: await spotifyApi.getArtistAlbums(artistId, { limit: 50 }),
       relatedArtists: (await spotifyApi.getArtistRelatedArtists(artistId)).artists,
     };
   }, [artistId]);
