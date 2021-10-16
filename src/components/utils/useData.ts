@@ -8,7 +8,11 @@ type UseDataType<T> = {
   update: (producer: (args: any[]) => Promise<T>, setLoading: boolean, args: any[]) => Promise<void>
 }
 
-export function useData<T>(dataProducer: (...args: any[]) => Promise<T>, dependents: any[] = [], dataProducerArgs: any[] = [], setLoadingOnRefresh: boolean = false) {
+export function useData<T>(dataProducer: (...args: any[]) => Promise<T>,
+                           dependents: any[] = [],
+                           dataProducerArgs: any[] = [],
+                           setLoadingOnRefresh: boolean = false
+) {
   const [request, setRequest] = useState<UseDataType<T>>({
     loading: true,
     data: null,

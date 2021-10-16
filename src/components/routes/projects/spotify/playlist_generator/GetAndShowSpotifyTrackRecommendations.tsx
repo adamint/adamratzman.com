@@ -33,23 +33,24 @@ import {
   useDisclosure,
   useToast,
 } from '@chakra-ui/react';
-import { SpotifyTrack } from '../SpotifyTrack';
+import { SpotifyTrack } from '../views/SpotifyTrack';
 import ReactJson from 'react-json-view';
 import { Field, Form, Formik } from 'formik';
-import SpotifyWebApi from 'spotify-web-api-js';
 import { SelectedObjects, SelectedTrackAttribute } from './SpotifyPlaylistGeneratorRoute';
 import { UseDisclosureReturn } from '@chakra-ui/hooks/dist/types/use-disclosure';
 import { FieldProps } from 'formik/dist/Field';
+import { PkceGuardedSpotifyWebApiJs } from '../../../../../spotify-auth/SpotifyAuthUtils';
 
 interface RecommendationReturn {
   tracks: SpotifyApi.TrackObjectFull[];
-  seeds: SpotifyApi.RecommendationsSeedObject[]
+  seeds: SpotifyApi.RecommendationsSeedObject[];
 }
 
-async function getRecommendations(spotifyApi: SpotifyWebApi.SpotifyWebApiJs, options: any): Promise<RecommendationReturn | null> {
+async function getRecommendations(guardedSpotifyApi: PkceGuardedSpotifyWebApiJs, options: any): Promise<RecommendationReturn | null> {
   if (!options) return null;
+  const spotifyApi = await guardedSpotifyApi.getApi();
   const response = await spotifyApi.getRecommendations(options);
-  return { tracks: response.tracks as SpotifyApi.TrackObjectFull[], seeds: response.seeds}
+  return { tracks: response.tracks as SpotifyApi.TrackObjectFull[], seeds: response.seeds };
 }
 
 const getRecommendationsFunctionDebounced = AwesomeDebouncePromise(
@@ -58,19 +59,23 @@ const getRecommendationsFunctionDebounced = AwesomeDebouncePromise(
 );
 
 type GetAndShowSpotifyTrackRecommendationsProps = {
-  spotifyApi: SpotifyWebApi.SpotifyWebApiJs;
+  guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   selectedObjects: SelectedObjects;
   selectedTrackAttributes: SelectedTrackAttribute[];
 }
 
 export function GetAndShowSpotifyTrackRecommendations({
-                                                        spotifyApi,
+                                                        guardedSpotifyApi,
                                                         selectedObjects,
                                                         selectedTrackAttributes,
                                                       }: GetAndShowSpotifyTrackRecommendationsProps) {
   const [options, setOptions] = useState<any | null>(null);
   const [spotifyUserId, setSpotifyUserId] = useState<string | null>(null);
-  const { loading, data, error } = useData(getRecommendationsFunctionDebounced, [options], [spotifyApi, options], true);
+  const {
+    loading,
+    data,
+    error,
+  } = useData(getRecommendationsFunctionDebounced, [options], [guardedSpotifyApi, options], true);
   const createPlaylistDisclosure = useDisclosure();
 
   useDeepCompareEffect(() => {
@@ -88,7 +93,7 @@ export function GetAndShowSpotifyTrackRecommendations({
   }, [selectedObjects, selectedTrackAttributes]);
 
   async function handleCreateYourPlaylistButtonClicked() {
-    const userId = (await spotifyApi.getMe()).id;
+    const userId = (await (await guardedSpotifyApi.getApi()).getMe()).id;
     setSpotifyUserId(userId);
     createPlaylistDisclosure.onOpen();
   }
@@ -124,14 +129,15 @@ export function GetAndShowSpotifyTrackRecommendations({
           </Accordion>
         </Box>
         <Box>
-          {tracks.map(track => <SpotifyTrack track={track as SpotifyApi.TrackObjectFull} openInNewTab mb={3} key={track.id} />)}
+          {tracks.map(track => <SpotifyTrack track={track as SpotifyApi.TrackObjectFull} openInNewTab mb={3}
+                                             key={track.id} />)}
         </Box>
       </Box>
 
-      {spotifyUserId && <CreateSpotifyPlaylistModal spotifyApi={spotifyApi}
-                                  createPlaylistDisclosure={createPlaylistDisclosure}
-                                  spotifyUserId={spotifyUserId}
-                                  recommendedTracks={tracks} />}
+      {spotifyUserId && <CreateSpotifyPlaylistModal guardedSpotifyApi={guardedSpotifyApi}
+                                                    createPlaylistDisclosure={createPlaylistDisclosure}
+                                                    spotifyUserId={spotifyUserId}
+                                                    recommendedTracks={tracks} />}
     </>;
   }
 }
@@ -140,17 +146,22 @@ type PlaylistCreationOptions = {
   name: string;
   public: boolean;
   collaborative: boolean;
-  description ?: string;
+  description?: string;
 }
 
 type CreateSpotifyPlaylistModalProps = {
-  spotifyApi: SpotifyWebApi.SpotifyWebApiJs;
+  guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   createPlaylistDisclosure: UseDisclosureReturn;
   spotifyUserId: string;
   recommendedTracks: SpotifyApi.TrackObjectFull[];
 }
 
-function CreateSpotifyPlaylistModal({ spotifyApi, createPlaylistDisclosure, spotifyUserId, recommendedTracks }: CreateSpotifyPlaylistModalProps) {
+function CreateSpotifyPlaylistModal({
+                                      guardedSpotifyApi,
+                                      createPlaylistDisclosure,
+                                      spotifyUserId,
+                                      recommendedTracks,
+                                    }: CreateSpotifyPlaylistModalProps) {
   const toast = useToast();
 
   function validatePlaylistName(value: string) {
@@ -176,6 +187,7 @@ function CreateSpotifyPlaylistModal({ spotifyApi, createPlaylistDisclosure, spot
         if (values.playlistDescription.length > 0) playlistCreationOptions['description'] = values.playlistDescription;
 
         try {
+          const spotifyApi = await guardedSpotifyApi.getApi();
           const createdPlaylist = await spotifyApi.createPlaylist(spotifyUserId, playlistCreationOptions);
           await spotifyApi.addTracksToPlaylist(createdPlaylist.id, recommendedTracks.map(track => track.uri));
           const spotifyUrlForPlaylist = createdPlaylist.external_urls.spotify;
@@ -183,7 +195,7 @@ function CreateSpotifyPlaylistModal({ spotifyApi, createPlaylistDisclosure, spot
           toast({
             status: 'success',
             title: 'Successfully created playlist.',
-            description: "Redirecting you now to Spotify..."
+            description: 'Redirecting you now to Spotify...',
           });
 
           setTimeout(() => {
@@ -194,7 +206,7 @@ function CreateSpotifyPlaylistModal({ spotifyApi, createPlaylistDisclosure, spot
           toast({
             status: 'error',
             title: 'Failed to create playlist. Please reload the page and try again',
-            description: e.statusText ?? e.response
+            description: e.statusText ?? e.response,
           });
         }
         actions.setSubmitting(false);
@@ -207,7 +219,7 @@ function CreateSpotifyPlaylistModal({ spotifyApi, createPlaylistDisclosure, spot
             <ModalCloseButton />
             <ModalBody>
               <Field name='playlistName' validate={validatePlaylistName}>
-                {({ field, form } : FieldProps) => (
+                {({ field, form }: FieldProps) => (
                   <FormControl isInvalid={!!(form.errors.playlistName && form.touched.playlistName)} mb={3}>
                     <FormLabel htmlFor='playlistName'>Playlist name</FormLabel>
                     <Input {...field} id='playlistName' placeholder='playlist name' />
@@ -247,7 +259,8 @@ function CreateSpotifyPlaylistModal({ spotifyApi, createPlaylistDisclosure, spot
 
               <Field name='playlistDescription'>
                 {({ field, form }: FieldProps) => (
-                  <FormControl isInvalid={!!(form.errors.playlistDescription && form.touched.playlistDescription)} mb={3}>
+                  <FormControl isInvalid={!!(form.errors.playlistDescription && form.touched.playlistDescription)}
+                               mb={3}>
                     <FormLabel htmlFor='playlistDescription'>Playlist description</FormLabel>
                     <Textarea {...field} id='playlistDescription' placeholder='Enter playlist description (optional)' />
                     <FormErrorMessage>{form.errors.playlistDescription}</FormErrorMessage>

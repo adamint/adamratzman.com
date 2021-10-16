@@ -4,7 +4,7 @@ import { Heading, Image } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
 import { useData } from '../../../utils/useData';
 import { useHistory, useParams } from 'react-router-dom';
-import { SpotifyPlaylist } from './SpotifyPlaylist';
+import { SpotifyPlaylist } from './views/SpotifyPlaylist';
 import { useDocumentTitle } from '../../../utils/useDocumentTitle';
 import { SpotifyRouteProps } from './SpotifyRoute';
 
@@ -12,14 +12,14 @@ type SpotifyCategoryViewRouteParams = {
   categoryId: string;
 }
 
-export function SpotifyCategoryViewRoute({ spotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
+export function SpotifyCategoryViewRoute({guardedSpotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
   const { categoryId } = useParams<SpotifyCategoryViewRouteParams>();
   useDocumentTitle(`Spotify Category ${categoryId}`);
   const history = useHistory();
   const { data, loading, error } = useData(async () => {
     return {
-      category: await spotifyApi.getCategory(categoryId),
-      categoryPlaylists: (await spotifyApi.getCategoryPlaylists(categoryId)).playlists,
+      category: await (await guardedSpotifyApi.getApi()).getCategory(categoryId),
+      categoryPlaylists: (await (await guardedSpotifyApi.getApi()).getCategoryPlaylists(categoryId)).playlists,
     };
   }, [categoryId]);
 
@@ -36,7 +36,7 @@ export function SpotifyCategoryViewRoute({ spotifyApi, setSpotifyTokenInfo }: Sp
     isLoading={loading}>
     {data && <>
       <Heading size='mdx' mb={2}>Top Playlists</Heading>
-      {data.categoryPlaylists.items.map(playlist => <SpotifyPlaylist playlist={playlist} mb={3} />)}
+      {data.categoryPlaylists.items.map(playlist => <SpotifyPlaylist playlist={playlist} mb={3} key={playlist.id} />)}
     </>}
   </ProjectPage>;
 }

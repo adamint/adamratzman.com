@@ -2,29 +2,33 @@ import { ProjectPage } from '../ProjectPage';
 import { SpotifyLogoutButton } from '../../../../spotify-auth/SpotifyLogoutButton';
 import { FormControl, FormLabel, Icon, Select, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
 import { useDocumentTitle } from '../../../utils/useDocumentTitle';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { BsPeopleFill, MdPlayCircleOutline } from 'react-icons/all';
-import { SpotifyTrack } from './SpotifyTrack';
-import { PaginatedSpotifyDisplay } from './PaginatedSpotifyDisplay';
-import { SpotifyArtist } from './SpotifyArtist';
+import { SpotifyTrack } from './views/SpotifyTrack';
+import { PaginatedSpotifyDisplay } from './views/PaginatedSpotifyDisplay';
+import { SpotifyArtist } from './views/SpotifyArtist';
 import { SpotifyRouteProps } from './SpotifyRoute';
-import SpotifyWebApi from 'spotify-web-api-js';
 import { TimeRange } from '../../../utils/SpotifyTypes';
+import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-auth/SpotifyAuthUtils';
 
-export function SpotifyViewMyTop({ spotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
+export function SpotifyViewMyTopRoute({ guardedSpotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
   useDocumentTitle(`Your top Spotify tracks and artists`);
   const [timeRange, setTimeRange] = useState<TimeRange>('short_term');
-  const [limitPerPage, setLimitPerPage] = useState(10);
-  const [pageOffset, setPageOffset] = useState(0);
   const [pageLoading, setPageLoading] = useState(false);
+  const [limitPerPage, setLimitPerPage] = useState<number>(10);
+  const [pageOffset, setPageOffset] = useState<number>(0);
 
-  return <ProjectPage
-    projectTitle='Your top tracks and artists'
+  function handleTimeRangeChanged(event: React.ChangeEvent<HTMLSelectElement>) {
+    setTimeRange(event.target.value as TimeRange);
+    setPageOffset(0);
+  }
+
+  return <ProjectPage projectTitle='Your top tracks and artists'
     topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}
     isLoading={pageLoading}>
     <FormControl mb={5}>
       <FormLabel>Time Range</FormLabel>
-      <Select value={timeRange} onChange={e => setTimeRange(e.target.value as TimeRange)}>
+      <Select value={timeRange} onChange={handleTimeRangeChanged}>
         <option value='short_term'>Short Term (past month)</option>
         <option value='medium_term'>Medium Term (past approx. six months)</option>
         <option value='long_term'>Long Term (past several years, including recently played)</option>
@@ -38,22 +42,24 @@ export function SpotifyViewMyTop({ spotifyApi, setSpotifyTokenInfo }: SpotifyRou
       </TabList>
       <TabPanels>
         <TabPanel>
-          <ShowTopTracks spotifyApi={spotifyApi}
+          <ShowTopTracks guardedSpotifyApi={guardedSpotifyApi}
                          timeRange={timeRange}
+                         setPageLoading={setPageLoading}
                          limitPerPage={limitPerPage}
                          setLimitPerPage={setLimitPerPage}
                          pageOffset={pageOffset}
                          setPageOffset={setPageOffset}
-                         setPageLoading={setPageLoading} />
+          />
         </TabPanel>
         <TabPanel>
-          <ShowTopArtists spotifyApi={spotifyApi}
+          <ShowTopArtists guardedSpotifyApi={guardedSpotifyApi}
                           timeRange={timeRange}
+                          setPageLoading={setPageLoading}
                           limitPerPage={limitPerPage}
                           setLimitPerPage={setLimitPerPage}
                           pageOffset={pageOffset}
                           setPageOffset={setPageOffset}
-                          setPageLoading={setPageLoading} />
+          />
         </TabPanel>
       </TabPanels>
     </Tabs>
@@ -61,27 +67,27 @@ export function SpotifyViewMyTop({ spotifyApi, setSpotifyTokenInfo }: SpotifyRou
 }
 
 type ShowTopProps = {
-  spotifyApi: SpotifyWebApi.SpotifyWebApiJs;
+  guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   timeRange: 'short_term' | 'medium_term' | 'long_term';
+  setPageLoading: Function;
   limitPerPage: number;
   setLimitPerPage: Function;
   pageOffset: number;
   setPageOffset: Function;
-  setPageLoading: Function;
 }
 
 export function ShowTopTracks({
-                                spotifyApi,
+                                guardedSpotifyApi,
                                 timeRange,
+                                setPageLoading,
                                 limitPerPage,
                                 setLimitPerPage,
                                 pageOffset,
                                 setPageOffset,
-                                setPageLoading,
                               }: ShowTopProps) {
-  async function getTopTrackData() {
+  async function getTopTrackData(limitPerPage: number, pageOffset: number) {
     setPageLoading(true);
-    const data = await spotifyApi.getMyTopTracks({
+    const data = await (await guardedSpotifyApi.getApi()).getMyTopTracks({
       limit: limitPerPage,
       offset: pageOffset * limitPerPage,
       time_range: timeRange,
@@ -94,26 +100,27 @@ export function ShowTopTracks({
 
   return <PaginatedSpotifyDisplay dataProducer={getTopTrackData}
                                   childDataMapper={childDataMapper}
+                                  timeRange={timeRange}
                                   limitPerPage={limitPerPage}
                                   setLimitPerPage={setLimitPerPage}
                                   pageOffset={pageOffset}
                                   setPageOffset={setPageOffset}
-                                  timeRange={timeRange}
   />;
 }
 
 export function ShowTopArtists({
-                                 spotifyApi,
+                                 guardedSpotifyApi,
                                  timeRange,
+                                 setPageLoading,
                                  limitPerPage,
                                  setLimitPerPage,
                                  pageOffset,
                                  setPageOffset,
-                                 setPageLoading,
                                }: ShowTopProps) {
-  async function getTopArtistData() {
+
+  async function getTopArtistData(limitPerPage: number, pageOffset: number) {
     setPageLoading(true);
-    const data = await spotifyApi.getMyTopArtists({
+    const data = await (await guardedSpotifyApi.getApi()).getMyTopArtists({
       limit: limitPerPage,
       offset: pageOffset * limitPerPage,
       time_range: timeRange,
@@ -127,10 +134,10 @@ export function ShowTopArtists({
 
   return <PaginatedSpotifyDisplay dataProducer={getTopArtistData}
                                   childDataMapper={childDataMapper}
+                                  timeRange={timeRange}
                                   limitPerPage={limitPerPage}
                                   setLimitPerPage={setLimitPerPage}
                                   pageOffset={pageOffset}
                                   setPageOffset={setPageOffset}
-                                  timeRange={timeRange}
   />;
 }

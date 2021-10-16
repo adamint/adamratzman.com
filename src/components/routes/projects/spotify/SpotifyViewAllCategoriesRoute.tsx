@@ -8,10 +8,11 @@ import { Box, Heading, Image, SimpleGrid } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
 import { SpotifyRouteProps } from './SpotifyRoute';
 
-export function SpotifyViewAllCategoriesRoute({ spotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
+export function SpotifyViewAllCategoriesRoute({guardedSpotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
   useDocumentTitle(`Spotify Categories`);
   const history = useHistory();
   const { data, loading, error } = useData(async () => {
+    const spotifyApi = await guardedSpotifyApi.getApi();
     return await getAllPages<SpotifyApi.PagingObject<SpotifyApi.CategoryObject>, SpotifyApi.CategoryObject>(spotifyApi, spotifyApi.getCategories({ limit: 50 }), null, response => response.categories);
   });
 
@@ -26,7 +27,7 @@ export function SpotifyViewAllCategoriesRoute({ spotifyApi, setSpotifyTokenInfo 
     isLoading={loading}>
     {data && <>
       <SimpleGrid columns={3} spacing={10}>
-        {data.items.map(category => <Box key={category.id} boxShadow='0 5px 15px rgb(0 0 0 / 8%)' minW='25%' p={10}>
+        {data.items.map((category, idx) => <Box key={`${category.id}-${idx}`} boxShadow='0 5px 15px rgb(0 0 0 / 8%)' minW='25%' p={10}>
           <Heading size='mdx' mb={3}><ChakraRouterLink
             to={`/projects/spotify/categories/${category.id}`}>{category.name}</ChakraRouterLink></Heading>
           <ChakraRouterLink to={`/projects/spotify/categories/${category.id}`}>

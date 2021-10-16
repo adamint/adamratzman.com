@@ -4,23 +4,28 @@ import { SpotifyGenreListRoute } from './SpotifyGenreListRoute';
 import { NotFoundRoute } from '../../NotFoundRoute';
 import { SpotifyLoginButton } from '../../../../spotify-auth/SpotifyLoginButton';
 import { SpotifyCallbackIngestionTokenProducerComponent } from '../../../../spotify-auth/SpotifyCallbackIngestionTokenProducerComponent';
-import SpotifyWebApi from 'spotify-web-api-js';
 import { SpotifyCategoryViewRoute } from './SpotifyCategoryViewRoute';
 import { SpotifyViewAllCategoriesRoute } from './SpotifyViewAllCategoriesRoute';
-import { SpotifyViewMyTop } from './SpotifyViewMyTop';
+import { SpotifyViewMyTopRoute } from './SpotifyViewMyTopRoute';
 import { SpotifyGenerateTokenRoute } from './SpotifyGenerateTokenRoute';
 import { RequireSpotifyScopesOrElseShowLogin } from '../../../../spotify-auth/RequireSpotifyScopesOrElseShowLogin';
 import { SpotifyCallbackRoute } from './SpotifyCallbackRoute';
 import { SpotifyTrackViewRoute } from './SpotifyTrackViewRoute';
 import { SpotifyArtistViewRoute } from './SpotifyArtistViewRoute';
 import { SpotifyPlaylistGeneratorRoute } from './playlist_generator/SpotifyPlaylistGeneratorRoute';
-import { SpotifyTokenInfo } from '../../../../spotify-auth/SpotifyAuthUtils';
+import {
+  PkceGuardedSpotifyWebApiJs,
+  SpotifyTokenInfo,
+  useSpotifyWebApiGuardValidPkceToken,
+} from '../../../../spotify-auth/SpotifyAuthUtils';
+import { SpotifyPlaylistViewRoute } from './SpotifyPlaylistViewRoute';
+import { SpotifyUserViewRoute } from './SpotifyUserViewRoute';
 
 export const spotifyClientId: string = process.env.REACT_APP_SPOTIFY_CLIENT_ID ?? '';
 export const spotifyRedirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI ?? '';
 
 export type SpotifyRouteProps = {
-  spotifyApi: SpotifyWebApi.SpotifyWebApiJs;
+  guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   setSpotifyTokenInfo: Function
 }
 
@@ -28,10 +33,8 @@ export function SpotifyRoute() {
   const [codeVerifier, setCodeVerifier] = useState<string>();
 
   const [spotifyTokenInfo, setSpotifyTokenInfo] = useState<SpotifyTokenInfo | null>(null);
-  const [spotifyApi] = useState(new SpotifyWebApi());
+  const guardedSpotifyApi = useSpotifyWebApiGuardValidPkceToken(spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo);
   const location = useLocation();
-
-  if (spotifyTokenInfo !== null) spotifyApi.setAccessToken(spotifyTokenInfo.token.access_token);
 
   function buildSpotifyScopes(baseScopes: string[]) {
     const scopes = [...baseScopes];
@@ -58,7 +61,7 @@ export function SpotifyRoute() {
     {spotifyTokenInfo ? <>
       <Switch>
         <Route exact path='/projects/spotify/genres/list'>
-          <SpotifyGenreListRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+          <SpotifyGenreListRoute guardedSpotifyApi={guardedSpotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
         <Route exact path='/projects/spotify/mytop'>
           <RequireSpotifyScopesOrElseShowLogin requiredScopes={['user-top-read']}
@@ -68,11 +71,12 @@ export function SpotifyRoute() {
                                                setCodeVerifier={setCodeVerifier}
                                                redirectPathAfter='/projects/spotify/mytop'
                                                spotifyToken={spotifyTokenInfo.token}>
-            <SpotifyViewMyTop spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+            <SpotifyViewMyTopRoute guardedSpotifyApi={guardedSpotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
           </RequireSpotifyScopesOrElseShowLogin>
         </Route>
         <Route exact path='/projects/spotify/categories'>
-          <SpotifyViewAllCategoriesRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+          <SpotifyViewAllCategoriesRoute guardedSpotifyApi={guardedSpotifyApi}
+                                         setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
         <Route exact path='/projects/spotify/recommend'>
           <RequireSpotifyScopesOrElseShowLogin
@@ -83,7 +87,8 @@ export function SpotifyRoute() {
             setCodeVerifier={setCodeVerifier}
             redirectPathAfter='/projects/spotify/recommend'
             spotifyToken={spotifyTokenInfo.token}>
-            <SpotifyPlaylistGeneratorRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+            <SpotifyPlaylistGeneratorRoute guardedSpotifyApi={guardedSpotifyApi}
+                                           setSpotifyTokenInfo={setSpotifyTokenInfo} />
           </RequireSpotifyScopesOrElseShowLogin>
         </Route>
         <Route exact path='/projects/spotify/generate-token'>
@@ -93,13 +98,19 @@ export function SpotifyRoute() {
                                      setCodeVerifier={setCodeVerifier} />
         </Route>
         <Route exact path='/projects/spotify/categories/:categoryId'>
-          <SpotifyCategoryViewRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+          <SpotifyCategoryViewRoute guardedSpotifyApi={guardedSpotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
         <Route exact path='/projects/spotify/tracks/:trackId'>
-          <SpotifyTrackViewRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+          <SpotifyTrackViewRoute guardedSpotifyApi={guardedSpotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
         <Route exact path='/projects/spotify/artists/:artistId'>
-          <SpotifyArtistViewRoute spotifyApi={spotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+          <SpotifyArtistViewRoute guardedSpotifyApi={guardedSpotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+        </Route>
+        <Route exact path='/projects/spotify/playlists/:playlistId'>
+          <SpotifyPlaylistViewRoute guardedSpotifyApi={guardedSpotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
+        </Route>
+        <Route exact path='/projects/spotify/users/:userId'>
+          <SpotifyUserViewRoute guardedSpotifyApi={guardedSpotifyApi} setSpotifyTokenInfo={setSpotifyTokenInfo} />
         </Route>
         <Route exact path='/projects/spotify/callback'>
           <SpotifyCallbackRoute />

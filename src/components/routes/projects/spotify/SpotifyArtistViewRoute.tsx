@@ -8,17 +8,18 @@ import { useDocumentTitle } from '../../../utils/useDocumentTitle';
 import { useColorModeColor } from '../../../utils/useColorModeColor';
 import { getAllPages } from '../../../utils/SpotifyApiPaginationHelper';
 import { reduceComponentsToString } from '../../../utils/StringUtils';
-import { SpotifyTrack } from './SpotifyTrack';
+import { SpotifyTrack } from './views/SpotifyTrack';
 import { SpotifyRouteProps } from './SpotifyRoute';
 
 type SpotifyArtistViewRouteParams = {
   artistId: string;
 }
 
-export function SpotifyArtistViewRoute({ spotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
+export function SpotifyArtistViewRoute({guardedSpotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
   const { artistId } = useParams<SpotifyArtistViewRouteParams>();
   const history = useHistory();
   const { data, loading, error } = useData(async () => {
+    const spotifyApi = await guardedSpotifyApi.getApi();
     return {
       artist: await spotifyApi.getArtist(artistId),
       artistTopTracks: await spotifyApi.getArtistTopTracks(artistId, 'US'),

@@ -13,10 +13,10 @@ type SpotifyTrackViewRouteParams = {
   trackId: string;
 }
 
-export function SpotifyTrackViewRoute({ spotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
+export function SpotifyTrackViewRoute({guardedSpotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
   const { trackId } = useParams<SpotifyTrackViewRouteParams>();
   const history = useHistory();
-  const { data, loading, error } = useData(async () => await spotifyApi.getTrack(trackId), [trackId]);
+  const { data, loading, error } = useData(async () => await (await guardedSpotifyApi.getApi()).getTrack(trackId), [trackId]);
   const colorModeColor = useColorModeColor();
 
   useDocumentTitle(data ? `Spotify track ${data.name} by ${data.artists.map(artist => artist.name).join(', ')}` : 'Loading Spotify track details...');

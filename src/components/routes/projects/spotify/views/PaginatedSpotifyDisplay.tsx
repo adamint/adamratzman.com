@@ -1,41 +1,41 @@
-import { useData } from '../../../utils/useData';
+import { useData } from '../../../../utils/useData';
 import { useHistory } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Box, Flex } from '@chakra-ui/react';
 import Pagination from '@choc-ui/paginator';
-import { TimeRange } from '../../../utils/SpotifyTypes';
-import { SpotifyPagination } from '../../../utils/SpotifyApiPaginationHelper';
+import { TimeRange } from '../../../../utils/SpotifyTypes';
+import { SpotifyPagination } from '../../../../utils/SpotifyApiPaginationHelper';
 
 type PaginatedSpotifyDisplayProps<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType> = {
-  dataProducer: (args: any[]) => Promise<DataType>;
+  dataProducer: (...args: any[]) => Promise<DataType>;
   childDataMapper: (child: ChildType) => ChildMappedType;
+  timeRange?: TimeRange | null;
   limitPerPage: number;
   setLimitPerPage: Function;
   pageOffset: number;
   setPageOffset: Function;
-  timeRange: TimeRange;
 }
 
 export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType>({
                                                                                                                      dataProducer,
                                                                                                                      childDataMapper,
+                                                                                                                     timeRange = null,
                                                                                                                      limitPerPage,
                                                                                                                      setLimitPerPage,
                                                                                                                      pageOffset,
                                                                                                                      setPageOffset,
-                                                                                                                     timeRange,
                                                                                                                    }: PaginatedSpotifyDisplayProps<DataType, ChildType, ChildMappedType>) {
   const { data, loading, error, update } = useData<DataType>(async () => {
-    return await dataProducer([]);
-  });
+    return await dataProducer(limitPerPage, pageOffset);
+  }, [timeRange], [limitPerPage, pageOffset], false);
 
   const history = useHistory();
 
   useEffect(() => {
     // noinspection JSIgnoredPromiseFromCall
-    update(dataProducer, true, []);
+    update(dataProducer, true, [limitPerPage, pageOffset]);
     // eslint-disable-next-line
-  }, [limitPerPage, pageOffset, timeRange]);
+  }, [limitPerPage, pageOffset]);
 
   if (error) {
     history.push('/projects/spotify');
@@ -43,6 +43,12 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
   }
 
   if (loading || !data) return null;
+
+  function handleOnShowSizeChange(currentPage: number | undefined, size: number | undefined) {
+    setLimitPerPage(size ?? 10);
+    setPageOffset(0)
+  }
+
   return <>
     <Box mb={5}>
       {data.items.map(item => childDataMapper(item))}
@@ -56,13 +62,13 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
       >
         <Pagination
           colorScheme='blue'
-          currentPage={pageOffset}
+          current={pageOffset + 1}
           total={data.total}
           showSizeChanger
           paginationProps={{ display: 'flex' }}
           pageSize={limitPerPage}
           pageSizeOptions={[10, 20, 25, 50]}
-          onShowSizeChange={(currentPage, size) => setLimitPerPage(size)}
+          onShowSizeChange={handleOnShowSizeChange}
           onChange={newPage => setPageOffset(newPage ? newPage - 1 : 0)}
         />
       </Flex>

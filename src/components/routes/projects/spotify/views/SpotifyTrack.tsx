@@ -1,7 +1,7 @@
 import { Box, Flex, FlexProps, Heading, Image, Text } from '@chakra-ui/react';
-import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
+import { ChakraRouterLink } from '../../../../utils/ChakraRouterLink';
 import humanizeDuration from 'humanize-duration';
-import { reduceComponentsToString } from '../../../utils/StringUtils';
+import { reduceComponentsToString } from '../../../../utils/StringUtils';
 import React from 'react';
 
 type SpotifyTrackProps = {

@@ -34,7 +34,7 @@ export type SelectedTrackAttribute = {
   type: SelectedTrackAttributeType
 }
 
-export function SpotifyPlaylistGeneratorRoute({ spotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
+export function SpotifyPlaylistGeneratorRoute({ guardedSpotifyApi, setSpotifyTokenInfo }: SpotifyRouteProps) {
   useDocumentTitle(`Spotify Playlist Generator`);
   const [selectedObjects, setSelectedObjects] = useState<SelectedObjects>({});
   const [selectedTrackAttributes, setSelectedTrackAttributes] = useState<SelectedTrackAttribute[]>([]);
@@ -45,7 +45,7 @@ export function SpotifyPlaylistGeneratorRoute({ spotifyApi, setSpotifyTokenInfo 
   >
     <Heading size='mdx' mb={1} variant='semiLight'>Songs, artists, and <ChakraRouterLink
       to='/projects/spotify/genres/list' target='_blank'>genres</ChakraRouterLink> (at least one is required)</Heading>
-    <SpotifyArtistGenreTrackSearchAutocompleteComponent spotifyApi={spotifyApi}
+    <SpotifyArtistGenreTrackSearchAutocompleteComponent guardedSpotifyApi={guardedSpotifyApi}
                                                         selectedObjects={selectedObjects}
                                                         setSelectedObjects={setSelectedObjects} />
     <Text mt={1} mb={5} fontSize='md'><b>At least one</b> genre, track, or artist, and <b>not more than 5</b>, are
@@ -55,7 +55,7 @@ export function SpotifyPlaylistGeneratorRoute({ spotifyApi, setSpotifyTokenInfo 
     <SpotifyTrackAttributeSelectorComponent selectedTrackAttributes={selectedTrackAttributes}
                                             setSelectedTrackAttributes={setSelectedTrackAttributes} />
 
-    <SpotifyGenerateAndShowPlaylistRecommendationsComponent spotifyApi={spotifyApi}
+    <SpotifyGenerateAndShowPlaylistRecommendationsComponent guardedSpotifyApi={guardedSpotifyApi}
                                                             selectedObjects={selectedObjects}
                                                             selectedTrackAttributes={selectedTrackAttributes} />
   </ProjectPage>;

@@ -1,5 +1,5 @@
 import { Box, Flex, FlexProps, Heading, Image, Text } from '@chakra-ui/react';
-import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
+import { ChakraRouterLink } from '../../../../utils/ChakraRouterLink';
 import React from 'react';
 
 type SpotifyArtistProps = {

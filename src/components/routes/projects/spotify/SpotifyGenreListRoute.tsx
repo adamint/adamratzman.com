@@ -4,17 +4,21 @@ import { ListItem, Text, UnorderedList, useToast } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
 import { useData } from '../../../utils/useData';
 import { useDocumentTitle } from '../../../utils/useDocumentTitle';
-import SpotifyWebApi from 'spotify-web-api-js';
+import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-auth/SpotifyAuthUtils';
 
 type SpotifyGenreListRouteProps = {
-  spotifyApi: SpotifyWebApi.SpotifyWebApiJs;
+  guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   setSpotifyTokenInfo: Function;
 }
 
-export function SpotifyGenreListRoute({ spotifyApi, setSpotifyTokenInfo } : SpotifyGenreListRouteProps) {
-  useDocumentTitle("Genres")
+export function SpotifyGenreListRoute({ guardedSpotifyApi, setSpotifyTokenInfo }: SpotifyGenreListRouteProps) {
+  useDocumentTitle('Genres');
 
-  const { data, loading, error } = useData<string[]>(async () => (await spotifyApi.getAvailableGenreSeeds()).genres);
+  const {
+    data,
+    loading,
+    error,
+  } = useData<string[]>(async () => (await (await guardedSpotifyApi.getApi()).getAvailableGenreSeeds()).genres);
   const toast = useToast();
 
   if (error) toast({

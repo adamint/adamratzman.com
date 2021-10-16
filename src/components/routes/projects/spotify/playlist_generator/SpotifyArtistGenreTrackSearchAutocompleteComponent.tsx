@@ -11,17 +11,17 @@ import {
   AutoCompleteList,
   AutoCompleteTag,
 } from '@choc-ui/chakra-autocomplete';
-import SpotifyWebApi from 'spotify-web-api-js';
 import { AutocompleteOption, AutocompleteType, SelectedObjects } from './SpotifyPlaylistGeneratorRoute';
+import { PkceGuardedSpotifyWebApiJs } from '../../../../../spotify-auth/SpotifyAuthUtils';
 
 type SpotifyArtistGenreTrackSearchAutocompleteComponentProps = {
-  spotifyApi: SpotifyWebApi.SpotifyWebApiJs;
+  guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   selectedObjects: SelectedObjects;
   setSelectedObjects: Function;
 }
 
 export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
-                                                                     spotifyApi,
+                                                                     guardedSpotifyApi,
                                                                      selectedObjects,
                                                                      setSelectedObjects,
                                                                    }: SpotifyArtistGenreTrackSearchAutocompleteComponentProps) {
@@ -31,7 +31,7 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
 
   useEffect(() => {
     (async () => {
-      setAllAvailableGenreSeeds((await spotifyApi.getAvailableGenreSeeds()).genres);
+      setAllAvailableGenreSeeds((await (await guardedSpotifyApi.getApi()).getAvailableGenreSeeds()).genres);
     })();
     // eslint-disable-next-line
   }, []);
@@ -41,6 +41,8 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
       setAllAutocompleteOptions([]);
       return;
     }
+
+    const spotifyApi = await guardedSpotifyApi.getApi();
 
     const genrePromise = async () => {
       return allAvailableGenreSeeds.filter(genreSeed => genreSeed.includes(query.toLowerCase())).map((genreSeed: string) => {
