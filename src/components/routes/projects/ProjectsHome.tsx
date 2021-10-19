@@ -40,7 +40,7 @@ export function ProjectsHomeRoute() {
 
     <ProjectCategory title='global'>
       <Project title='FSI 2021 viewer'
-               link='/projects/global/fsi/2021'
+               link='/projects/global/fsi'
                description='A concise viewer of the Fragile States Index by year and fragility type' />
     </ProjectCategory>
 
