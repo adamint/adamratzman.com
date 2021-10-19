@@ -5,6 +5,7 @@ import { NotFoundRoute } from '../NotFoundRoute';
 import { BaseConverterRoute } from './utilities/BaseConverterRoute';
 import { ArbitraryPrecisionCalculatorRoute } from './utilities/ArbitraryPrecisionCalculatorRoute';
 import { CharacterCounterRoute } from './utilities/CharacterCounterRoute';
+import { FSIViewer } from './global/fsi/FSIViewer';
 
 export function ProjectsRoute() {
   return <Switch>
@@ -22,6 +23,9 @@ export function ProjectsRoute() {
     </Route>
     <Route path='/projects/spotify'>
       <SpotifyRoute />
+    </Route>
+    <Route path='/projects/global/fsi'>
+      <FSIViewer />
     </Route>
     <Route>
       <NotFoundRoute goBackPathName='the projects page' goBackPath='/projects' />

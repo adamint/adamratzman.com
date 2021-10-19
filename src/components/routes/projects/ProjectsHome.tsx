@@ -6,10 +6,11 @@ import React from 'react';
 
 
 export function ProjectsHomeRoute() {
-  useDocumentTitle("Projects")
+  useDocumentTitle('Projects');
 
-  return <ProjectPage projectTitle="Projects" descriptionOverride="An incomplete list of online projects and utilities I've created.">
-     <ProjectCategory title='spotify'>
+  return <ProjectPage projectTitle='Projects'
+                      descriptionOverride="An incomplete list of online projects and utilities I've created.">
+    <ProjectCategory title='spotify'>
       <Project title='Generate Spotify OAuth Token'
                link='/projects/spotify/generate-token'
                description='Quickly and easily generate a Spotify OAuth Token to use in spotify-web-api-kotlin' />
@@ -37,6 +38,12 @@ export function ProjectsHomeRoute() {
                description='A comprehensive review site for calculus theorems, derivatives, and integrals, with options to test yourself with randomly-generated relevant problems' />
     </ProjectCategory>
 
+    <ProjectCategory title='global'>
+      <Project title='FSI 2021 viewer'
+               link='/projects/global/fsi/2021'
+               description='A concise viewer of the Fragile States Index by year and fragility type' />
+    </ProjectCategory>
+
     <ProjectCategory title='utilities'>
       <Project title='Base Converter'
                link='/projects/conversion/base-converter'
@@ -58,7 +65,7 @@ type ProjectCategoryProps = {
   children: React.ReactNode
 }
 
-function ProjectCategory({ title, children } : ProjectCategoryProps) {
+function ProjectCategory({ title, children }: ProjectCategoryProps) {
   return <Box mb={5}>
     <Heading size='xl' variant='semiLight' mb={2}>{title}</Heading>
     {children}
@@ -71,7 +78,7 @@ type ProjectProps = {
   description: string | React.ReactElement
 }
 
-function Project({ title, link, description } : ProjectProps) {
+function Project({ title, link, description }: ProjectProps) {
   return <Box mb={2}>
     <Text fontSize='xl'><ChakraRouterLink to={link}>{title}</ChakraRouterLink></Text>
     <Text fontSize='md'>{description}</Text>
