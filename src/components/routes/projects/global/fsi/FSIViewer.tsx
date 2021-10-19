@@ -76,6 +76,6 @@ export function FSIViewer() {
       </FormControl>
     </Box>
 
-    <FSIMap data={csvData} />
+      <FSIMap data={csvData} />
   </ProjectPage>;
 }

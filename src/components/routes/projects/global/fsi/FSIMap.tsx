@@ -2,7 +2,21 @@ import React, { useMemo, useState } from 'react';
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import ReactTooltip from 'react-tooltip';
 import { scaleQuantile } from 'd3-scale';
-import { Box, FormControl, FormLabel, Select, SimpleGrid, Text } from '@chakra-ui/react';
+import {
+  Box,
+  FormControl,
+  FormLabel,
+  Select,
+  SimpleGrid,
+  Table,
+  TableCaption,
+  Tbody,
+  Td,
+  Text,
+  Th,
+  Thead,
+  Tr,
+} from '@chakra-ui/react';
 
 const geoUrl =
   'https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json';
@@ -44,6 +58,8 @@ export type FSIData = {
   S1: number;
   S2: number;
   X1: number;
+
+  [key: string]: number | string;
 }
 
 type FSIMapProps = {
@@ -115,7 +131,7 @@ export function FSIMap({ data }: FSIMapProps) {
         </ZoomableGroup>
       </ComposableMap>
     </Box>
-    <Box mx='auto' mb={20}>
+    <Box mx='auto' mb={5}>
       <SimpleGrid columns={12} spacing={0} mx='auto'>
         <Text>{Math.min(...sortedData.map(data => data[selectedCategory] as number))}</Text>
         {colorScale.quantiles().map((quantile, index) => {
@@ -126,5 +142,33 @@ export function FSIMap({ data }: FSIMapProps) {
         <Text ml={5}>{Math.max(...sortedData.map(data => data[selectedCategory] as number))}</Text>
       </SimpleGrid>
     </Box>
+    <Box mb={15}>
+      <FSITable sortedData={sortedData} category={selectedCategory} />
+    </Box>
   </>;
+}
+
+type FSITableProps = {
+  category: string;
+  sortedData: FSIData[];
+}
+
+function FSITable({ category, sortedData }: FSITableProps) {
+  return <Table variant='simple'>
+    <TableCaption>FSI {fsiNames[category]} Rankings</TableCaption>
+    <Thead>
+      <Tr>
+        <Th>Ranking</Th>
+        <Th>Country</Th>
+        <Th>Fragility ranking</Th>
+      </Tr>
+    </Thead>
+    <Tbody>
+      {sortedData.map((data, index) => <Tr key={data.Country}>
+        <Td>{index + 1}</Td>
+        <Td>{data.Country}</Td>
+        <Td>{data[category].toString()}</Td>
+      </Tr>)}
+    </Tbody>
+  </Table>;
 }
