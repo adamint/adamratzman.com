@@ -5,6 +5,11 @@ import App from './App';
 import { theme } from './theme';
 import { BrowserRouter } from 'react-router-dom';
 
+import ReactGA from 'react-ga';
+
+ReactGA.initialize('UA-210593602-1');
+ReactGA.pageview(window.location.pathname + window.location.search);
+
 ReactDOM.render(
   <StrictMode>
     <ColorModeScript />
