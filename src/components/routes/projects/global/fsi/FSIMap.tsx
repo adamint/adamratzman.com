@@ -63,16 +63,16 @@ export function FSIMap({ data }: FSIMapProps) {
     .range(
       // @ts-ignore
       [
-        '#ffedea',
-        '#ffcec5',
-        '#ffad9f',
-        '#ff8a75',
-        '#ff5533',
-        '#e2492d',
-        '#be3d26',
-        '#9a311f',
-        '#782618',
-      ]);
+        '#ff0000',
+        '#fe4400',
+        '#f96600',
+        '#ef8100',
+        '#e39a00',
+        '#d2b100',
+        '#bdc700',
+        '#a3da00',
+        '#80ed00',
+      ].reverse());
   const [tooltipContent, setTooltipContent] = useState<string>('');
   return <>
     <ReactTooltip>{tooltipContent}</ReactTooltip>
