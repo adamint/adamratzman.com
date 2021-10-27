@@ -1,56 +1,54 @@
 import { ProjectPage } from '../../../../components/projects/ProjectPage';
-import { SpotifyLogoutButton } from '../../../../spotify-auth/SpotifyLogoutButton';
 import { Heading, Image } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../../components/utils/ChakraRouterLink';
-import { useData } from '../../../../components/utils/useData';
 import { SpotifyPlaylist } from '../../../../components/projects/spotify/views/SpotifyPlaylist';
-import { useRouter } from 'next/router';
-import { useSpotifyStore } from '../../../../components/utils/useSpotifyStore';
-import { useSpotifyWebApiGuardValidPkceToken } from '../../../../spotify-auth/SpotifyAuthUtils';
-import { useEffect } from 'react';
-import { SpotifyRouteComponent } from '../../../../components/projects/spotify/SpotifyRouteComponent';
-import Head from "next/head"
+import Head from 'next/head';
+import { GetServerSideProps } from 'next';
+import { getClientCredentialsSpotifyApiNode } from '../../../../spotify-utils/SpotifyNodeApiUtils';
 
 type SpotifyCategoryViewRouteParams = {
   categoryId: string;
 }
 
-function SpotifyCategoryViewRoute() {
-  const router = useRouter();
-  const [spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo] = useSpotifyStore(state => [state.spotifyClientId, state.spotifyTokenInfo, state.setSpotifyTokenInfo]);
-  const guardedSpotifyApi = useSpotifyWebApiGuardValidPkceToken(spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo);
-  const { categoryId } = router.query as SpotifyCategoryViewRouteParams;
-  const { data, loading, error } = useData(async () => {
-    return {
-      category: await (await guardedSpotifyApi.getApi()).getCategory(categoryId),
-      categoryPlaylists: (await (await guardedSpotifyApi.getApi()).getCategoryPlaylists(categoryId)).playlists,
-    };
-  }, [categoryId]);
+type SpotifyCategoryViewRouteProps = {
+  category: SpotifyApi.SingleCategoryResponse;
+  categoryPlaylists: SpotifyApi.PagingObject<SpotifyApi.PlaylistObjectSimplified>
+}
 
-  useEffect(() => {
-    if (error) router.replace('/projects/spotify');
-  }, [error]);
-
-  if (error) {
-    return null;
-  }
-
-  return <SpotifyRouteComponent>
+function SpotifyCategoryViewRoute({ category, categoryPlaylists }: SpotifyCategoryViewRouteProps) {
+  return <>
     <Head>
-      <title>Spotify Category {categoryId}</title>
+      <title>Spotify Category {category.name}</title>
     </Head>
     <ProjectPage
       projectTitle={<><ChakraRouterLink
-        href='/projects/spotify/categories'>Category</ChakraRouterLink> {data?.category ? <>{data.category.name} <Image
-        display='inline' boxSize={50} src={data.category.icons[0].url} /></> : <>{categoryId}</>}</>}
-      topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}
-      isLoading={loading}>
-      {data && <>
-        <Heading size='mdx' mb={2}>Top Playlists</Heading>
-        {data.categoryPlaylists.items.map(playlist => <SpotifyPlaylist playlist={playlist} mb={3} key={playlist.id} />)}
-      </>}
+        href='/projects/spotify/categories'>Category</ChakraRouterLink> {category.name} <Image
+        display='inline' boxSize={50} src={category.icons[0].url} /></>}>
+      <Heading size='mdx' mb={2}>Top Playlists</Heading>
+      {categoryPlaylists.items.map(playlist => <SpotifyPlaylist playlist={playlist} mb={3} key={playlist.id} />)}
     </ProjectPage>
-  </SpotifyRouteComponent>;
+  </>;
 }
 
-export default SpotifyCategoryViewRoute
+export default SpotifyCategoryViewRoute;
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const { categoryId } = ctx.query as SpotifyCategoryViewRouteParams;
+  const spotifyApi = await getClientCredentialsSpotifyApiNode();
+
+  try {
+    return {
+      props: {
+        category: (await spotifyApi.getCategory(categoryId)).body,
+        categoryPlaylists: (await spotifyApi.getPlaylistsForCategory(categoryId)).body.playlists,
+      },
+    };
+  } catch (e) {
+    return {
+      redirect: {
+        permanent: false,
+        destination: '/projects/spotify/categories',
+      },
+    };
+  }
+};

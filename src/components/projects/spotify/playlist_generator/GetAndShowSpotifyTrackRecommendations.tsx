@@ -39,7 +39,7 @@ import { Field, Form, Formik } from 'formik';
 import { SelectedObjects, SelectedTrackAttribute } from '../../../../pages/projects/spotify/recommend';
 import { UseDisclosureReturn } from '@chakra-ui/hooks/dist/types/use-disclosure';
 import { FieldProps } from 'formik/dist/Field';
-import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-auth/SpotifyAuthUtils';
+import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-utils/auth/SpotifyAuthUtils';
 
 interface RecommendationReturn {
   tracks: SpotifyApi.TrackObjectFull[];

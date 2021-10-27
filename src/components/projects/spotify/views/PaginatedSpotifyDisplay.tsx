@@ -1,6 +1,6 @@
 import { useData } from '../../../utils/useData';
 import { useEffect } from 'react';
-import { Box, Flex } from '@chakra-ui/react';
+import { Box, filter, Flex } from '@chakra-ui/react';
 import Pagination from '@choc-ui/paginator';
 import { TimeRange } from '../../../utils/SpotifyTypes';
 import { SpotifyPagination } from '../../../utils/SpotifyApiPaginationHelper';
@@ -14,6 +14,7 @@ type PaginatedSpotifyDisplayProps<DataType extends SpotifyPagination<ChildType>,
   setLimitPerPage: Function;
   pageOffset: number;
   setPageOffset: Function;
+  filterNotNull: (child: any) => boolean
 }
 
 export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType>({
@@ -24,6 +25,7 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
                                                                                                                      setLimitPerPage,
                                                                                                                      pageOffset,
                                                                                                                      setPageOffset,
+                                                                                                                     filterNotNull,
                                                                                                                    }: PaginatedSpotifyDisplayProps<DataType, ChildType, ChildMappedType>) {
   const { data, loading, error, update } = useData<DataType>(async () => {
     return await dataProducer(limitPerPage, pageOffset);
@@ -49,9 +51,11 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
     setPageOffset(0);
   }
 
+  const items = data.items.filter(filterNotNull)
+
   return <>
     <Box mb={5}>
-      {data.items.map(item => childDataMapper(item))}
+      {items.map(item => childDataMapper(item))}
     </Box>
     <Box>
       <Flex

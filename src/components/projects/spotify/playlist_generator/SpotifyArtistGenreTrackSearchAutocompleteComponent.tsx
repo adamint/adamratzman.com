@@ -12,7 +12,7 @@ import {
   AutoCompleteTag,
 } from '@choc-ui/chakra-autocomplete';
 import { AutocompleteOption, AutocompleteType, SelectedObjects } from '../../../../pages/projects/spotify/recommend';
-import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-auth/SpotifyAuthUtils';
+import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-utils/auth/SpotifyAuthUtils';
 
 type SpotifyArtistGenreTrackSearchAutocompleteComponentProps = {
   guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;

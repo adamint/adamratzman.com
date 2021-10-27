@@ -1,5 +1,5 @@
 import { ProjectPage } from '../../../components/projects/ProjectPage';
-import { SpotifyLogoutButton } from '../../../spotify-auth/SpotifyLogoutButton';
+import { SpotifyLogoutButton } from '../../../spotify-utils/auth/SpotifyLogoutButton';
 import { FormControl, FormLabel, Icon, Select, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
 import React, { useState } from 'react';
 import { BsPeopleFill, MdPlayCircleOutline } from 'react-icons/all';
@@ -10,10 +10,10 @@ import { TimeRange } from '../../../components/utils/SpotifyTypes';
 import {
   PkceGuardedSpotifyWebApiJs,
   useSpotifyWebApiGuardValidPkceToken,
-} from '../../../spotify-auth/SpotifyAuthUtils';
+} from '../../../spotify-utils/auth/SpotifyAuthUtils';
 import { useSpotifyStore } from '../../../components/utils/useSpotifyStore';
 import { SpotifyRouteComponent } from '../../../components/projects/spotify/SpotifyRouteComponent';
-import { RequireSpotifyScopesOrElseShowLogin } from '../../../spotify-auth/RequireSpotifyScopesOrElseShowLogin';
+import { RequireSpotifyScopesOrElseShowLogin } from '../../../spotify-utils/auth/RequireSpotifyScopesOrElseShowLogin';
 import shallow from 'zustand/shallow';
 import Head from 'next/head';
 
@@ -124,6 +124,7 @@ function ShowTopTracks({
 
   return <PaginatedSpotifyDisplay dataProducer={getTopTrackData}
                                   childDataMapper={childDataMapper}
+                                  filterNotNull={child => !!child}
                                   timeRange={timeRange}
                                   limitPerPage={limitPerPage}
                                   setLimitPerPage={setLimitPerPage}
@@ -158,6 +159,7 @@ function ShowTopArtists({
 
   return <PaginatedSpotifyDisplay dataProducer={getTopArtistData}
                                   childDataMapper={childDataMapper}
+                                  filterNotNull={child => !!child}
                                   timeRange={timeRange}
                                   limitPerPage={limitPerPage}
                                   setLimitPerPage={setLimitPerPage}

@@ -1,5 +1,5 @@
 import create from 'zustand';
-import { SpotifyTokenInfo } from '../../spotify-auth/SpotifyAuthUtils';
+import { SpotifyTokenInfo } from '../../spotify-utils/auth/SpotifyAuthUtils';
 
 interface SpotifyStore {
   codeVerifier?: string;

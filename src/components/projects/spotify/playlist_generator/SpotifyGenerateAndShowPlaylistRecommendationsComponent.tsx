@@ -2,7 +2,7 @@ import { Alert, AlertDescription, AlertIcon } from '@chakra-ui/react';
 import { GetAndShowSpotifyTrackRecommendations } from './GetAndShowSpotifyTrackRecommendations';
 import React from 'react';
 import { SelectedObjects, SelectedTrackAttribute } from '../../../../pages/projects/spotify/recommend';
-import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-auth/SpotifyAuthUtils';
+import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-utils/auth/SpotifyAuthUtils';
 
 type SpotifyGenerateAndShowPlaylistRecommendationsComponentProps = {
   guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;

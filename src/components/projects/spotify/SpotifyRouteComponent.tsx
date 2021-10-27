@@ -1,5 +1,5 @@
-import { SpotifyCallbackIngestionTokenProducerComponent } from '../../../spotify-auth/SpotifyCallbackIngestionTokenProducerComponent';
-import { SpotifyLoginButton } from '../../../spotify-auth/SpotifyLoginButton';
+import { SpotifyCallbackIngestionTokenProducerComponent } from '../../../spotify-utils/auth/SpotifyCallbackIngestionTokenProducerComponent';
+import { SpotifyLoginButton } from '../../../spotify-utils/auth/SpotifyLoginButton';
 import { useSpotifyStore } from '../../utils/useSpotifyStore';
 import shallow from 'zustand/shallow';
 import { useRouter } from 'next/router';

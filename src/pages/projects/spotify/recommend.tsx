@@ -1,5 +1,5 @@
 import { ProjectPage } from '../../../components/projects/ProjectPage';
-import { SpotifyLogoutButton } from '../../../spotify-auth/SpotifyLogoutButton';
+import { SpotifyLogoutButton } from '../../../spotify-utils/auth/SpotifyLogoutButton';
 import React, { useState } from 'react';
 import { SpotifyArtistGenreTrackSearchAutocompleteComponent } from '../../../components/projects/spotify/playlist_generator/SpotifyArtistGenreTrackSearchAutocompleteComponent';
 import { Heading, Text } from '@chakra-ui/react';
@@ -8,9 +8,9 @@ import { SpotifyTrackAttributeSelectorComponent } from '../../../components/proj
 import { TrackAttribute } from '../../../components/projects/spotify/TrackAttribute';
 import { SpotifyGenerateAndShowPlaylistRecommendationsComponent } from '../../../components/projects/spotify/playlist_generator/SpotifyGenerateAndShowPlaylistRecommendationsComponent';
 import { useSpotifyStore } from '../../../components/utils/useSpotifyStore';
-import { useSpotifyWebApiGuardValidPkceToken } from '../../../spotify-auth/SpotifyAuthUtils';
+import { useSpotifyWebApiGuardValidPkceToken } from '../../../spotify-utils/auth/SpotifyAuthUtils';
 import { SpotifyRouteComponent } from '../../../components/projects/spotify/SpotifyRouteComponent';
-import { RequireSpotifyScopesOrElseShowLogin } from '../../../spotify-auth/RequireSpotifyScopesOrElseShowLogin';
+import { RequireSpotifyScopesOrElseShowLogin } from '../../../spotify-utils/auth/RequireSpotifyScopesOrElseShowLogin';
 import shallow from 'zustand/shallow';
 import Head from 'next/head';
 

@@ -1,5 +1,5 @@
 import { ProjectPage } from '../../../components/projects/ProjectPage';
-import { SpotifyLogoutButton } from '../../../spotify-auth/SpotifyLogoutButton';
+import { SpotifyLogoutButton } from '../../../spotify-utils/auth/SpotifyLogoutButton';
 import {
   Box,
   Button,
@@ -15,7 +15,7 @@ import {
 import moment from 'moment';
 import { useState } from 'react';
 import useDeepCompareEffect from 'use-deep-compare-effect';
-import { getPkceAuthUrlFull, redirectToSpotifyLogin } from '../../../spotify-auth/SpotifyAuthUtils';
+import { getPkceAuthUrlFull, redirectToSpotifyLogin } from '../../../spotify-utils/auth/SpotifyAuthUtils';
 import { SpotifyRouteComponent } from '../../../components/projects/spotify/SpotifyRouteComponent';
 import { useSpotifyStore } from '../../../components/utils/useSpotifyStore';
 import shallow from 'zustand/shallow';

@@ -1,47 +1,39 @@
 import { ProjectPage } from '../../../../components/projects/ProjectPage';
-import { SpotifyLogoutButton } from '../../../../spotify-auth/SpotifyLogoutButton';
-import { ListItem, Text, UnorderedList, useToast } from '@chakra-ui/react';
+import { ListItem, Text, UnorderedList } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../../components/utils/ChakraRouterLink';
-import { useData } from '../../../../components/utils/useData';
-import { useSpotifyWebApiGuardValidPkceToken } from '../../../../spotify-auth/SpotifyAuthUtils';
-import { useSpotifyStore } from '../../../../components/utils/useSpotifyStore';
-import { SpotifyRouteComponent } from '../../../../components/projects/spotify/SpotifyRouteComponent';
 import Head from 'next/head';
+import { GetServerSideProps } from 'next';
+import { getClientCredentialsSpotifyApiNode } from '../../../../spotify-utils/SpotifyNodeApiUtils';
 
-function SpotifyGenreListRoute() {
-  const [spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo] = useSpotifyStore(state => [state.spotifyClientId, state.spotifyTokenInfo, state.setSpotifyTokenInfo]);
-  const guardedSpotifyApi = useSpotifyWebApiGuardValidPkceToken(spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo);
+type SpotifyGenreListRouteProps = {
+  genres: string[]
+}
 
-  const {
-    data,
-    loading,
-    error,
-  } = useData<string[]>(async () => (await (await guardedSpotifyApi.getApi()).getAvailableGenreSeeds()).genres);
-  const toast = useToast();
-
-  if (error) toast({
-    status: 'error',
-    title: 'Couldn\'t get genres!',
-  });
-
-  return <SpotifyRouteComponent>
+function SpotifyGenreListRoute({ genres }: SpotifyGenreListRouteProps) {
+  return <>
     <Head>
       <title>Spotify Genres</title>
     </Head>
-    <ProjectPage projectTitle='Spotify Genres'
-                 topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}
-                 isLoading={loading}>
-      {data && <>
-        <Text mb={3}>Note: some genre links may not work. Spotify only maintains a subset of genre pages on its
-          website.</Text>
-        <UnorderedList>
-          {data.map(genre => <ListItem key={genre} fontSize={17} mb={0.3}>
-            <ChakraRouterLink href={`/projects/spotify/categories/${genre}`}>{genre}</ChakraRouterLink>
-          </ListItem>)}
-        </UnorderedList>
-      </>}
+    <ProjectPage projectTitle='Spotify Genres'>
+      <Text mb={3}>Note: some genre links may not work. Spotify only maintains a subset of genre pages on its
+        website.</Text>
+      <UnorderedList>
+        {genres.map(genre => <ListItem key={genre} fontSize={17} mb={0.3}>
+          <ChakraRouterLink href={`/projects/spotify/categories/${genre}`}>{genre}</ChakraRouterLink>
+        </ListItem>)}
+      </UnorderedList>
     </ProjectPage>
-  </SpotifyRouteComponent>;
+  </>;
 }
 
 export default SpotifyGenreListRoute;
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const spotifyApi = await getClientCredentialsSpotifyApiNode();
+
+  return {
+    props: {
+      genres: (await spotifyApi.getAvailableGenreSeeds()).body.genres,
+    },
+  };
+};
