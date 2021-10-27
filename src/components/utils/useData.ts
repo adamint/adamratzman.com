@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { useDeepCompareEffectNoCheck } from 'use-deep-compare-effect';
 
-type UseDataType<T> = {
+type UseDataType<T, R = any> = {
   loading: boolean;
   data: T | null;
-  error: any | null;
+  error: R | null;
   update: (producer: (args: any[]) => Promise<T>, setLoading: boolean, args: any[]) => Promise<void>
 }
 
-export function useData<T>(dataProducer: (...args: any[]) => Promise<T>,
-                           dependents: any[] = [],
-                           dataProducerArgs: any[] = [],
-                           setLoadingOnRefresh: boolean = false
+export function useData<T, R = any>(dataProducer: (...args: any[]) => Promise<T>,
+                                    dependents: any[] = [],
+                                    dataProducerArgs: any[] = [],
+                                    setLoadingOnRefresh: boolean = false,
 ) {
-  const [request, setRequest] = useState<UseDataType<T>>({
+  const [request, setRequest] = useState<UseDataType<T, R>>({
     loading: true,
     data: null,
     error: null,
@@ -51,7 +51,7 @@ export function useData<T>(dataProducer: (...args: any[]) => Promise<T>,
       console.log(error);
       setRequest({
         data: null,
-        error: error,
+        error: error ? error as R : null,
         loading: false,
         update: updateData,
       });

@@ -25,6 +25,8 @@
     "humanize-duration": "^3.27.0",
     "js-cookie": "^3.0.1",
     "moment": "^2.29.1",
+    "next": "^12.0.0",
+    "next-transpile-modules": "^8.0.0",
     "papaparse": "^5.3.1",
     "randomcolor": "^0.6.2",
     "randomstring": "^1.2.1",
@@ -33,20 +35,18 @@
     "react-ga": "^3.3.0",
     "react-icons": "^4.2.0",
     "react-json-view": "^1.21.3",
-    "react-router-dom": "^5.3.0",
-    "react-scripts": "4.0.3",
     "react-simple-maps": "^2.3.0",
     "react-tooltip": "^4.2.21",
     "spotify-web-api-js": "^1.5.1",
     "typescript": "^4.4.3",
     "use-deep-compare-effect": "^1.8.0",
-    "web-vitals": "^0.2.2"
+    "web-vitals": "^0.2.2",
+    "zustand": "^3.6.1"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -70,7 +70,6 @@
     "@types/randomcolor": "^0.5.6",
     "@types/randomstring": "^1.1.7",
     "@types/react-dom": "^17.0.9",
-    "@types/react-router-dom": "^5.3.1",
     "@types/react-simple-maps": "^1.0.6"
   }
 }

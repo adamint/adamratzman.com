@@ -1,4 +1,3 @@
-import { useHistory, useLocation } from 'react-router-dom';
 import axios, { AxiosResponse } from 'axios';
 import { useEffect } from 'react';
 import {
@@ -9,6 +8,7 @@ import {
   SpotifyTokenInfo,
 } from './SpotifyAuthUtils';
 import { deleteFromStorage, useLocalStorage, writeStorage } from '@rehooks/local-storage';
+import { useRouter } from 'next/router';
 
 type SpotifyCallbackIngestionTokenProducerComponentProps = {
   clientId: string;
@@ -23,17 +23,22 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
                                                                  codeVerifier,
                                                                  setSpotifyTokenInfo,
                                                                }: SpotifyCallbackIngestionTokenProducerComponentProps) {
-  const [spotifyTokenInfoStringLocalStorage] = useLocalStorage<SpotifyTokenInfo | null>(
+  const [spotifyTokenInfoStringLocalStorage, setSpotifyTokenInfoStringLocalStorage] = useLocalStorage<SpotifyTokenInfo | null>(
     'spotify_token',
-    localStorage.getItem('spotify_token') ? JSON.parse(localStorage.getItem('spotify_token') as string) : null,
+    null,
   );
 
-  const [spotifyPkceCallbackCodeLocalStorage] = useLocalStorage<string | null>(
+  const [spotifyPkceCallbackCodeLocalStorage, setSpotifyPkceCallbackCodeLocalStorage] = useLocalStorage<string | null>(
     'spotify_pkce_callback_code',
-    localStorage.getItem('spotify_pkce_callback_code'),
+    null,
   );
-  const history = useHistory();
-  const location = useLocation();
+
+  useEffect(() => {
+    setSpotifyTokenInfoStringLocalStorage(localStorage.getItem('spotify_token') ? JSON.parse(localStorage.getItem('spotify_token') as string) : null);
+    setSpotifyPkceCallbackCodeLocalStorage(localStorage.getItem('spotify_pkce_callback_code'));
+  }, []);
+
+  const router = useRouter();
 
   useEffect(() => {
     (async () => {
@@ -53,7 +58,7 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
           try {
             const pkceResponse = await axios.post<URLSearchParams, AxiosResponse<SpotifyToken>>('https://accounts.spotify.com/api/token', params);
             const pathToRedirectTo = saveTokenAndGetRedirectPath(pkceResponse.data, setSpotifyTokenInfo);
-            history.replace(pathToRedirectTo ?? '/projects/spotify');
+            await router.replace(pathToRedirectTo ?? '/projects/spotify');
           } catch (e) {
             logoutOfSpotify();
           }
@@ -70,7 +75,7 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
       }
     )();
     // eslint-disable-next-line
-  }, [spotifyPkceCallbackCodeLocalStorage, codeVerifier, location.pathname]);
+  }, [spotifyPkceCallbackCodeLocalStorage, codeVerifier, router.pathname]);
 
 
   return null;

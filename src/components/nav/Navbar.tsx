@@ -17,11 +17,12 @@ import {
   useColorMode,
 } from '@chakra-ui/react';
 import { FaGithub, FaRegPaperPlane } from 'react-icons/all';
-import { Link as RouterLink, useHistory } from 'react-router-dom';
 import { ColorModeSwitcher } from '../../ColorModeSwitcher';
 import { useColorModeColor } from '../utils/useColorModeColor';
 import { HamburgerIcon } from '@chakra-ui/icons';
 import React, { ReactElement } from 'react';
+import { useRouter } from 'next/router';
+import NextLink from 'next/link';
 
 interface NavbarLink {
   title: string;
@@ -63,12 +64,12 @@ export function Navbar() {
 
 function MobileNavbar() {
   const colorModeColor = useColorModeColor();
-  const history = useHistory();
+  const router = useRouter();
   const { toggleColorMode } = useColorMode();
 
-  function handleMenuItemClicked(link: NavbarLink) {
+  async function handleMenuItemClicked(link: NavbarLink) {
     if (link.notOnSite) window.open(link.path);
-    else history.push(link.path);
+    else await router.push(link.path);
   }
 
   return <>
@@ -81,8 +82,8 @@ function MobileNavbar() {
           <>
             <MenuButton isActive={isOpen} as={IconButton} icon={<HamburgerIcon />} />
             <MenuList p={2}>
-              {navbarLinks.map(link => <MenuItem key={link.path} onClick={() => handleMenuItemClicked(link)}>
-                <Link as={link.notOnSite ? Link : RouterLink} to={link.path} href={link.path} color={colorModeColor}>
+              {navbarLinks.map(link => <MenuItem key={link.path} onClick={async () => handleMenuItemClicked(link)}>
+                <Link as={link.notOnSite ? Link : NextLink} href={link.path} color={colorModeColor}>
                   <HStack>
                     {link.icon && <Box mx={1}>{link.icon}</Box>}
                     <Text>
@@ -103,25 +104,33 @@ function MobileNavbar() {
 }
 
 function Logo() {
-  return <Center><RouterLink to='/'>
-    <Heading size='sm' fontWeight={700} fontFamily="'Rubik', sans-serif">Adam Ratzman</Heading>
-  </RouterLink></Center>;
+  const colorModeColor = useColorModeColor();
+
+  return <Center>
+    <NextLink href='/'>
+      <Link color={colorModeColor}>
+        <Heading size='sm' fontWeight={700} fontFamily="'Rubik', sans-serif">Adam Ratzman</Heading>
+      </Link>
+    </NextLink>
+  </Center>;
 }
 
 function NavbarLinks() {
   const colorModeColor = useColorModeColor();
 
+  const innerLinkContent = (link: NavbarLink) => <HStack>
+    {link.icon && <Box mx={1}>{link.icon}</Box>}
+    <Heading size='sm' fontWeight={500} fontFamily="'Rubik', sans-serif">
+      {link.title}
+    </Heading>
+  </HStack>;
+
   return <HStack>
     <HStack spacing={8}>
       {navbarLinks.map(link => <Box key={link.path}>
-        <Link as={link.notOnSite ? Link : RouterLink} to={link.path} href={link.path} color={colorModeColor}>
-          <HStack>
-            {link.icon && <Box mx={1}>{link.icon}</Box>}
-            <Heading size='sm' fontWeight={500} fontFamily="'Rubik', sans-serif">
-              {link.title}
-            </Heading>
-          </HStack>
-        </Link>
+        {link.notOnSite ?
+          <Link href={link.path} color={colorModeColor}>{innerLinkContent(link)}</Link> :
+          <NextLink href={link.path}><Link color={colorModeColor}>{innerLinkContent(link)}</Link></NextLink>}
       </Box>)}
     </HStack>
     <ColorModeSwitcher aria-label='Color mode switcher button' />
