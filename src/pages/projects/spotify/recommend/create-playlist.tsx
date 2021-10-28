@@ -46,7 +46,10 @@ function CreatePlaylistFromRecommendationsRoute() {
   }, [trackIds, spotifyTokenInfo], [trackIds]);
 
   useEffect(() => {
-    if (error) router.push('/projects/spotify');
+    if (error) {
+      console.log(error)
+      router.push('/projects/spotify');
+    }
 
     // eslint-disable-next-line
   }, [error]);

@@ -40,6 +40,7 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
   }, [limitPerPage, pageOffset]);
 
   if (error) {
+    console.log(error)
     router.push('/projects/spotify');
     return null;
   }
