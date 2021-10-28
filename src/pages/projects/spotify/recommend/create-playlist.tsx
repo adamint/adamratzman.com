@@ -26,14 +26,12 @@ function CreatePlaylistFromRecommendationsRoute() {
   const guardedSpotifyApi = useSpotifyWebApiGuardValidPkceToken(spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo);
   const router = useRouter();
   const query = router.query as CreatePlaylistFromRecommendationsRouteParams;
-  const trackIds = query.trackIds ?? [];
+  const trackIds: any = query.trackIds ?? [];
   const noShowBeforeRender = useNoShowBeforeRender();
   const createPlaylistDisclosure = useDisclosure({ defaultIsOpen: false });
 
   const { data, loading, error } = useData(async (trackIdsToSearch: string[] | string) => {
     const ids = typeof trackIdsToSearch === 'string' ? trackIdsToSearch.split(',') : trackIdsToSearch;
-    console.log('track ids: ');
-    console.log(trackIdsToSearch);
     if (!spotifyTokenInfo) return null;
     const spotifyApi = await guardedSpotifyApi.getApi();
 
@@ -59,6 +57,7 @@ function CreatePlaylistFromRecommendationsRoute() {
 
   if (error) return null;
 
+  // @ts-ignore
   return <>
     <Head>
       <title>Create your Spotify Playlist</title>
@@ -74,7 +73,8 @@ function CreatePlaylistFromRecommendationsRoute() {
         spotifyToken={spotifyTokenInfo.token}
         title='Create a playlist from your recommended tracks'>
         <ProjectPage
-          projectTitle={<>Create your Spotify playlist - <b>{trackIds.length}</b> tracks</>}
+          projectTitle={<>Create your Spotify playlist
+            - <b>{(typeof trackIds === 'string' ? trackIds.split(',') : trackIds).length}</b> tracks</>}
           topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}
           descriptionOverride={<>Go back to the <ChakraRouterLink href='/projects/spotify/recommend'>recommendation page
             →</ChakraRouterLink></>}>
