@@ -31,6 +31,8 @@ function CreatePlaylistFromRecommendationsRoute() {
   const createPlaylistDisclosure = useDisclosure({ defaultIsOpen: false });
 
   const { data, loading, error } = useData(async (trackIdsToSearch: string[]) => {
+    console.log("track ids: ")
+    console.log(trackIdsToSearch)
     if (!spotifyTokenInfo) return null;
     const spotifyApi = await guardedSpotifyApi.getApi();
 
