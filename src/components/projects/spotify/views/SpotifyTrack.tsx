@@ -10,8 +10,6 @@ type SpotifyTrackProps = {
 }
 
 export function SpotifyTrack({ track, openInNewTab = false, ...rest }: SpotifyTrackProps & FlexProps) {
-  console.log(track);
-
   const artistsComponent = reduceComponentsToString(track.artists.map(artist => <ChakraRouterLink
     href={`/projects/spotify/artists/${artist.id}`} key={artist.id}
     target={openInNewTab ? '_blank' : '_self'}>{artist.name}</ChakraRouterLink>), ', ');

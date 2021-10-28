@@ -64,8 +64,6 @@ export function CreateSpotifyPlaylistModal({
         };
         if (values.playlistDescription.length > 0) playlistCreationOptions['description'] = values.playlistDescription;
 
-        console.log(playlistCreationOptions)
-
         try {
           const spotifyApi = await guardedSpotifyApi.getApi();
           const createdPlaylist = await spotifyApi.createPlaylist(spotifyUserId, playlistCreationOptions);
