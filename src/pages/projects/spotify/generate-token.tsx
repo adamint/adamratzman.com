@@ -56,7 +56,7 @@ function SpotifyGenerateTokenRoute() {
   useDeepCompareEffect(() => {
     (async () => {
       if (codeVerifier) {
-        setGeneratedOAuthRedirectUrl(await getPkceAuthUrlFull(scopesToGenerate, spotifyClientId, spotifyRedirectUri, codeVerifier, null));
+        setGeneratedOAuthRedirectUrl(await getPkceAuthUrlFull(scopesToGenerate, spotifyClientId, spotifyRedirectUri(), codeVerifier, null));
       }
     })();
   }, [codeVerifier, scopesToGenerate]);
@@ -71,7 +71,7 @@ function SpotifyGenerateTokenRoute() {
 
   async function handleRedirectToSpotifyLinkClicked() {
     if (codeVerifier) {
-      await redirectToSpotifyLogin(codeVerifier, '/projects/spotify/generate-token', setCodeVerifier, scopesToGenerate, spotifyClientId, spotifyRedirectUri);
+      await redirectToSpotifyLogin(codeVerifier, '/projects/spotify/generate-token', setCodeVerifier, scopesToGenerate, spotifyClientId, spotifyRedirectUri());
     }
   }
 
