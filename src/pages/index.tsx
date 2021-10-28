@@ -21,7 +21,7 @@ function HomeRoute() {
   return <>
     <Head>
       <title>Home</title>
-    </Head>;
+    </Head>
     <Box mb={5}>
       <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpan
         tooltip="You thought there was going to be something here, didn&apos;t you?">Adam Ratzman</DashedSpan>, a graduate
