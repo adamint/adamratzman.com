@@ -12,16 +12,15 @@ import {
   AutoCompleteTag,
 } from '@choc-ui/chakra-autocomplete';
 import { AutocompleteOption, AutocompleteType, SelectedObjects } from '../../../../pages/projects/spotify/recommend';
-import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-utils/auth/SpotifyAuthUtils';
+import axios, { AxiosResponse } from 'axios';
+import { SearchTracksOrArtistsBody } from '../../../../pages/api/spotify/searchTracks';
 
 type SpotifyArtistGenreTrackSearchAutocompleteComponentProps = {
-  guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   selectedObjects: SelectedObjects;
   setSelectedObjects: Function;
 }
 
 export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
-                                                                     guardedSpotifyApi,
                                                                      selectedObjects,
                                                                      setSelectedObjects,
                                                                    }: SpotifyArtistGenreTrackSearchAutocompleteComponentProps) {
@@ -31,7 +30,7 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
 
   useEffect(() => {
     (async () => {
-      setAllAvailableGenreSeeds((await (await guardedSpotifyApi.getApi()).getAvailableGenreSeeds()).genres);
+      setAllAvailableGenreSeeds((await axios.get<string[]>('/api/spotify/getAvailableGenreSeeds')).data);
     })();
     // eslint-disable-next-line
   }, []);
@@ -42,9 +41,9 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
       return;
     }
 
-    const spotifyApi = await guardedSpotifyApi.getApi();
-
     const genrePromise = async () => {
+      console.log(allAvailableGenreSeeds)
+
       return allAvailableGenreSeeds.filter(genreSeed => genreSeed.includes(query.toLowerCase())).map((genreSeed: string) => {
         return {
           uri: `spotify:genre:${genreSeed}`,
@@ -56,8 +55,14 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
         };
       });
     };
+
     const trackPromise = async () => {
-      return (await spotifyApi.searchTracks(query, { limit: 10 })).tracks.items.map((track: SpotifyApi.TrackObjectFull) => {
+      const tracks = (await axios.post<SearchTracksOrArtistsBody, AxiosResponse<SpotifyApi.PagingObject<SpotifyApi.TrackObjectFull>>>(
+        '/api/spotify/searchTracks',
+        { query: query, options: { limit: 10 } },
+      )).data.items;
+
+      return tracks.map((track: SpotifyApi.TrackObjectFull) => {
         return {
           uri: track.uri,
           text: track.name,
@@ -71,8 +76,14 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
         };
       });
     };
+
     const artistPromise = async () => {
-      return (await spotifyApi.searchArtists(query, { limit: 10 })).artists.items.map((artist: SpotifyApi.ArtistObjectFull) => {
+      const artists = (await axios.post<SearchTracksOrArtistsBody, AxiosResponse<SpotifyApi.PagingObject<SpotifyApi.ArtistObjectFull>>>(
+        '/api/spotify/searchArtists',
+        { query: query, options: { limit: 10 } },
+      )).data.items;
+
+      return artists.map((artist: SpotifyApi.ArtistObjectFull) => {
         return {
           uri: artist.uri,
           text: artist.name,

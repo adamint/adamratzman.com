@@ -20,6 +20,7 @@ export default async (req: NextApiRequest, res: NextApiResponse<SpotifyApi.Playl
 
     res.status(200).json(playlistTracks);
   } catch (e) {
+    console.log(e)
     res.status(400);
   }
 }

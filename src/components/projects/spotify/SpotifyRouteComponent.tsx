@@ -3,17 +3,24 @@ import { SpotifyLoginButton } from '../../../spotify-utils/auth/SpotifyLoginButt
 import { useSpotifyStore } from '../../utils/useSpotifyStore';
 import shallow from 'zustand/shallow';
 import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
 
 type SpotifyRouteComponentProps = {
   children: any;
+  title?: string;
 }
 
-export function SpotifyRouteComponent({ children }: SpotifyRouteComponentProps) {
+export function SpotifyRouteComponent({ title, children }: SpotifyRouteComponentProps) {
   const [codeVerifier, setCodeVerifier] = useSpotifyStore(state => [state.codeVerifier, state.setCodeVerifier], shallow);
   const [spotifyTokenInfo, setSpotifyTokenInfo] = useSpotifyStore(state => [state.spotifyTokenInfo, state.setSpotifyTokenInfo], shallow);
   const spotifyClientId = useSpotifyStore(state => state.spotifyClientId);
   const spotifyRedirectUri = useSpotifyStore(state => state.spotifyRedirectUri);
+  const [shouldRender, setShouldRender] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setShouldRender(true);
+  }, []);
 
   function buildSpotifyScopes(baseScopes: string[]) {
     const scopes = [...baseScopes];
@@ -21,8 +28,8 @@ export function SpotifyRouteComponent({ children }: SpotifyRouteComponentProps) 
       case '/projects/spotify/mytop':
         scopes.push('user-top-read');
         break;
-      case '/projects/spotify/recommend':
-        scopes.push('playlist-modify-public', 'playlist-modify-private', 'playlist-read-collaborative');
+      case '/projects/spotify/recommend/create-playlist':
+        scopes.push('playlist-modify-public', 'playlist-modify-private', 'playlist-read-collaborative', 'user-top-read');
         break;
       default:
         break;
@@ -30,6 +37,8 @@ export function SpotifyRouteComponent({ children }: SpotifyRouteComponentProps) 
 
     return scopes;
   }
+
+  if (!shouldRender) return null;
 
   return <>
     <SpotifyCallbackIngestionTokenProducerComponent setSpotifyTokenInfo={setSpotifyTokenInfo}
@@ -46,11 +55,11 @@ export function SpotifyRouteComponent({ children }: SpotifyRouteComponentProps) 
         redirectUri={spotifyRedirectUri}
         codeVerifier={codeVerifier}
         setCodeVerifier={setCodeVerifier}
-        redirectPathAfter={router.pathname}
-        title='Log in with Spotify to view this page'
+        redirectPathAfter={router.asPath}
+        buttonText='Log in with Spotify to view this page'
+        title={title}
       />
     </>}
-
   </>;
 }
 

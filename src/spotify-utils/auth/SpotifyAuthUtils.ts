@@ -1,8 +1,8 @@
 import { Sha256 } from '@aws-crypto/sha256-browser';
 import base64url from 'base64url';
 import axios, { AxiosResponse } from 'axios';
-import { deleteFromStorage, writeStorage } from '@rehooks/local-storage';
 import SpotifyWebApi from 'spotify-web-api-js';
+import { useEffect, useState } from 'react';
 
 export interface PkceGuardedSpotifyWebApiJs {
   getApi: () => Promise<SpotifyWebApi.SpotifyWebApiJs>;
@@ -82,6 +82,7 @@ export async function doSpotifyPkceRefresh(clientId: string, refreshToken: strin
     console.log('refreshed token via pkce');
     return token;
   } catch (e) {
+    console.log(e)
     setSpotifyTokenInfo(null);
     logoutOfSpotify();
     return null;
@@ -94,12 +95,12 @@ export function saveTokenAndGetRedirectPath(token: SpotifyToken, setSpotifyToken
     token: token,
   };
 
-  writeStorage('spotify_token', tokenInfo);
+  localStorage.setItem('spotify_token', JSON.stringify(tokenInfo));
   setSpotifyTokenInfo(tokenInfo);
 
-  deleteFromStorage('spotify_pkce_callback_code');
+  localStorage.removeItem('spotify_pkce_callback_code');
   const pathToRedirectTo = localStorage.getItem('spotify_redirect_after_auth');
-  deleteFromStorage('spotify_redirect_after_auth');
+  localStorage.removeItem('spotify_redirect_after_auth');
   return pathToRedirectTo;
 }
 

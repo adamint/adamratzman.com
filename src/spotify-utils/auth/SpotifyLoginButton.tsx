@@ -1,4 +1,4 @@
-import { Button } from '@chakra-ui/react';
+import { Button, Heading } from '@chakra-ui/react';
 import { FaSpotify } from 'react-icons/all';
 import { useEffect } from 'react';
 import randomstring from 'randomstring';
@@ -12,7 +12,8 @@ type SpotifyLoginButtonProps = {
   setCodeVerifier: Function;
   state?: string | null;
   redirectPathAfter: string;
-  title?: string | null
+  buttonText?: string | null;
+  title?: string;
 }
 
 export function SpotifyLoginButton({
@@ -23,7 +24,8 @@ export function SpotifyLoginButton({
                                      setCodeVerifier,
                                      state = null,
                                      redirectPathAfter,
-                                     title = null,
+                                     buttonText = null,
+                                     title,
                                    }: SpotifyLoginButtonProps) {
   useEffect(() => {
     const savedCodeVerifier = localStorage.getItem('spotify_code_verifier');
@@ -37,7 +39,10 @@ export function SpotifyLoginButton({
     await redirectToSpotifyLogin(newCodeVerifier, redirectPathAfter, setCodeVerifier, scopes, clientId, redirectUri, state);
   }
 
-  return <Button backgroundColor='#1DB954' rightIcon={<FaSpotify />} onClick={handleClickLoginButton}>
-    {title ? title : <>Log in with Spotify</>}
-  </Button>;
+  return <>
+    {title && <Heading size="lg" mb={2}>{title}</Heading>}
+    <Button backgroundColor='#1DB954' rightIcon={<FaSpotify />} onClick={handleClickLoginButton}>
+      {buttonText ? buttonText : <>Log in with Spotify</>}
+    </Button>
+  </>;
 }

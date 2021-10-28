@@ -2,16 +2,13 @@ import { Alert, AlertDescription, AlertIcon } from '@chakra-ui/react';
 import { GetAndShowSpotifyTrackRecommendations } from './GetAndShowSpotifyTrackRecommendations';
 import React from 'react';
 import { SelectedObjects, SelectedTrackAttribute } from '../../../../pages/projects/spotify/recommend';
-import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-utils/auth/SpotifyAuthUtils';
 
 type SpotifyGenerateAndShowPlaylistRecommendationsComponentProps = {
-  guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   selectedObjects: SelectedObjects;
   selectedTrackAttributes: SelectedTrackAttribute[]
 }
 
 export function SpotifyGenerateAndShowPlaylistRecommendationsComponent({
-                                                                         guardedSpotifyApi,
                                                                          selectedObjects,
                                                                          selectedTrackAttributes,
                                                                        }: SpotifyGenerateAndShowPlaylistRecommendationsComponentProps) {
@@ -27,7 +24,6 @@ export function SpotifyGenerateAndShowPlaylistRecommendationsComponent({
       <AlertIcon />
       <AlertDescription>You can only have between one and five artists, tracks, and genres.</AlertDescription>
     </Alert>;
-  } else return <GetAndShowSpotifyTrackRecommendations guardedSpotifyApi={guardedSpotifyApi}
-                                                       selectedObjects={selectedObjects}
+  } else return <GetAndShowSpotifyTrackRecommendations selectedObjects={selectedObjects}
                                                        selectedTrackAttributes={selectedTrackAttributes} />;
 }

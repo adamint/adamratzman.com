@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   doSpotifyPkceRefresh,
   logoutOfSpotify,
@@ -7,8 +7,8 @@ import {
   SpotifyToken,
   SpotifyTokenInfo,
 } from './SpotifyAuthUtils';
-import { deleteFromStorage, useLocalStorage, writeStorage } from '@rehooks/local-storage';
 import { useRouter } from 'next/router';
+import { useLocalStorage } from '../../components/utils/useLocalStorage';
 
 type SpotifyCallbackIngestionTokenProducerComponentProps = {
   clientId: string;
@@ -23,30 +23,22 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
                                                                  codeVerifier,
                                                                  setSpotifyTokenInfo,
                                                                }: SpotifyCallbackIngestionTokenProducerComponentProps) {
-  const [spotifyTokenInfoStringLocalStorage, setSpotifyTokenInfoStringLocalStorage] = useLocalStorage<SpotifyTokenInfo | null>(
-    'spotify_token',
-    null,
-  );
-
-  const [spotifyPkceCallbackCodeLocalStorage, setSpotifyPkceCallbackCodeLocalStorage] = useLocalStorage<string | null>(
-    'spotify_pkce_callback_code',
-    null,
-  );
-
-  useEffect(() => {
-    setSpotifyTokenInfoStringLocalStorage(localStorage.getItem('spotify_token') ? JSON.parse(localStorage.getItem('spotify_token') as string) : null);
-    setSpotifyPkceCallbackCodeLocalStorage(localStorage.getItem('spotify_pkce_callback_code'));
-  }, []);
+  const [spotifyTokenInfoStringLocalStorage, , deleteSpotifyTokenInfoFromLocalStorage] = useLocalStorage<SpotifyTokenInfo | null>('spotify_token');
+  const [spotifyPkceCallbackCodeLocalStorage, setSpotifyPkceCallbackCodeLocalStorage] = useLocalStorage<string | null>('spotify_pkce_callback_code');
+  const requestStartedRef = useRef<boolean>(false);
 
   const router = useRouter();
 
   useEffect(() => {
     (async () => {
-        if (!codeVerifier || !spotifyPkceCallbackCodeLocalStorage) return;
+        if (!codeVerifier || requestStartedRef.current) {
+          return;
+        }
+
         const authCode = new URLSearchParams(window.location.search).get('code');
         const existingTokenInfo: SpotifyTokenInfo | null = spotifyTokenInfoStringLocalStorage ? spotifyTokenInfoStringLocalStorage : null;
         if (spotifyPkceCallbackCodeLocalStorage !== authCode && codeVerifier && authCode) {
-          writeStorage('spotify_pkce_callback_code', authCode);
+          setSpotifyPkceCallbackCodeLocalStorage(authCode);
 
           const params = new URLSearchParams();
           params.append('grant_type', 'authorization_code');
@@ -56,22 +48,24 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
           params.append('code_verifier', codeVerifier);
 
           try {
+            requestStartedRef.current = true;
             const pkceResponse = await axios.post<URLSearchParams, AxiosResponse<SpotifyToken>>('https://accounts.spotify.com/api/token', params);
             const pathToRedirectTo = saveTokenAndGetRedirectPath(pkceResponse.data, setSpotifyTokenInfo);
+            requestStartedRef.current = false;
             await router.replace(pathToRedirectTo ?? '/projects/spotify');
           } catch (e) {
+            console.log(e);
             logoutOfSpotify();
           }
         } else if (!existingTokenInfo || existingTokenInfo.expiry < Date.now()) {
           if (!existingTokenInfo || !existingTokenInfo.token?.refresh_token) {
-            deleteFromStorage('spotify_token');
+            deleteSpotifyTokenInfoFromLocalStorage();
             setSpotifyTokenInfo(null);
           } else {
             // let's refresh the token so we don't have to re-authorize the user
             await doSpotifyPkceRefresh(clientId, existingTokenInfo.token.refresh_token, setSpotifyTokenInfo);
           }
-        } else
-          setSpotifyTokenInfo(existingTokenInfo);
+        } else setSpotifyTokenInfo(existingTokenInfo);
       }
     )();
     // eslint-disable-next-line

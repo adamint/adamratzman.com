@@ -1,4 +1,3 @@
-import { useColorModeColor } from '../../../utils/useColorModeColor';
 import React from 'react';
 import { Box, Heading, HStack, Select, Slider, SliderFilledTrack, SliderThumb, SliderTrack } from '@chakra-ui/react';
 import { TrackAttributeType } from '../TrackAttribute';
@@ -15,7 +14,6 @@ export function SetTrackAttributeValueAndTypeComponent({
                                                          selectedTrackAttributes,
                                                          setSelectedTrackAttributes,
                                                        }: SetTrackAttributeValueAndTypeComponentProps) {
-  const colorModeColor = useColorModeColor();
   const attributesWithoutSelected = selectedTrackAttributes.filter(attr => attr.id !== selectedAttribute.id);
   const { trackAttribute, value, type } = selectedAttribute;
 
@@ -45,7 +43,7 @@ export function SetTrackAttributeValueAndTypeComponent({
         <SliderFilledTrack />
       </SliderTrack>
       <SliderThumb fontSize='sm' boxSize='40px'
-                   color={colorModeColor === 'black' ? 'white' : 'black'}>{value}</SliderThumb>
+                   color='black'>{value}</SliderThumb>
     </Slider>
   </Box>;
 }

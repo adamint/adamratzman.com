@@ -33,14 +33,15 @@ function SpotifyViewMyTopRoute() {
     setPageOffset(0);
   }
 
-  return <SpotifyRouteComponent>
+  return <SpotifyRouteComponent title='View your Spotify top tracks and artists'>
     {spotifyTokenInfo && <RequireSpotifyScopesOrElseShowLogin requiredScopes={['user-top-read']}
                                                               clientId={spotifyClientId}
                                                               redirectUri={spotifyRedirectUri}
                                                               codeVerifier={codeVerifier}
                                                               setCodeVerifier={setCodeVerifier}
                                                               redirectPathAfter='/projects/spotify/mytop'
-                                                              spotifyToken={spotifyTokenInfo.token}>
+                                                              spotifyToken={spotifyTokenInfo.token}
+                                                              title='View your Spotify top tracks and artists'>
       <Head>
         <title>Your top Spotify tracks and artists</title>
       </Head>
@@ -101,14 +102,14 @@ type ShowTopProps = {
 }
 
 function ShowTopTracks({
-                                guardedSpotifyApi,
-                                timeRange,
-                                setPageLoading,
-                                limitPerPage,
-                                setLimitPerPage,
-                                pageOffset,
-                                setPageOffset,
-                              }: ShowTopProps) {
+                         guardedSpotifyApi,
+                         timeRange,
+                         setPageLoading,
+                         limitPerPage,
+                         setLimitPerPage,
+                         pageOffset,
+                         setPageOffset,
+                       }: ShowTopProps) {
   async function getTopTrackData(limitPerPage: number, pageOffset: number) {
     setPageLoading(true);
     const data = await (await guardedSpotifyApi.getApi()).getMyTopTracks({
@@ -134,14 +135,14 @@ function ShowTopTracks({
 }
 
 function ShowTopArtists({
-                                 guardedSpotifyApi,
-                                 timeRange,
-                                 setPageLoading,
-                                 limitPerPage,
-                                 setLimitPerPage,
-                                 pageOffset,
-                                 setPageOffset,
-                               }: ShowTopProps) {
+                          guardedSpotifyApi,
+                          timeRange,
+                          setPageLoading,
+                          limitPerPage,
+                          setLimitPerPage,
+                          pageOffset,
+                          setPageOffset,
+                        }: ShowTopProps) {
 
   async function getTopArtistData(limitPerPage: number, pageOffset: number) {
     setPageLoading(true);
@@ -168,4 +169,4 @@ function ShowTopArtists({
   />;
 }
 
-export default SpotifyViewMyTopRoute
+export default SpotifyViewMyTopRoute;

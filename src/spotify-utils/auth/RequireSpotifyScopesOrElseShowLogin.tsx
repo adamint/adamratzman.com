@@ -1,8 +1,7 @@
 import { Box, Heading, Text } from '@chakra-ui/react';
 import { SpotifyLoginButton } from './SpotifyLoginButton';
 import { SpotifyToken, SpotifyTokenInfo } from './SpotifyAuthUtils';
-import React, { useEffect } from 'react';
-import { useLocalStorage } from '@rehooks/local-storage';
+import React, { useEffect, useState } from 'react';
 
 type RequireSpotifyScopesOrElseShowLoginProps = {
   clientId: string;
@@ -12,7 +11,8 @@ type RequireSpotifyScopesOrElseShowLoginProps = {
   redirectPathAfter: string;
   requiredScopes: string[];
   spotifyToken: SpotifyToken;
-  children: React.ReactNode
+  children: React.ReactNode;
+  title: string;
 }
 
 
@@ -25,21 +25,24 @@ export function RequireSpotifyScopesOrElseShowLogin({
                                                       requiredScopes,
                                                       spotifyToken,
                                                       children,
+                                                      title,
                                                     }: RequireSpotifyScopesOrElseShowLoginProps) {
-  const [spotifyTokenInfoStringLocalStorage, setSpotifyTokenInfoStringLocalStorage] = useLocalStorage<SpotifyTokenInfo | null | undefined>(
-    'spotify_token',
-    undefined,
-  );
-
+  const [spotifyTokenInfoStringLocalStorage, setSpotifyTokenInfoStringLocalStorage] = useState<SpotifyTokenInfo | null | undefined>(undefined);
+  const [shouldRender, setShouldRender] = useState<boolean>(false);
   useEffect(() => {
-    setSpotifyTokenInfoStringLocalStorage(
+    const updateTokenInfo = () => setSpotifyTokenInfoStringLocalStorage(
       localStorage.getItem('spotify_token') ? JSON.parse(localStorage.getItem('spotify_token') as string) : null,
     );
+
+    updateTokenInfo();
+    const refreshId = setInterval(updateTokenInfo, 100);
+    setShouldRender(true);
+    return () => clearInterval(refreshId);
   }, []);
 
   const hasScopes = spotifyToken.scope?.split(' ') ?? [];
 
-  if (spotifyTokenInfoStringLocalStorage === undefined) return null;
+  if (spotifyTokenInfoStringLocalStorage === undefined || !shouldRender) return null;
   if (spotifyTokenInfoStringLocalStorage && spotifyTokenInfoStringLocalStorage.expiry < Date.now()) {
     return null;
   }
@@ -53,13 +56,14 @@ export function RequireSpotifyScopesOrElseShowLogin({
         <Text fontSize='md'>You're missing the following scope(s): <b>{doesntHaveScopes.join(', ')}</b>.</Text>
       </Box>
       <SpotifyLoginButton
-        title='Please reauthorize to view this page'
+        buttonText='Please reauthorize to view this page'
         scopes={scopesToAuthorizeWith}
         clientId={clientId}
         redirectUri={redirectUri}
         codeVerifier={codeVerifier}
         setCodeVerifier={setCodeVerifier}
-        redirectPathAfter={redirectPathAfter} />
+        redirectPathAfter={redirectPathAfter}
+        title={title} />
     </>;
   }
 

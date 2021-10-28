@@ -2,10 +2,8 @@ import { ProjectPage } from '../../../components/projects/ProjectPage';
 import { getAllPagesNode } from '../../../components/utils/SpotifyApiPaginationHelper';
 import { Box, Heading, Image, SimpleGrid } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../components/utils/ChakraRouterLink';
-import { useSpotifyStore } from '../../../components/utils/useSpotifyStore';
 import Head from 'next/head';
 import { GetServerSideProps } from 'next';
-import SpotifyWebApiNode from 'spotify-web-api-node';
 import { getClientCredentialsSpotifyApiNode } from '../../../spotify-utils/SpotifyNodeApiUtils';
 
 type SpotifyViewAllCategoriesRouteProps = {
@@ -13,22 +11,6 @@ type SpotifyViewAllCategoriesRouteProps = {
 }
 
 function SpotifyViewAllCategoriesRoute({ categories }: SpotifyViewAllCategoriesRouteProps) {
-  const [spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo] = useSpotifyStore(state => [state.spotifyClientId, state.spotifyTokenInfo, state.setSpotifyTokenInfo]);
-  /*const guardedSpotifyApi = useSpotifyWebApiGuardValidPkceToken(spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo);
-  const router = useRouter();
-  const { data, loading, error } = useData(async () => {
-    const spotifyApi = await guardedSpotifyApi.getApi();
-    return await getAllPages<SpotifyApi.PagingObject<SpotifyApi.CategoryObject>, SpotifyApi.CategoryObject>(spotifyApi, spotifyApi.getCategories({ limit: 50 }), null, response => response.categories);
-  });
-
-  useEffect(() => {
-    if (error) router.push('/projects/spotify');
-  }, [error]);
-
-  if (error) {
-    return null;
-  }*/
-
   return <>
     <Head>
       <title>Spotify Categories</title>

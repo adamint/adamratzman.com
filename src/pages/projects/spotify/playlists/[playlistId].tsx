@@ -38,7 +38,6 @@ function SpotifyPlaylistViewRoute({ playlist }: SpotifyPlaylistViewRouteProps) {
 
   function childDataMapper(playlistTrack: SpotifyApi.PlaylistTrackObject) {
     const trackObject = playlistTrack.track;
-    console.log(trackObject);
 
     function isEpisode(obj: SpotifyApi.TrackObjectFull | SpotifyApi.EpisodeObjectFull): obj is SpotifyApi.EpisodeObjectFull {
       return (obj as SpotifyApi.EpisodeObjectFull)?.show !== undefined;
