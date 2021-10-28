@@ -7,8 +7,10 @@ interface SpotifyStore {
   spotifyTokenInfo: SpotifyTokenInfo | null;
   setSpotifyTokenInfo: (newSpotifyTokenInfo: SpotifyTokenInfo | null) => void;
   spotifyClientId: string;
-  spotifyRedirectUri: string;
+  spotifyRedirectUri: () => string;
 }
+
+const spotifyRedirectProtocol: string = process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_PROTOCOL ?? "unknown";
 
 export const useSpotifyStore = create<SpotifyStore>(set => ({
   codeVerifier: undefined,
@@ -19,5 +21,5 @@ export const useSpotifyStore = create<SpotifyStore>(set => ({
     spotifyTokenInfo: newSpotifyTokenInfo,
   })),
   spotifyClientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID ?? '',
-  spotifyRedirectUri: process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI ?? '',
+  spotifyRedirectUri: () => `${spotifyRedirectProtocol}://${window.location.host}/projects/spotify/callback`,
 }));

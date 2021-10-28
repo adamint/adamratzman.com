@@ -1,8 +1,9 @@
-import { Button, Heading } from '@chakra-ui/react';
+import { Box, Button, Heading, Text } from '@chakra-ui/react';
 import { FaSpotify } from 'react-icons/all';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import randomstring from 'randomstring';
 import { redirectToSpotifyLogin } from './SpotifyAuthUtils';
+import { ChakraRouterLink } from '../../components/utils/ChakraRouterLink';
 
 type SpotifyLoginButtonProps = {
   scopes: string[];
@@ -40,7 +41,10 @@ export function SpotifyLoginButton({
   }
 
   return <>
-    {title && <Heading size="lg" mb={2}>{title}</Heading>}
+    {title && <Box mb={8}>
+      <Heading size="lg" mb={1}>{title}</Heading>
+      <Text>Or go back to the <ChakraRouterLink href='/projects'>projects page →</ChakraRouterLink></Text>
+    </Box>}
     <Button backgroundColor='#1DB954' rightIcon={<FaSpotify />} onClick={handleClickLoginButton}>
       {buttonText ? buttonText : <>Log in with Spotify</>}
     </Button>

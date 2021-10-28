@@ -20,7 +20,7 @@ export function SpotifyArtist({ artist, openInNewTab = false, ...rest }: Spotify
     </ArtistLink>
     <Box flex='1' my='auto'>
       <Heading size='md'><ArtistLink><b>{artist.name}</b></ArtistLink></Heading>
-      <Text fontSize='md'>Popularity: {artist.popularity}%. <b>{artist.followers.total}</b> followers.
+      <Text fontSize='md'>Popularity: {artist.popularity}%. <b>{artist.followers.total.toLocaleString()}</b> followers.
         Genres: {artist.genres.join(', ')}</Text>
     </Box>
   </Flex>;

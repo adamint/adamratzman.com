@@ -36,7 +36,7 @@ function SpotifyViewMyTopRoute() {
   return <SpotifyRouteComponent title='View your Spotify top tracks and artists'>
     {spotifyTokenInfo && <RequireSpotifyScopesOrElseShowLogin requiredScopes={['user-top-read']}
                                                               clientId={spotifyClientId}
-                                                              redirectUri={spotifyRedirectUri}
+                                                              redirectUri={spotifyRedirectUri()}
                                                               codeVerifier={codeVerifier}
                                                               setCodeVerifier={setCodeVerifier}
                                                               redirectPathAfter='/projects/spotify/mytop'

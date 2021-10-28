@@ -43,7 +43,7 @@ export function SpotifyRouteComponent({ title, children }: SpotifyRouteComponent
   return <>
     <SpotifyCallbackIngestionTokenProducerComponent setSpotifyTokenInfo={setSpotifyTokenInfo}
                                                     clientId={spotifyClientId}
-                                                    redirectUri={spotifyRedirectUri}
+                                                    redirectUri={spotifyRedirectUri()}
                                                     codeVerifier={codeVerifier} />
 
     {spotifyTokenInfo ? <>
@@ -52,7 +52,7 @@ export function SpotifyRouteComponent({ title, children }: SpotifyRouteComponent
       <SpotifyLoginButton
         scopes={buildSpotifyScopes(['user-library-read', 'user-top-read', 'user-read-recently-played', 'user-read-playback-position'])}
         clientId={spotifyClientId}
-        redirectUri={spotifyRedirectUri}
+        redirectUri={spotifyRedirectUri()}
         codeVerifier={codeVerifier}
         setCodeVerifier={setCodeVerifier}
         redirectPathAfter={router.asPath}

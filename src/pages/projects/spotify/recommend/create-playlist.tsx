@@ -16,7 +16,7 @@ import { ChakraRouterLink } from '../../../../components/utils/ChakraRouterLink'
 import { useNoShowBeforeRender } from '../../../../components/utils/useNoShowBeforeRender';
 
 type CreatePlaylistFromRecommendationsRouteParams = {
-  trackIds: string
+  trackIds: string[]
 }
 
 function CreatePlaylistFromRecommendationsRoute() {
@@ -26,9 +26,9 @@ function CreatePlaylistFromRecommendationsRoute() {
   const guardedSpotifyApi = useSpotifyWebApiGuardValidPkceToken(spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo);
   const router = useRouter();
   const query = router.query as CreatePlaylistFromRecommendationsRouteParams;
-  const trackIds = query.trackIds?.split(',') ?? [];
+  const trackIds = query.trackIds ?? [];
   const noShowBeforeRender = useNoShowBeforeRender();
-  const createPlaylistDisclosure = useDisclosure({defaultIsOpen: true});
+  const createPlaylistDisclosure = useDisclosure({ defaultIsOpen: false });
 
   const { data, loading, error } = useData(async (trackIdsToSearch: string[]) => {
     if (!spotifyTokenInfo) return null;
@@ -37,10 +37,9 @@ function CreatePlaylistFromRecommendationsRoute() {
     if (!trackIdsToSearch || trackIdsToSearch.length === 0) {
       return {
         recommendedTracks: [],
-        spotifyUserId: null
-      }
-    }
-    else return {
+        spotifyUserId: null,
+      };
+    } else return {
       recommendedTracks: (await spotifyApi.getTracks(trackIdsToSearch)).tracks,
       spotifyUserId: (await spotifyApi.getMe()).id,
     };
@@ -60,7 +59,7 @@ function CreatePlaylistFromRecommendationsRoute() {
       {spotifyTokenInfo && <RequireSpotifyScopesOrElseShowLogin
         requiredScopes={['playlist-modify-public', 'playlist-modify-private', 'playlist-read-collaborative']}
         clientId={spotifyClientId}
-        redirectUri={spotifyRedirectUri}
+        redirectUri={spotifyRedirectUri()}
         codeVerifier={codeVerifier}
         setCodeVerifier={setCodeVerifier}
         redirectPathAfter={router.asPath}
@@ -85,9 +84,9 @@ function CreatePlaylistFromRecommendationsRoute() {
               </Box>
 
               {data.spotifyUserId && <CreateSpotifyPlaylistModal guardedSpotifyApi={guardedSpotifyApi}
-                                          createPlaylistDisclosure={createPlaylistDisclosure}
-                                          spotifyUserId={data.spotifyUserId}
-                                          recommendedTracks={data.recommendedTracks} />}
+                                                                 createPlaylistDisclosure={createPlaylistDisclosure}
+                                                                 spotifyUserId={data.spotifyUserId}
+                                                                 recommendedTracks={data.recommendedTracks} />}
             </>}
         </ProjectPage>
       </RequireSpotifyScopesOrElseShowLogin>}
