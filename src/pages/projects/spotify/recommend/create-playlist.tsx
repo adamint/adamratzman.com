@@ -30,9 +30,10 @@ function CreatePlaylistFromRecommendationsRoute() {
   const noShowBeforeRender = useNoShowBeforeRender();
   const createPlaylistDisclosure = useDisclosure({ defaultIsOpen: false });
 
-  const { data, loading, error } = useData(async (trackIdsToSearch: string[]) => {
-    console.log("track ids: ")
-    console.log(trackIdsToSearch)
+  const { data, loading, error } = useData(async (trackIdsToSearch: string[] | string) => {
+    const ids = typeof trackIdsToSearch === 'string' ? trackIdsToSearch.split(',') : trackIdsToSearch;
+    console.log('track ids: ');
+    console.log(trackIdsToSearch);
     if (!spotifyTokenInfo) return null;
     const spotifyApi = await guardedSpotifyApi.getApi();
 
@@ -42,14 +43,14 @@ function CreatePlaylistFromRecommendationsRoute() {
         spotifyUserId: null,
       };
     } else return {
-      recommendedTracks: (await spotifyApi.getTracks(trackIdsToSearch)).tracks,
+      recommendedTracks: (await spotifyApi.getTracks(ids)).tracks,
       spotifyUserId: (await spotifyApi.getMe()).id,
     };
   }, [trackIds, spotifyTokenInfo], [trackIds]);
 
   useEffect(() => {
     if (error) {
-      console.log(error)
+      console.log(error);
       router.push('/projects/spotify');
     }
 
