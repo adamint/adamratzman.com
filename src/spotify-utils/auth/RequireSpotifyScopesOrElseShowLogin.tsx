@@ -51,9 +51,9 @@ export function RequireSpotifyScopesOrElseShowLogin({
     const scopesToAuthorizeWith = hasScopes.concat(doesntHaveScopes);
     return <>
       <Box mb={5}>
-        <Heading size='md' mb={1}>You're missing required Spotify authorization scopes. Please reauthorize to view this
+        <Heading size='md' mb={1}>You&apos;re missing required Spotify authorization scopes. Please reauthorize to view this
           page</Heading>
-        <Text fontSize='md'>You're missing the following scope(s): <b>{doesntHaveScopes.join(', ')}</b>.</Text>
+        <Text fontSize='md'>You&apos;re missing the following scope(s): <b>{doesntHaveScopes.join(', ')}</b>.</Text>
       </Box>
       <SpotifyLoginButton
         buttonText='Please reauthorize to view this page'

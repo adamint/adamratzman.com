@@ -16,7 +16,7 @@ export function SpotifyArtist({ artist, openInNewTab = false, ...rest }: Spotify
 
   return <Flex {...rest} maxW={{ base: '100%', md: '75%' }}>
     <ArtistLink>
-    <Image boxSize={75} mr={2.5} src={artist.images[0].url} />
+    <Image boxSize={75} mr={2.5} src={artist.images[0].url} alt="Spotify artist preview image" />
     </ArtistLink>
     <Box flex='1' my='auto'>
       <Heading size='md'><ArtistLink><b>{artist.name}</b></ArtistLink></Heading>

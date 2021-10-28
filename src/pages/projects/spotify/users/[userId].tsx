@@ -46,8 +46,7 @@ function SpotifyUserViewRoute({ totalPlaylists, user }: SpotifyUserViewRouteProp
     </Head>
     <ProjectPage projectTitle={<>User <b><ChakraRouterLink href={user.external_urls.spotify}
                                                            color={colorModeColor}>{user.display_name ?? user.id} <Image
-      src={user.images?.at(0)?.url}
-      display='inline' boxSize={50}
+      src={user.images?.at(0)?.url} alt='User profile image display' display='inline' boxSize={50}
       ml={2} /></ChakraRouterLink></b></>}
                  marginBelowHeadingOverride={0}>
       <Box mb={6}>

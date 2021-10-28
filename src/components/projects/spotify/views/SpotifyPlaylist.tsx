@@ -18,7 +18,7 @@ export function SpotifyPlaylist({ playlist, openInNewTab = false, ...rest }: Spo
 
   return <Flex {...rest} maxW={{ base: '100%', md: '75%' }}>
     <PlaylistLink>
-      <Image boxSize={75} mr={2.5} src={playlist.images[0].url} />
+      <Image boxSize={75} mr={2.5} src={playlist.images[0].url} alt='Spotify playlist preview image' />
     </PlaylistLink>
     <Box flex='1' my='auto'>
       <Heading size='md'><PlaylistLink><b>{playlist.name}</b></PlaylistLink></Heading>

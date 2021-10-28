@@ -8,7 +8,7 @@ export type GetUserPlaylistsRequestBody = {
   userId: string;
 }
 
-export default async (req: NextApiRequest, res: NextApiResponse<SpotifyApi.ListOfUsersPlaylistsResponse>) => {
+const getUserPlaylists = async (req: NextApiRequest, res: NextApiResponse<SpotifyApi.ListOfUsersPlaylistsResponse>) => {
   const spotifyApi = await getClientCredentialsSpotifyApiNode();
 
   try {
@@ -24,3 +24,5 @@ export default async (req: NextApiRequest, res: NextApiResponse<SpotifyApi.ListO
     res.status(400);
   }
 }
+
+export default getUserPlaylists

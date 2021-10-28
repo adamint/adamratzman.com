@@ -3,7 +3,7 @@ import { getClientCredentialsSpotifyApiNode } from '../../../spotify-utils/Spoti
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { SearchTracksOrArtistsBody } from './searchTracks';
 
-export default async (req: NextApiRequest, res: NextApiResponse<SpotifyApi.PagingObject<SpotifyApi.ArtistObjectFull>>) => {
+const searchArtists = async (req: NextApiRequest, res: NextApiResponse<SpotifyApi.PagingObject<SpotifyApi.ArtistObjectFull>>) => {
   const spotifyApi = await getClientCredentialsSpotifyApiNode();
 
   try {
@@ -12,7 +12,9 @@ export default async (req: NextApiRequest, res: NextApiResponse<SpotifyApi.Pagin
     if (artists) res.status(200).json(artists);
     else res.status(400);
   } catch (e) {
-    console.log(e)
+    console.log(e);
     res.status(400);
   }
-}
+};
+
+export default searchArtists;

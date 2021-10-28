@@ -11,7 +11,7 @@ function ContactRoute() {
     </Head>
 
     <Box mb={10}>
-      <Heading fontSize='2.5rem' variant='light' mb={3}>So, you'd like to contact me. Here's how.</Heading>
+      <Heading fontSize='2.5rem' variant='light' mb={3}>So, you&apos;d like to contact me. Here&apos;s how.</Heading>
       <Text variant='bold'>Recruiters, you may be interested in my <Link href='https://linkedin.com/in/aratzman'>LinkedIn
         →</Link></Text>
     </Box>

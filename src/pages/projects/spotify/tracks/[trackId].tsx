@@ -32,7 +32,7 @@ function SpotifyTrackViewRoute({ track }: SpotifyTrackViewRouteProps) {
         key={artist.id}>{artist.name}</ChakraRouterLink>), ', ')}</Text>
 
       <Box mx='auto' textAlign='center' mt={3} alignContent='center'>
-        <Image src={track.album.images[0].url} maxW='300px' mx='auto' mb={2} />
+        <Image src={track.album.images[0].url} maxW='300px' mx='auto' mb={2} alt='Spotify track preview image' />
         <iframe src={`https://open.spotify.com/embed/track/${track.id}`} width='300' height='80'
                 style={{ marginLeft: 'auto', marginRight: 'auto' }}
                 title='Spotify player preview iframe' />

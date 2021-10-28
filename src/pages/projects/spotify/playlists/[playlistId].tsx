@@ -53,7 +53,7 @@ function SpotifyPlaylistViewRoute({ playlist }: SpotifyPlaylistViewRouteProps) {
     </Head>
     <ProjectPage projectTitle={<>Playlist <b><ChakraRouterLink href={playlist.external_urls.spotify}
                                                                color={colorModeColor}>{playlist.name} <Image
-      src={playlist.images.at(0)?.url} display='inline' boxSize={50}
+      src={playlist.images.at(0)?.url} display='inline' boxSize={50} alt="First playlist album image"
       ml={2} /></ChakraRouterLink></b></>}
                  marginBelowHeadingOverride={0}>
       <Box mb={6}>

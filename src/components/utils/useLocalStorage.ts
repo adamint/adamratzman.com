@@ -19,6 +19,7 @@ export function useLocalStorage<T>(key: string, initialValue: T | undefined = un
 
     return () => clearInterval(intervalId);
 
+    // eslint-disable-next-line
   }, []);
 
   function setAndSaveValueToLocalStorage(newValue: T | null) {

@@ -47,6 +47,8 @@ function CreatePlaylistFromRecommendationsRoute() {
 
   useEffect(() => {
     if (error) router.push('/projects/spotify');
+
+    // eslint-disable-next-line
   }, [error]);
 
   if (error) return null;

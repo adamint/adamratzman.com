@@ -22,7 +22,7 @@ function SpotifyViewAllCategoriesRoute({ categories }: SpotifyViewAllCategoriesR
           <Heading size='mdx' mb={3}><ChakraRouterLink
             href={`/projects/spotify/categories/${category.id}`}>{category.name}</ChakraRouterLink></Heading>
           <ChakraRouterLink href={`/projects/spotify/categories/${category.id}`}>
-            <Image src={category.icons[0].url} />
+            <Image src={category.icons[0].url} alt='Spotify category preview image' />
           </ChakraRouterLink>
         </Box>)}
       </SimpleGrid>

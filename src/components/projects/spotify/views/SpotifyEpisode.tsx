@@ -18,7 +18,7 @@ export function SpotifyEpisode({ episode, openInNewTab = false, ...rest }: Spoti
 
   return <Flex {...rest} maxW={{ base: '100%', md: '75%' }}>
     <EpisodeLink>
-      <Image boxSize={75} mr={2.5} src={episode.images[0].url} />
+      <Image boxSize={75} mr={2.5} src={episode.images[0].url} alt="Spotify episode preview image" />
     </EpisodeLink>
     <Box flex='1' my='auto'>
       <Heading size='md'><EpisodeLink><b>{episode.name}</b></EpisodeLink></Heading>

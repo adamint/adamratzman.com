@@ -7,7 +7,7 @@ export type SearchTracksOrArtistsBody = {
   options?: any;
 }
 
-export default async (req: NextApiRequest, res: NextApiResponse<SpotifyApi.PagingObject<SpotifyApi.TrackObjectFull>>) => {
+const searchTracks = async (req: NextApiRequest, res: NextApiResponse<SpotifyApi.PagingObject<SpotifyApi.TrackObjectFull>>) => {
   const spotifyApi = await getClientCredentialsSpotifyApiNode();
 
   try {
@@ -16,7 +16,9 @@ export default async (req: NextApiRequest, res: NextApiResponse<SpotifyApi.Pagin
     if (tracks) res.status(200).json(tracks);
     else res.status(400);
   } catch (e) {
-    console.log(e)
+    console.log(e);
     res.status(400);
   }
-}
+};
+
+export default searchTracks;

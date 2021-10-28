@@ -33,7 +33,7 @@ function SpotifyArtistViewRoute({
     </Head>
     <ProjectPage projectTitle={<>Artist <b><ChakraRouterLink href={artist.external_urls.spotify}
                                                              color={colorModeColor}>{artist.name} <Image
-      src={artist.images[0].url} display='inline' boxSize={50}
+      src={artist.images[0].url} display='inline' boxSize={50} alt='Spotify artist preview image'
       ml={2} /></ChakraRouterLink></b></>}
                  marginBelowHeadingOverride={0}>
       <Box mb={3}>

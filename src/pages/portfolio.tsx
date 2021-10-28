@@ -54,7 +54,7 @@ function PortfolioRoute() {
       <title>My Portfolio</title>
     </Head>
     <Box mb={10}>
-      <Heading fontSize='2.5rem' variant='light' mb={3}>Here are just some of the things I've done.</Heading>
+      <Heading fontSize='2.5rem' variant='light' mb={3}>Here are just some of the things I&apos;ve done.</Heading>
     </Box>
 
     <TitledSection title='Selected Projects' pb={5}>

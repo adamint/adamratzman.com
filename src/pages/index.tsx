@@ -23,8 +23,8 @@ function HomeRoute() {
       <title>Home</title>
     </Head>;
     <Box mb={5}>
-      <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I'm <DashedSpan
-        tooltip="You thought there was going to be something here, didn't you?">Adam Ratzman</DashedSpan>, a graduate
+      <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpan
+        tooltip="You thought there was going to be something here, didn&apos;t you?">Adam Ratzman</DashedSpan>, a graduate
         student at Indiana University Bloomington and a JVM <JavaIcon w={35} h={35} /> <KotlinIcon w={35} h={35} />,
         React <ReactIcon />, and .NET <CSharpIcon w={35} h={35} /> developer.</Heading>
       <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink href='/projects'>interactive
@@ -34,14 +34,14 @@ function HomeRoute() {
     </Box>
 
     <TitledSection title='About me'>
-      <Text>I'm a last-semester graduate student studying Computer Science. I build software and distributed systems,
+      <Text>I&apos;m a last-semester graduate student studying Computer Science. I build software and distributed systems,
         tools, and APIs.</Text>
-      <Text>Currently, I'm an Associate Instructor for <i>Introduction to Software
+      <Text>Currently, I&apos;m an Associate Instructor for <i>Introduction to Software
         Systems</i> at <Link href='https://cs.indiana.edu' color={colorModeColor}><DashedSpan>Indiana
         University</DashedSpan> <IuTridentIcon
         w={6} h={6} /></Link>. After graduating this winter, I will be joining Microsoft <MicrosoftIcon w={6}
                                                                                                         h={6} /> as
-        a Software Engineer in Microsoft's Developer Division.</Text>
+        a Software Engineer in Microsoft&apos;s Developer Division.</Text>
       <Text>I am also a former software engineering intern at E-gineering and Microsoft.</Text>
     </TitledSection>
 

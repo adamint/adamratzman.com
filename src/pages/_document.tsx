@@ -15,7 +15,7 @@ class SiteBaseDocument extends Document {
           <meta charSet='utf-8' />
           <link rel='shortcut icon' href='/favicon.png' type='image/x-icon' />
 
-          <link href='https://fonts.googleapis.com/css?family=Rubik:300,400,500,700' rel='stylesheet' />
+          <link href='https://fonts.googleapis.com/css?family=Rubik:300,400,500,700&display=optional' rel='stylesheet' />
         </Head>
         <body>
         <Main />

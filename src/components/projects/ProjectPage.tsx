@@ -24,7 +24,7 @@ export function ProjectPage({
       <Box>
         <Heading fontSize='2.5rem' variant='semiLight'
                  mb={marginBelowHeadingOverride ? marginBelowHeadingOverride : 2}>{projectTitle}</Heading>
-        <Heading size='md' variant='light'>{descriptionOverride ? descriptionOverride : <>Not what you're looking for?
+        <Heading size='md' variant='light'>{descriptionOverride ? descriptionOverride : <>Not what you&apos;re looking for?
           Go back to the <ChakraRouterLink href='/projects'>projects page →</ChakraRouterLink></>}</Heading>
       </Box>
       <Spacer />

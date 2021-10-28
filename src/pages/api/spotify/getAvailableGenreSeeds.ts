@@ -2,7 +2,7 @@ import { getClientCredentialsSpotifyApiNode } from '../../../spotify-utils/Spoti
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-export default async (req: NextApiRequest, res: NextApiResponse<string[]>) => {
+const getAvailableGenreSeeds = async (req: NextApiRequest, res: NextApiResponse<string[]>) => {
   const spotifyApi = await getClientCredentialsSpotifyApiNode();
 
   try {
@@ -10,7 +10,9 @@ export default async (req: NextApiRequest, res: NextApiResponse<string[]>) => {
 
     res.status(200).json(genreSeeds);
   } catch (e) {
-    console.log(e)
+    console.log(e);
     res.status(400);
   }
-}
+};
+
+export default getAvailableGenreSeeds;
