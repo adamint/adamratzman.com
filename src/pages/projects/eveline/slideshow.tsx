@@ -10,7 +10,7 @@ function SlideshowPage() {
   });
 
   return <ProjectPage projectTitle='Dear Eveline'
-                      descriptionOverride="Let's dispel the idea that you're not special...">
+                      descriptionOverride="Let&apos;s dispel the idea that you&apos;re not special...">
     <Steps activeStep={activeStep}>
       {steps.map(({ label, content }) => (
         <Step label={label} key={label}>
@@ -42,33 +42,33 @@ const steps = [
   {
     label: 'Intelligence',
     content: <>
-      <Text fontSize='lg'>One of the sexiest things about you is your intelligence. You're witty, funny, and I've never
+      <Text fontSize='lg'>One of the sexiest things about you is your intelligence. You&apos;re witty, funny, and I&apos;ve never
         met anyone who
         can
         banter as well as you. You keep people on their toes (I promise that was accidental),
-        and you're the smartest person in the room [at least when it's just the two of us :)].
+        and you&apos;re the smartest person in the room [at least when it&apos;s just the two of us :)].
         <br />
         You also have incredible emotional intelligence. You always knew what to say to make me feel better.</Text>
     </>,
   },
   {
     label: 'Beauty', content: <>
-      <Text fontSize='lg'>You're immaculate - just so incredibly beautiful. Everyone has some flaws, but it's hard to
+      <Text fontSize='lg'>You&apos;re immaculate - just so incredibly beautiful. Everyone has some flaws, but it&apos;s hard to
         find any on you. Why do you think I always wanted to see you?</Text>
     </>,
   },
   {
     label: 'Talent and Drive', content: <>
-      <Text fontSize='lg'>One of the things that made you an inspiration was your drive, work ethic, and talent. No one else I've met
+      <Text fontSize='lg'>One of the things that made you an inspiration was your drive, work ethic, and talent. No one else I&apos;ve met
       would have been able to juggle a full-time job, full-time school, and research and clubs and still have time for walks and hikes.
-      You're determined to get what you want, and you do what you need to in order to get there. That's an admirable, really rare quality.</Text>
+      You&apos;re determined to get what you want, and you do what you need to in order to get there. That&apos;s an admirable, really rare quality.</Text>
     </>,
   },
   {
     label: 'Conclusion', content: <>
-      <Text fontSize='lg'>You're perfect. You're special. You're unique. If you'd like to see this in longform, send me
-        a text and I'll write out a
-        long paragraph for you. I'm sorry the execution of this idea was bad, it seemed a lot better in my head
+      <Text fontSize='lg'>You&apos;re perfect. You&apos;re special. You&apos;re unique. If you&apos;d like to see this in longform, send me
+        a text and I&apos;ll write out a
+        long paragraph for you. I&apos;m sorry the execution of this idea was bad, it seemed a lot better in my head
         :(</Text>
       <Button mt={3} colorScheme="red" onClick={async () => await router.push('/projects/eveline/affirmations')}>Please click here for a
         surprise <BiHeart /></Button>

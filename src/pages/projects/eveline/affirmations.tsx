@@ -38,7 +38,7 @@ function AffirmationsPage() {
                       descriptionOverride="A little reminder that you're still perfect."
                       topRight={<>
                         <Text fontSize='md'>Next affirmation in: {nextAffirmationIn / 1000} seconds</Text>
-                        <Text fontSize='md'>Click <Link onClick={onOpen}>here</Link> if you're getting sappy</Text>
+                        <Text fontSize='md'>Click <Link onClick={onOpen}>here</Link> if you&apos;re getting sappy</Text>
                       </>}>
     <Heading size='lg' mb={3}>Hey {greeting},</Heading>
     <Text size='lg'>{affirmation}</Text>
@@ -49,8 +49,8 @@ function AffirmationsPage() {
         <ModalHeader>Note to you</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <Text>When it's time to meet again, if you ever feel ready, don't be afraid to bring you as you are, not just
-            your best self. I'll be there for you, through anything.</Text>
+          <Text>When it&apos;s time to meet again, if you ever feel ready, don&apos;t be afraid to bring you as you are, not just
+            your best self. I&apos;ll be there for you, through anything.</Text>
         </ModalBody>
 
         <ModalFooter>
@@ -87,6 +87,7 @@ const affirmations = [
     duration={4.6}
     revealDuration={0.5}
     characters="You're cute"
+    key="cute"
   />,
   'You have so much beauty inside of you',
   'I hope you learn how fucking amazing you are',
