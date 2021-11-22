@@ -1745,6 +1745,11 @@ caniuse-lite@^1.0.30001202, caniuse-lite@^1.0.30001219, caniuse-lite@^1.0.300012
   resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30001271.tgz#0dda0c9bcae2cf5407cd34cac304186616cc83e8"
   integrity sha512-BBruZFWmt3HFdVPS8kceTBIguKxu4f99n5JNp06OlPD/luoAMIaIK5ieV5YjnBLH3Nysai9sxj9rpJj4ZisXOA==
 
+chakra-ui-steps@^1.5.0:
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/chakra-ui-steps/-/chakra-ui-steps-1.5.0.tgz#a8c2931eeed0368102bd6759569142a3b2bdab0d"
+  integrity sha512-j0Tcbpx+q6J/ScFXvXJ2pxopKAJdrjLEi9w64nzwEFTSvQ19mqWIQJVlEct1rXxtHQmyqQBw5hRANaj32SZthQ==
+
 chalk@2.4.2, chalk@^2.0.0:
   version "2.4.2"
   resolved "https://registry.yarnpkg.com/chalk/-/chalk-2.4.2.tgz#cd42541677a54333cf541a49108c1432b44c9424"
@@ -4143,6 +4148,13 @@ react-is@^16.7.0, react-is@^16.8.1:
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-16.13.1.tgz#789729a4dc36de2999dc156dd6c1d9c18cea56a4"
   integrity sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==
 
+react-random-reveal@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/react-random-reveal/-/react-random-reveal-1.0.1.tgz#d926103f3d504cd0b1b9685978a00c1caf779009"
+  integrity sha512-NvyvpCr6K7zi/jFGowhyw9ybcy2leSbFiFtc+3R69/KTd/dhsIevJmYoq5QiG2hdbxcBfM7PqHYGT/+DWRPWNg==
+  dependencies:
+    use-elapsed-time "^1.1.5"
+
 react-refresh@0.8.3:
   version "0.8.3"
   resolved "https://registry.yarnpkg.com/react-refresh/-/react-refresh-0.8.3.tgz#721d4657672d400c5e3c75d063c4a85fb2d5d68f"
@@ -4792,6 +4804,11 @@ use-deep-compare-effect@^1.8.0:
   dependencies:
     "@babel/runtime" "^7.12.5"
     dequal "^2.0.2"
+
+use-elapsed-time@^1.1.5:
+  version "1.2.1"
+  resolved "https://registry.yarnpkg.com/use-elapsed-time/-/use-elapsed-time-1.2.1.tgz#5c313ea78be9750a4d7173c7bfe900ee011af730"
+  integrity sha512-dbZ3XXOPMu8KPgr+4Vwhl4XU0m84s4KSIMq+M3mmKWnZrau28YyEi0QCsf/69QznXo1535FlWL8TILWe08IrhQ==
 
 use-sidecar@^1.0.1:
   version "1.0.5"
