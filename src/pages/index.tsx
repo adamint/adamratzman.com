@@ -48,14 +48,14 @@ function HomeRoute() {
     <TitledSection title='Education'>
       <Experience place='Indiana University Bloomington'
                   location='Bloomington, IN'
-                  title='MS in Computer Science'
+                  title={<><Box as="span">MS in Computer Science</Box> (<ChakraRouterLink href="/academics/masters">See what I studied</ChakraRouterLink>)</>}
                   date='May 2021 - December 2021'
                   additionalRightSideContext={<>GPA: <u>4.00</u></>}
       />
 
       <Experience place='Indiana University Bloomington'
                   location='Bloomington, IN'
-                  title='Bachelor of Science in Computer Science'
+                  title={<><Box as="span">Bachelor of Science in Computer Science</Box> (<ChakraRouterLink href="/academics/bachelors">See what I studied</ChakraRouterLink>)</>}
                   date='August 2019 - May 2021'
                   additionalRightSideContext={<>GPA: <u>3.94</u></>}
                   bullets={[

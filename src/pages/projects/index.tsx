@@ -34,6 +34,10 @@ function ProjectsHomeRoute() {
     </ProjectCategory>
 
     <ProjectCategory title='school'>
+      <Project title='My academic record'
+               link='/academics'
+               description='A comprehensive  with randomly-generated relevant problems' />
+
       <Project title='AP Calculus Interactive Review Site'
                link='http://ap-calculus-review-sohalski.herokuapp.com/'
                description='A comprehensive review site for calculus theorems, derivatives, and integrals, with options to test yourself with randomly-generated relevant problems' />

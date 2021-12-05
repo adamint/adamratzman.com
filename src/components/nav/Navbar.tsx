@@ -34,6 +34,7 @@ interface NavbarLink {
 const navbarLinks: NavbarLink[] = [
   { title: 'Online Projects', path: '/projects' },
   { title: 'Portfolio', path: '/portfolio' },
+  { title: 'Education', path: '/academics'},
   {
     title: 'GitHub',
     icon: <Icon as={FaGithub} w={30} h={30} />,

@@ -3,7 +3,7 @@ import React from 'react';
 
 type ExperienceProps = {
   place: string | React.ReactElement;
-  title: string;
+  title: string | React.ReactElement;
   date: string;
   additionalRightSideContext?: React.ReactElement;
   location?: string;
