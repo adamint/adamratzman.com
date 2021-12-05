@@ -148,22 +148,22 @@ type DisplayClassesProps = {
 }
 
 function DisplayClasses({ classes }: DisplayClassesProps) {
-  return <Table variant='simple'>
+  return <Table variant='simple' maxW="90%" overflow="scroll">
     <Thead>
       <Tr>
         <Th>Course</Th>
         <Th>Title</Th>
-        <Th isNumeric>Hours</Th>
         <Th>Grade</Th>
+        <Th isNumeric>Hours</Th>
       </Tr>
     </Thead>
     <Tbody>
       {classes.map(clazz => {
         return <Tr key={clazz.code}>
-          <Td>{clazz.code}</Td>
+          <Td >{clazz.code}</Td>
           <Td>{clazz.title} {clazz.topic && <><br />(Topic: {clazz.topic})</>}</Td>
-          <Td isNumeric>{clazz.credits}</Td>
           <Td>{clazz.grade}</Td>
+          <Td isNumeric>{clazz.credits}</Td>
         </Tr>;
       })}
     </Tbody>
