@@ -10,7 +10,7 @@ import Head from 'next/head';
 function AcademicsPage() {
   return <ProjectPage projectTitle='Academics'
                       descriptionOverride={<>I am currently in my last semester at Indiana University
-                        Bloomington <IuTridentIcon /> as a Master's candidate in Computer Science.</>}
+                        Bloomington <IuTridentIcon /> as a Master&apos;s candidate in Computer Science.</>}
   >
     <Head>
       <title>My education</title>

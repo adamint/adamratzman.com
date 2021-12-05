@@ -14,7 +14,7 @@ function BachelorsDegreePage() {
                       descriptionOverride={<>I am graduating December 18 from Indiana University <IuTridentIcon /> with this degree.</>}
   >
     <Head>
-      <title>My Bachelor's Degree</title>
+      <title>My Bachelor&apos;s Degree</title>
     </Head>
 
     <AcademicExperience degree={bachelorsDegree} />
