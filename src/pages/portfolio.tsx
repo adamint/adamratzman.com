@@ -1,8 +1,7 @@
-import { Box, Heading, Link, Text } from '@chakra-ui/react';
+import { Box, BoxProps, Heading, Link, Text } from '@chakra-ui/react';
 import { TitledSection } from '../components/containers/TitledSection';
 import { TechnicalSkillsSection } from '../components/home/TechnicalSkillsSection';
 import React from 'react';
-import { BoxProps } from '@chakra-ui/layout/dist/types/box';
 import Head from 'next/head';
 
 const currentProjects = [

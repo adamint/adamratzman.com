@@ -1,5 +1,5 @@
 import { Icon } from '@chakra-ui/react';
-import { IconProps } from '@chakra-ui/icon/dist/types/icon';
+import { IconProps } from '@chakra-ui/icon';
 
 export function CSharpIcon(props: IconProps) {
   return <Icon viewBox='204.925 153.577 757.617 860.543' {...props}>

@@ -15,10 +15,9 @@ import {
   Textarea,
   useToast,
 } from '@chakra-ui/react';
-import { Field, Form, Formik } from 'formik';
-import { FieldProps } from 'formik/dist/Field';
+import { Field, FieldProps, Form, Formik } from 'formik';
 import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-utils/auth/SpotifyAuthUtils';
-import { UseDisclosureReturn } from '@chakra-ui/hooks/dist/types/use-disclosure';
+import { UseDisclosureReturn } from '@chakra-ui/hooks';
 
 type PlaylistCreationOptions = {
   name: string;
@@ -113,9 +112,9 @@ export function CreateSpotifyPlaylistModal({
                     <FormLabel htmlFor='playlistShouldBePublic'>Should playlist be public?</FormLabel>
                     <Switch {...field} isChecked={props.values.playlistShouldBePublic}
                             onChange={() => {
-                              const newPublic = !props.values.playlistShouldBePublic
+                              const newPublic = !props.values.playlistShouldBePublic;
                               props.setFieldValue('playlistShouldBePublic', newPublic);
-                              if (newPublic) props.setFieldValue("playlistShouldBeCollaborative", false)
+                              if (newPublic) props.setFieldValue('playlistShouldBeCollaborative', false);
                             }}
                             id='playlistShouldBePublic'
                             mt={1} />
@@ -132,9 +131,9 @@ export function CreateSpotifyPlaylistModal({
                     <FormLabel htmlFor='playlistShouldBeCollaborative'>Should playlist be collaborative?</FormLabel>
                     <Switch {...field} isChecked={props.values.playlistShouldBeCollaborative}
                             onChange={() => {
-                              const newCollaborative = !props.values.playlistShouldBeCollaborative
-                              props.setFieldValue('playlistShouldBeCollaborative', newCollaborative)
-                              if (newCollaborative) props.setFieldValue("playlistShouldBePublic", false)
+                              const newCollaborative = !props.values.playlistShouldBeCollaborative;
+                              props.setFieldValue('playlistShouldBeCollaborative', newCollaborative);
+                              if (newCollaborative) props.setFieldValue('playlistShouldBePublic', false);
                             }}
                             id='playlistShouldBeCollaborative'
                             mt={1} />

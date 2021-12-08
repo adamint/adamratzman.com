@@ -1,5 +1,5 @@
 import { Icon } from '@chakra-ui/react';
-import { IconProps } from '@chakra-ui/icon/dist/types/icon';
+import { IconProps } from '@chakra-ui/icon';
 
 export function KotlinIcon(props: IconProps) {
   return <Icon viewBox='0 0 500 500' {...props}>

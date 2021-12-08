@@ -1,7 +1,7 @@
 import { Box, Heading } from '@chakra-ui/react';
 import { useColorModeColor } from '../utils/useColorModeColor';
 import React from 'react';
-import { BoxProps } from '@chakra-ui/layout/dist/types/box';
+import { BoxProps } from '@chakra-ui/layout';
 
 type TitledSectionProps = {
   title: string;
