@@ -12,7 +12,6 @@ import {
   Heading,
   HStack,
   Spacer,
-  Stack,
   Table,
   Tbody,
   Td,
@@ -38,7 +37,7 @@ export function AcademicExperience({ degree }: AcademicExperienceProps) {
       return [...semester.classes, ...transferClasses];
     });
 
-  const allClassGrades = [...new Set(allClasses.map(clazz => clazz.grade))];
+  const allClassGrades = Array.from(new Set(allClasses.map(clazz => clazz.grade)));
   console.log(allClassGrades);
 
   const degreeGpa = calculateGpaForClasses(allClasses.filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress'));
@@ -70,18 +69,18 @@ export function AcademicExperience({ degree }: AcademicExperienceProps) {
     </Box>
 
     <Box mb={5}>
-      <Heading size='md' variant='light' mb={1}>Options</Heading>
-      <Checkbox isChecked={shouldShowOnlyMajorCourses}
-                onChange={e => setShouldShowOnlyMajorCourses(e.target.checked)}>
-        Only show major courses
-      </Checkbox>
-      <Stack mt={2}>
-        <Heading size='md' variant='light' mb={1}>Only show these grades</Heading>
-        <CheckboxGroup value={selectedClassesWithGrade}
-                       onChange={values => setSelectedClassesWithGrade(values.map(value => value.toString()))}>
-          {allClassGrades.sort().map(grade => <Checkbox key={grade} value={grade}>{grade}</Checkbox>)}
-        </CheckboxGroup>
-      </Stack>
+      <Box mb={2}>
+        <Heading size='md' variant='light' mb={1}>Options</Heading>
+        <Checkbox isChecked={shouldShowOnlyMajorCourses}
+                  onChange={e => setShouldShowOnlyMajorCourses(e.target.checked)}>
+          Only show major courses
+        </Checkbox>
+      </Box>
+      <Heading size='md' variant='light' mb={2}>Only show these grades</Heading>
+      <CheckboxGroup value={selectedClassesWithGrade}
+                     onChange={values => setSelectedClassesWithGrade(values.map(value => value.toString()))}>
+        {allClassGrades.sort().map(grade => <Checkbox key={grade} value={grade} mr={4}>{grade}</Checkbox>)}
+      </CheckboxGroup>
     </Box>
 
     <Box mb={2}>
