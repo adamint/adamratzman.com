@@ -4,7 +4,6 @@ import { ChakraRouterLink } from '../components/utils/ChakraRouterLink';
 import { TitledSection } from '../components/containers/TitledSection';
 import { IuTridentIcon } from '../components/icons/IuTridentIcon';
 import { Experience } from '../components/home/Experience';
-import { useColorModeColor } from '../components/utils/useColorModeColor';
 import { ReactIcon } from '../components/icons/ReactIcon';
 import { JavaIcon } from '../components/icons/JavaIcon';
 import { CSharpIcon } from '../components/icons/CSharpIcon';
@@ -16,7 +15,6 @@ import { bachelorsDegree, mastersDegree } from '../components/academics/Degrees'
 import { calculateGpaForClasses, getAllClassesForDegree } from '../components/academics/Degree';
 
 function HomeRoute() {
-  const colorModeColor = useColorModeColor();
   const oppositeColorMode = useColorMode().colorMode === 'dark' ? 'light' : 'dark';
 
   return <>
@@ -50,7 +48,7 @@ function HomeRoute() {
                     what I studied</ChakraRouterLink>)</>}
                   date='Summer 2021 - Fall 2021'
                   additionalRightSideContext={<>GPA: <ChakraRouterLink
-                    href='/academics/bachelors'><u>{calculateGpaForClasses(getAllClassesForDegree(mastersDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
+                    href='/academics/masters'><u>{calculateGpaForClasses(getAllClassesForDegree(mastersDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
       />
 
       <Experience place='Indiana University Bloomington'
@@ -60,7 +58,7 @@ function HomeRoute() {
                     href='/academics/bachelors'>See what I studied</ChakraRouterLink>)</>}
                   date='Fall 2019 - Fall 2021'
                   additionalRightSideContext={<>GPA: <ChakraRouterLink
-                    href='/academics/masters'><u>{calculateGpaForClasses(getAllClassesForDegree(bachelorsDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
+                    href='/academics/bachelors'><u>{calculateGpaForClasses(getAllClassesForDegree(bachelorsDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
                   bullets={[
                     'Honors: Hudson & Holland Scholar, Founders Scholar, Provost’s Scholarship, Hutton Honors College.',
                     'Graduated with Highest Distinction, awarded to graduates with a 3.9 or above GPA',
