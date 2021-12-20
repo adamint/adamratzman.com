@@ -11,6 +11,15 @@ export interface Degree {
   years: AcademicYear[];
 }
 
+export function getAllClassesForDegree(degree: Degree): Class[] {
+  return degree.years
+    .flatMap(year => year.semesters)
+    .flatMap(semester => {
+      const transferClasses = semester.transferClasses ? semester.transferClasses.flatMap(transferClassesByInstitution => transferClassesByInstitution.classes) : [];
+      return [...semester.classes, ...transferClasses];
+    });
+}
+
 export interface AcademicYear {
   startYear: number;
   endYear: number;
@@ -70,29 +79,29 @@ export function convertGradeToGradePoint(grade: Grade): number {
     case 'A':
       return 4.0;
     case 'A-':
-      return 3.67;
+      return 3.7;
     case 'B+':
-      return 3.33;
+      return 3.3;
     case 'B':
       return 3.0;
     case 'B-':
-      return 2.67;
+      return 2.7;
     case 'C+':
-      return 2.33;
+      return 2.3;
     case 'C':
       return 2.0;
     case 'C-':
-      return 1.67;
+      return 1.7;
     case 'D+':
-      return 1.33;
+      return 1.3;
     case 'D':
       return 1.0;
     case 'D-':
-      return 0.67;
+      return 0.7;
     case 'F':
       return 0.0;
     default:
-      throw Error();
+      throw Error(grade);
   }
 }
 

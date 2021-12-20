@@ -3,7 +3,6 @@ import { DashedSpan } from '../components/utils/DashedSpan';
 import { ChakraRouterLink } from '../components/utils/ChakraRouterLink';
 import { TitledSection } from '../components/containers/TitledSection';
 import { IuTridentIcon } from '../components/icons/IuTridentIcon';
-import { MicrosoftIcon } from '../components/icons/MicrosoftIcon';
 import { Experience } from '../components/home/Experience';
 import { useColorModeColor } from '../components/utils/useColorModeColor';
 import { ReactIcon } from '../components/icons/ReactIcon';
@@ -13,6 +12,8 @@ import { KotlinIcon } from '../components/icons/KotlinIcon';
 import { TechnicalSkillsSection } from '../components/home/TechnicalSkillsSection';
 import { ColorModeSwitcher } from '../ColorModeSwitcher';
 import Head from 'next/head';
+import { bachelorsDegree, mastersDegree } from '../components/academics/Degrees';
+import { calculateGpaForClasses, getAllClassesForDegree } from '../components/academics/Degree';
 
 function HomeRoute() {
   const colorModeColor = useColorModeColor();
@@ -24,52 +25,62 @@ function HomeRoute() {
     </Head>
     <Box mb={5}>
       <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpan
-        tooltip="You thought there was going to be something here, didn&apos;t you?">Adam Ratzman</DashedSpan>, a graduate
-        student at Indiana University Bloomington and a JVM <JavaIcon w={35} h={35} /> <KotlinIcon w={35} h={35} />,
+        tooltip='You thought there was going to be something here, didn&apos;t you?'>Adam Ratzman</DashedSpan>, an
+        incoming software
+        engineer at Microsoft and a JVM <JavaIcon w={35} h={35} /> <KotlinIcon w={35} h={35} />,
         React <ReactIcon />, and .NET <CSharpIcon w={35} h={35} /> developer.</Heading>
-      <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink href='/projects'>interactive
+      <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink
+        href='/projects'>interactive
         projects →</ChakraRouterLink></Text>
       <Text>Have a strong preference towards a {oppositeColorMode}er color scheme? <ColorModeSwitcher
         aria-label='Switch color mode' /></Text>
     </Box>
 
     <TitledSection title='About me'>
-      <Text>I&apos;m a last-semester graduate student studying Computer Science. I build software and distributed systems,
-        tools, and APIs.</Text>
-      <Text>Currently, I&apos;m an Associate Instructor for <i>Introduction to Software
-        Systems</i> at <Link href='https://cs.indiana.edu' color={colorModeColor}><DashedSpan>Indiana
-        University</DashedSpan> <IuTridentIcon
-        w={6} h={6} /></Link>. After graduating this winter, I will be joining Microsoft <MicrosoftIcon w={6}
-                                                                                                        h={6} /> as
-        a Software Engineer in Microsoft&apos;s Developer Division.</Text>
-      <Text>I am also a former software engineering intern at E-gineering and Microsoft.</Text>
+      <Text>I&apos;m a recent graduate from Indiana University Bloomington <IuTridentIcon />, where I received a BS and
+        MS in Computer Science.
+        I build software and distributed systems, tools, and APIs.</Text>
+      <Text>Currently, I&apos;m an incoming Software Engineer in Microsoft&apos;s Developer Division.</Text>
     </TitledSection>
 
     <TitledSection title='Education'>
       <Experience place='Indiana University Bloomington'
                   location='Bloomington, IN'
-                  title={<><Box as="span">MS in Computer Science</Box> (<ChakraRouterLink href="/academics/masters">See what I studied</ChakraRouterLink>)</>}
-                  date='May 2021 - December 2021'
-                  additionalRightSideContext={<>GPA: <u>4.00</u></>}
+                  title={<><Box as='span'>MS in Computer Science</Box> (<ChakraRouterLink href='/academics/masters'>See
+                    what I studied</ChakraRouterLink>)</>}
+                  date='Summer 2021 - Fall 2021'
+                  additionalRightSideContext={<>GPA: <u>{calculateGpaForClasses(getAllClassesForDegree(mastersDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></>}
       />
 
       <Experience place='Indiana University Bloomington'
                   location='Bloomington, IN'
-                  title={<><Box as="span">Bachelor of Science in Computer Science</Box> (<ChakraRouterLink href="/academics/bachelors">See what I studied</ChakraRouterLink>)</>}
-                  date='August 2019 - May 2021'
-                  additionalRightSideContext={<>GPA: <u>3.94</u></>}
+                  title={<><Box as='span'>Bachelor of Science in Computer Science with Highest
+                    Distinction</Box> (<ChakraRouterLink
+                    href='/academics/bachelors'>See what I studied</ChakraRouterLink>)</>}
+                  date='Fall 2019 - Fall 2021'
+                  additionalRightSideContext={<>GPA: <u>{calculateGpaForClasses(getAllClassesForDegree(bachelorsDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></>}
                   bullets={[
                     'Honors: Hudson & Holland Scholar, Founders Scholar, Provost’s Scholarship, Hutton Honors College.',
+                    'Graduated with Highest Distinction, awarded to graduates with a 3.9 or above GPA',
                     'Part of the BS/MS Computer Science program.',
                   ]}
       />
     </TitledSection>
 
     <TitledSection title='Work Experience'>
+      <Experience place='Microsoft'
+                  location='Redmond, WA'
+                  title='Software Engineer'
+                  date='January 2022 - Present'
+                  bullets={[
+                    'A member of the C# Project team in the Developer Division at Microsoft.',
+                  ]}
+      />
+
       <Experience place='Indiana University Bloomington'
                   location='Bloomington, IN'
                   title='Associate Instructor, Introduction to Software Systems (CSCI-C 212)'
-                  date='August 2021 - Present'
+                  date='August 2021 - December 2021'
                   bullets={[
                     'One of 10 AIs and UIs to help in this introductory CS core class',
                     'Co-lead a weekly lab',
@@ -133,12 +144,6 @@ function HomeRoute() {
                     'Dockerized client’s Java-based applications',
                     'Deployed client applications on POC Kubernetes clusters and presented solutions to meet client’s goal of eliminating physical data centers',
                   ]}
-      />
-
-      <Experience place='Chick-Fil-A'
-                  location='Westfield, IN'
-                  title='Team Member'
-                  date='November 2017 - May 2018'
       />
 
     </TitledSection>

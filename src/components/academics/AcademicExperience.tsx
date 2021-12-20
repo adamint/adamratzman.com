@@ -1,4 +1,12 @@
-import { AcademicYear, calculateGpaForClasses, Class, Degree, parseClassCodeString, Semester } from './Degree';
+import {
+  AcademicYear,
+  calculateGpaForClasses,
+  Class,
+  Degree,
+  getAllClassesForDegree,
+  parseClassCodeString,
+  Semester,
+} from './Degree';
 import {
   Accordion,
   AccordionButton,
@@ -30,15 +38,8 @@ export function AcademicExperience({ degree }: AcademicExperienceProps) {
   const [shouldShowOnlyMajorCourses, setShouldShowOnlyMajorCourses] = useState<boolean>(false);
   const [selectedClassesWithGrade, setSelectedClassesWithGrade] = useState<string[]>([]);
 
-  const allClasses: Class[] = degree.years
-    .flatMap(year => year.semesters)
-    .flatMap(semester => {
-      const transferClasses = semester.transferClasses ? semester.transferClasses.flatMap(transferClassesByInstitution => transferClassesByInstitution.classes) : [];
-      return [...semester.classes, ...transferClasses];
-    });
-
+  const allClasses: Class[] = getAllClassesForDegree(degree);
   const allClassGrades = Array.from(new Set(allClasses.map(clazz => clazz.grade)));
-  console.log(allClassGrades);
 
   const degreeGpa = calculateGpaForClasses(allClasses.filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress'));
   const majorGpa = calculateGpaForClasses(

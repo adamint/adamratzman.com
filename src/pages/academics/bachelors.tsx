@@ -11,7 +11,7 @@ import { AcademicExperience } from '../../components/academics/AcademicExperienc
 
 function BachelorsDegreePage() {
   return <ProjectPage projectTitle="Bachelor's Degree"
-                      descriptionOverride={<>I am graduating December 18 from Indiana University <IuTridentIcon /> with this degree.</>}
+                      descriptionOverride={<>I graduated from Indiana University in December 2021 with this degree.</>}
   >
     <Head>
       <title>My Bachelor&apos;s Degree</title>
