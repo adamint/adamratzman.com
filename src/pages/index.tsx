@@ -49,7 +49,8 @@ function HomeRoute() {
                   title={<><Box as='span'>MS in Computer Science</Box> (<ChakraRouterLink href='/academics/masters'>See
                     what I studied</ChakraRouterLink>)</>}
                   date='Summer 2021 - Fall 2021'
-                  additionalRightSideContext={<>GPA: <u>{calculateGpaForClasses(getAllClassesForDegree(mastersDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></>}
+                  additionalRightSideContext={<>GPA: <ChakraRouterLink
+                    href='/academics/bachelors'><u>{calculateGpaForClasses(getAllClassesForDegree(mastersDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
       />
 
       <Experience place='Indiana University Bloomington'
@@ -58,7 +59,8 @@ function HomeRoute() {
                     Distinction</Box> (<ChakraRouterLink
                     href='/academics/bachelors'>See what I studied</ChakraRouterLink>)</>}
                   date='Fall 2019 - Fall 2021'
-                  additionalRightSideContext={<>GPA: <u>{calculateGpaForClasses(getAllClassesForDegree(bachelorsDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></>}
+                  additionalRightSideContext={<>GPA: <ChakraRouterLink
+                    href='/academics/masters'><u>{calculateGpaForClasses(getAllClassesForDegree(bachelorsDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
                   bullets={[
                     'Honors: Hudson & Holland Scholar, Founders Scholar, Provost’s Scholarship, Hutton Honors College.',
                     'Graduated with Highest Distinction, awarded to graduates with a 3.9 or above GPA',
