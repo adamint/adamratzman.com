@@ -4,7 +4,14 @@ import { TechnicalSkillsSection } from '../components/home/TechnicalSkillsSectio
 import React from 'react';
 import Head from 'next/head';
 
-const currentProjects = [
+export interface Project {
+  title: string;
+  url: string;
+  description: string;
+  categories: string[];
+}
+
+export const currentProjects: Project[] = [
   {
     title: 'Spotify Kotlin Wrapper',
     url: 'https://github.com/adamint/spotify-web-api-kotlin',
@@ -19,7 +26,7 @@ const currentProjects = [
   },
 ];
 
-const pastProjects = [
+export const pastProjects: Project[] = [
   {
     title: 'AP Calculus Review Site',
     url: 'http://ap-calculus-review-sohalski.herokuapp.com/',
@@ -47,7 +54,7 @@ const pastProjects = [
 ];
 
 
-function PortfolioRoute() {
+export function PortfolioRoute() {
   return <>
     <Head>
       <title>My Portfolio</title>

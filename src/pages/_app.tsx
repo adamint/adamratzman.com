@@ -1,10 +1,27 @@
 import React from 'react';
 import { Navbar } from '../components/nav/Navbar';
-import { Box, ChakraProvider, ColorModeScript, Flex, Spacer } from '@chakra-ui/react';
+import {
+  Box,
+  Button,
+  ChakraProvider,
+  ColorModeScript,
+  Flex,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  Portal,
+  Spacer,
+  Text,
+} from '@chakra-ui/react';
 import { Footer } from '../components/nav/Footer';
 import { theme } from '../theme';
 import { AppProps } from 'next/app';
 import Head from 'next/head';
+import { ConsoleComponent } from '../components/nav/ConsoleComponent';
 
 function App({ Component, pageProps }: AppProps) {
   return <>
@@ -23,8 +40,11 @@ function App({ Component, pageProps }: AppProps) {
         <Spacer />
         <Footer />
       </Flex>
-    </ChakraProvider>
-  </>;
+
+      <ConsoleComponent />
+    </ChakraProvider>;
+  </>
+    ;
 }
 
 export default App;

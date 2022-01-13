@@ -403,7 +403,7 @@ const juniorYearMasters: AcademicYear = {
           title: 'Topics in Systems',
           topic: 'Organizational Informatics & Economic Security',
           credits: 3,
-          grade: 'A',
+          grade: 'B',
         },
         {
           code: 'CSCI-B 659',
