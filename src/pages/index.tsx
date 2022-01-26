@@ -23,8 +23,7 @@ function HomeRoute() {
     </Head>
     <Box mb={5}>
       <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpan
-        tooltip='You thought there was going to be something here, didn&apos;t you?'>Adam Ratzman</DashedSpan>, an
-        incoming software
+        tooltip='You thought there was going to be something here, didn&apos;t you?'>Adam Ratzman</DashedSpan>, a software
         engineer at Microsoft and a JVM <JavaIcon w={35} h={35} /> <KotlinIcon w={35} h={35} />,
         React <ReactIcon />, and .NET <CSharpIcon w={35} h={35} /> developer.</Heading>
       <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink
@@ -38,7 +37,7 @@ function HomeRoute() {
       <Text>I&apos;m a recent graduate from Indiana University Bloomington <IuTridentIcon />, where I received a BS and
         MS in Computer Science.
         I build software and distributed systems, tools, and APIs.</Text>
-      <Text>Currently, I&apos;m an incoming Software Engineer in Microsoft&apos;s Developer Division.</Text>
+      <Text>Currently, I&apos;m a Software Engineer in Microsoft&apos;s Developer Division on the .NET Developer Experience team.</Text>
     </TitledSection>
 
     <TitledSection title='Education'>
