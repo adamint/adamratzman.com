@@ -9,6 +9,7 @@ export interface Degree {
   startedDegree: string | React.ReactElement;
   finishedDegree: string | React.ReactElement;
   years: AcademicYear[];
+  hasMajorGpa: boolean;
 }
 
 export function getAllClassesForDegree(degree: Degree): Class[] {

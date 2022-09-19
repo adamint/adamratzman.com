@@ -1,6 +1,6 @@
 import { useData } from '../../../utils/useData';
 import { ReactNode, useEffect } from 'react';
-import { Box, filter, Flex } from '@chakra-ui/react';
+import { Box, Flex } from '@chakra-ui/react';
 import Pagination from '@choc-ui/paginator';
 import { TimeRange } from '../../../utils/SpotifyTypes';
 import { SpotifyPagination } from '../../../utils/SpotifyApiPaginationHelper';
@@ -17,16 +17,16 @@ type PaginatedSpotifyDisplayProps<DataType extends SpotifyPagination<ChildType>,
   filterNotNull: (child: any) => boolean
 }
 
-export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType extends any>({
-                                                                                                                     dataProducer,
-                                                                                                                     childDataMapper,
-                                                                                                                     timeRange = null,
-                                                                                                                     limitPerPage,
-                                                                                                                     setLimitPerPage,
-                                                                                                                     pageOffset,
-                                                                                                                     setPageOffset,
-                                                                                                                     filterNotNull,
-                                                                                                                   }: PaginatedSpotifyDisplayProps<DataType, ChildType, ChildMappedType>) {
+export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType extends ReactNode>({
+                                                                                                                                       dataProducer,
+                                                                                                                                       childDataMapper,
+                                                                                                                                       timeRange = null,
+                                                                                                                                       limitPerPage,
+                                                                                                                                       setLimitPerPage,
+                                                                                                                                       pageOffset,
+                                                                                                                                       setPageOffset,
+                                                                                                                                       filterNotNull,
+                                                                                                                                     }: PaginatedSpotifyDisplayProps<DataType, ChildType, ChildMappedType>) {
   const { data, loading, error, update } = useData<DataType>(async () => {
     return await dataProducer(limitPerPage, pageOffset);
   }, [timeRange], [limitPerPage, pageOffset], false);
@@ -40,7 +40,7 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
   }, [limitPerPage, pageOffset]);
 
   if (error) {
-    console.log(error)
+    console.log(error);
     router.push('/projects/spotify');
     return null;
   }
@@ -52,7 +52,7 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
     setPageOffset(0);
   }
 
-  const items = data.items.filter(filterNotNull)
+  const items = data.items.filter(filterNotNull);
 
   return <>
     <Box mb={5}>

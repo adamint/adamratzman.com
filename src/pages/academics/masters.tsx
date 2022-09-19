@@ -1,15 +1,10 @@
 import React from 'react';
 import { ProjectPage } from '../../components/projects/ProjectPage';
-import { IuTridentIcon } from '../../components/icons/IuTridentIcon';
-import { Box, Heading, Text } from '@chakra-ui/react';
-import { Degree } from '../../components/academics/Degree';
-import NextLink from 'next/link';
-import { bachelorsDegree, mastersDegree } from '../../components/academics/Degrees';
-import { ChakraRouterLink } from '../../components/utils/ChakraRouterLink';
+import { mastersDegree } from '../../components/academics/Degrees';
 import Head from 'next/head';
 import { AcademicExperience } from '../../components/academics/AcademicExperience';
 
-function BachelorsDegreePage() {
+function MastersDegreePage() {
   return <ProjectPage projectTitle="Master's Degree"
                       descriptionOverride={<>I graduated from Indiana University in December 2021 with this degree.</>}
   >
@@ -21,4 +16,4 @@ function BachelorsDegreePage() {
   </ProjectPage>;
 }
 
-export default BachelorsDegreePage;
+export default MastersDegreePage;

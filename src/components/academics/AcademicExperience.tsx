@@ -64,7 +64,7 @@ export function AcademicExperience({ degree }: AcademicExperienceProps) {
         <Box textAlign='right'>
           <Heading variant='light' size='md'>{degree.startedDegree} - {degree.finishedDegree}</Heading>
           <Heading variant='light' size='md'>GPA: {degreeGpa.toFixed(3)}</Heading>
-          <Heading variant='light' size='md'>Major GPA: {majorGpa.toFixed(3)}</Heading>
+          {degree.hasMajorGpa && <Heading variant='light' size='md'>Major GPA: {majorGpa.toFixed(3)}</Heading>}
         </Box>
       </Flex>
     </Box>
@@ -72,10 +72,10 @@ export function AcademicExperience({ degree }: AcademicExperienceProps) {
     <Box mb={5}>
       <Box mb={2}>
         <Heading size='md' variant='light' mb={1}>Options</Heading>
-        <Checkbox isChecked={shouldShowOnlyMajorCourses}
+        {degree.hasMajorGpa && <Checkbox isChecked={shouldShowOnlyMajorCourses}
                   onChange={e => setShouldShowOnlyMajorCourses(e.target.checked)}>
           Only show major courses
-        </Checkbox>
+        </Checkbox>}
       </Box>
       <Heading size='md' variant='light' mb={2}>Only show these grades</Heading>
       <CheckboxGroup value={selectedClassesWithGrade}

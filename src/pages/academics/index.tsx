@@ -3,7 +3,7 @@ import { ProjectPage } from '../../components/projects/ProjectPage';
 import { IuTridentIcon } from '../../components/icons/IuTridentIcon';
 import { Box, Heading, Text } from '@chakra-ui/react';
 import { Degree } from '../../components/academics/Degree';
-import { bachelorsDegree, mastersDegree } from '../../components/academics/Degrees';
+import { bachelorsDegree, mastersDegree, mbaDegree } from '../../components/academics/Degrees';
 import { ChakraRouterLink } from '../../components/utils/ChakraRouterLink';
 import Head from 'next/head';
 
@@ -19,6 +19,7 @@ function AcademicsPage() {
     <Heading size='lg' mb={4}>My degrees</Heading>
     <EducationBox degree={bachelorsDegree} path='/academics/bachelors' />
     <EducationBox degree={mastersDegree} path='/academics/masters' />
+    <EducationBox degree={mbaDegree} path='/academics/mba' />
   </ProjectPage>;
 }
 

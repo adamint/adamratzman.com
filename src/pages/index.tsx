@@ -11,8 +11,9 @@ import { KotlinIcon } from '../components/icons/KotlinIcon';
 import { TechnicalSkillsSection } from '../components/home/TechnicalSkillsSection';
 import { ColorModeSwitcher } from '../ColorModeSwitcher';
 import Head from 'next/head';
-import { bachelorsDegree, mastersDegree } from '../components/academics/Degrees';
+import { bachelorsDegree, mastersDegree, mbaDegree } from '../components/academics/Degrees';
 import { calculateGpaForClasses, getAllClassesForDegree } from '../components/academics/Degree';
+import { ArizonaWildcatIcon } from '../components/icons/ArizonaWildcatIcon';
 
 function HomeRoute() {
   const oppositeColorMode = useColorMode().colorMode === 'dark' ? 'light' : 'dark';
@@ -23,7 +24,8 @@ function HomeRoute() {
     </Head>
     <Box mb={5}>
       <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpan
-        tooltip='You thought there was going to be something here, didn&apos;t you?'>Adam Ratzman</DashedSpan>, a software
+        tooltip='You thought there was going to be something here, didn&apos;t you?'>Adam Ratzman</DashedSpan>, a
+        software
         engineer at Microsoft and a JVM <JavaIcon w={35} h={35} /> <KotlinIcon w={35} h={35} />,
         React <ReactIcon />, and .NET <CSharpIcon w={35} h={35} /> developer.</Heading>
       <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink
@@ -34,13 +36,28 @@ function HomeRoute() {
     </Box>
 
     <TitledSection title='About me'>
-      <Text>I&apos;m a recent graduate from Indiana University Bloomington <IuTridentIcon />, where I received a BS and
-        MS in Computer Science.
-        I build software and distributed systems, tools, and APIs.</Text>
-      <Text>Currently, I&apos;m a Software Engineer in Microsoft&apos;s Developer Division on the .NET Developer Experience team.</Text>
+      <Text>I&apos;m a graduate of <b>Indiana University</b> Bloomington <IuTridentIcon />, where I received a BS and
+        MS in Computer Science.</Text>
+      <Text>I build software and distributed systems, tools, and APIs, and climb 🧗‍♂️, run 🏃, hike 🥾, and play frisbee
+        🥏 with my puppy.</Text>
+      <Text>In my day job, I&apos;m a Software Engineer at <b>Microsoft</b> on the .NET Developer Experience team, where
+        I help C# and VB
+        Visual Studio developers be more productive.
+        Oh, and I'm an <ChakraRouterLink href='/academics/mba'>MBA candidate</ChakraRouterLink> at the University of
+        Arizona <ArizonaWildcatIcon />.</Text>
     </TitledSection>
 
     <TitledSection title='Education'>
+      <Experience place='University of Arizona'
+                  location='Tucson, AZ (Remote)'
+                  title={<>MBA with specializations in entrepreneurship and MIS</>}
+                  date='Summer 2022 - Present'
+                  additionalRightSideContext={<>GPA: <ChakraRouterLink
+                    href='/academics/mba'><u>{calculateGpaForClasses(getAllClassesForDegree(mbaDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
+                  bullets={[
+                    'Eller School of Business Online MBA',
+                  ]}
+      />
       <Experience place='Indiana University Bloomington'
                   location='Bloomington, IN'
                   title={<><Box as='span'>MS in Computer Science</Box> (<ChakraRouterLink href='/academics/masters'>See
@@ -73,6 +90,7 @@ function HomeRoute() {
                   date='January 2022 - Present'
                   bullets={[
                     'A member of the C# Project team in the Developer Division at Microsoft.',
+                    'I help VS .NET developers be more productive in their work, and help bring new .NET features to Visual Studio. Sometimes, I break things (sorry). More often, I fix them.',
                   ]}
       />
 

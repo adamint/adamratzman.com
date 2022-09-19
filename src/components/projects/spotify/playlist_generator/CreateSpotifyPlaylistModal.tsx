@@ -45,6 +45,10 @@ export function CreateSpotifyPlaylistModal({
     return (value.length === 0) ? 'Playlist name cannot be empty' : null;
   }
 
+  // @ts-ignore
+  // @ts-ignore
+  // @ts-ignore
+  // @ts-ignore
   return <Modal blockScrollOnMount={false} isOpen={createPlaylistDisclosure.isOpen}
                 onClose={createPlaylistDisclosure.onClose}>
     <ModalOverlay />
@@ -100,7 +104,7 @@ export function CreateSpotifyPlaylistModal({
                   <FormControl isInvalid={!!(form.errors.playlistName && form.touched.playlistName)} mb={3}>
                     <FormLabel htmlFor='playlistName'>Playlist name</FormLabel>
                     <Input {...field} id='playlistName' placeholder='playlist name' />
-                    <FormErrorMessage>{form.errors.playlistName}</FormErrorMessage>
+                    <FormErrorMessage>{form.errors.playlistName?.toLocaleString()}</FormErrorMessage>
                   </FormControl>
                 )}
               </Field>
@@ -118,7 +122,7 @@ export function CreateSpotifyPlaylistModal({
                             }}
                             id='playlistShouldBePublic'
                             mt={1} />
-                    <FormErrorMessage>{form.errors.playlistShouldBePublic}</FormErrorMessage>
+                    <FormErrorMessage>{form.errors.playlistShouldBePublic?.toLocaleString()}</FormErrorMessage>
                   </FormControl>
                 )}
               </Field>
@@ -137,7 +141,7 @@ export function CreateSpotifyPlaylistModal({
                             }}
                             id='playlistShouldBeCollaborative'
                             mt={1} />
-                    <FormErrorMessage>{form.errors.playlistShouldBeCollaborative}</FormErrorMessage>
+                    <FormErrorMessage>{form.errors.playlistShouldBeCollaborative?.toLocaleString()}</FormErrorMessage>
                   </FormControl>
                 )}
               </Field>
@@ -148,7 +152,7 @@ export function CreateSpotifyPlaylistModal({
                                mb={3}>
                     <FormLabel htmlFor='playlistDescription'>Playlist description</FormLabel>
                     <Textarea {...field} id='playlistDescription' placeholder='Enter playlist description (optional)' />
-                    <FormErrorMessage>{form.errors.playlistDescription}</FormErrorMessage>
+                    <FormErrorMessage>{form.errors.playlistDescription?.toLocaleString()}</FormErrorMessage>
                   </FormControl>
                 )}
               </Field>

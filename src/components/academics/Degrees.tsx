@@ -1,5 +1,6 @@
 import { AcademicYear, Degree, TransferClass } from './Degree';
 import { IuTridentIcon } from '../icons/IuTridentIcon';
+import { ArizonaWildcatIcon } from '../icons/ArizonaWildcatIcon';
 
 export const freshmanYearBachelors: AcademicYear = {
   startYear: 2019,
@@ -350,6 +351,7 @@ export const bachelorsDegree: Degree = {
     sophomoreYearBachelors,
     juniorYearBachelors,
   ],
+  hasMajorGpa: true
 };
 
 const sophomoreYearMasters: AcademicYear = {
@@ -435,4 +437,62 @@ export const mastersDegree: Degree = {
     sophomoreYearMasters,
     juniorYearMasters,
   ],
+  hasMajorGpa: true
 };
+
+const firstYearMba: AcademicYear = {
+  startYear: 2021,
+  endYear: 2022,
+  semesters: [
+    {
+      name: 'Summer 2022',
+      classes: [
+        {
+          code: 'ACCT 545',
+          title: 'Introduction to Managerial Accounting',
+          credits: 2,
+          grade: 'A',
+        }
+      ],
+    },
+  ],
+};
+
+const secondYearMba: AcademicYear = {
+  startYear: 2022,
+  endYear: 2023,
+  semesters: [
+    {
+      name: 'Fall 2022',
+      classes: [
+        {
+          code: 'FIN 510A',
+          title: 'Financial Management (1)',
+          credits: 2,
+          grade: 'In Progress',
+        },
+        {
+          code: 'FIN 510B',
+          title: 'Financial Management (2)',
+          credits: 2,
+          grade: 'In Progress',
+        }
+      ],
+    },
+  ],
+};
+
+
+export const mbaDegree: Degree = {
+  schoolName: <>University of Arizona <ArizonaWildcatIcon /></>,
+  schoolLocation: 'Tucson, Arizona (Remote)',
+  degreeKind: 'Master of Business Administration',
+  degreeField: 'Concentrating in Entrepreneurship and MIS',
+  startedDegree: 'Summer 2022',
+  finishedDegree: 'TBD',
+  years: [
+    firstYearMba,
+    secondYearMba
+  ],
+  hasMajorGpa: false
+}
