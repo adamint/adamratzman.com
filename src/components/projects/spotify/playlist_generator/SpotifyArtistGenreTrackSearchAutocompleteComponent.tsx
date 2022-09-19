@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box } from '@chakra-ui/react';
 import Fuse from 'fuse.js';
-import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import {
   AutoComplete,
   AutoCompleteGroup,
@@ -20,6 +19,12 @@ type SpotifyArtistGenreTrackSearchAutocompleteComponentProps = {
   setSelectedObjects: Function;
 }
 
+async function handleInputChange(event: React.ChangeEvent<HTMLInputElement>, setInputText: (query: string) => void, searchAndFilterResults: (query: string) => Promise<void>) {
+  const query = event.target.value;
+  setInputText(query);
+  await searchAndFilterResults(query);
+}
+
 export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
                                                                      selectedObjects,
                                                                      setSelectedObjects,
@@ -27,6 +32,14 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
   const [inputText, setInputText] = useState('');
   const [allAvailableGenreSeeds, setAllAvailableGenreSeeds] = useState<string[]>([]);
   const [allAutocompleteOptions, setAllAutocompleteOptions] = useState<AutocompleteOption[]>([]);
+  const [tagToRemove, setTagToRemove] = useState<null | any>(null);
+
+  useEffect(() => {
+    if (tagToRemove) {
+      tagToRemove.onRemove();
+      setTagToRemove(null);
+    }
+  }, [tagToRemove, selectedObjects]);
 
   useEffect(() => {
     (async () => {
@@ -42,8 +55,6 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
     }
 
     const genrePromise = async () => {
-      console.log(allAvailableGenreSeeds)
-
       return allAvailableGenreSeeds.filter(genreSeed => genreSeed.includes(query.toLowerCase())).map((genreSeed: string) => {
         return {
           uri: `spotify:genre:${genreSeed}`,
@@ -109,14 +120,6 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
     setAllAutocompleteOptions(searchResultItems);
   }
 
-  async function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const query = event.target.value;
-    setInputText(query);
-    await searchAndFilterResults(query);
-  }
-
-  const handleInputChangeDebounced = AwesomeDebouncePromise(handleInputChange, 350);
-
   function getAutocompleteItem(option: AutocompleteOption, groupId: AutocompleteType) {
     return <AutoCompleteItem
       key={`autocomplete-spotify-option-${option.uri}`}
@@ -134,27 +137,39 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
       }
     });
     setSelectedObjects(newSelectedObjects);
+    setInputText("")
   }
 
-  let topTenResults: AutocompleteOption[];
-  if (allAutocompleteOptions.filter(opt => opt.type === 'track').slice(0, 10).length + allAutocompleteOptions.filter(opt => opt.type === 'artist').slice(0, 10).length >= 15) {
-    topTenResults = allAutocompleteOptions.filter(opt => opt.type === 'track').slice(0, 8)
-      .concat(allAutocompleteOptions.filter(opt => opt.type === 'artist').slice(0, 7))
-      .concat(allAutocompleteOptions.filter(opt => opt.type === 'genre'));
-  } else topTenResults = allAutocompleteOptions.slice(0, 15);
+  let topResults: AutocompleteOption[];
+  if (allAutocompleteOptions.filter(opt => opt.type === 'track').slice(0, 5).length + allAutocompleteOptions.filter(opt => opt.type === 'artist').slice(0, 5).length >= 8) {
+    topResults = allAutocompleteOptions.filter(opt => opt.type === 'track').slice(0, 4)
+      .concat(allAutocompleteOptions.filter(opt => opt.type === 'artist').slice(0, 4))
+      .concat(allAutocompleteOptions.filter(opt => opt.type === 'genre').slice(0, 4));
+  } else topResults = allAutocompleteOptions.slice(0, 15);
 
-  return <AutoComplete rollNavigation={false}
-                       filter={(query, optionValue) => allAutocompleteOptions.some(opt => opt.uri === optionValue)}
+  const trackGroup = [
+    <AutoCompleteGroupTitle key='group-key'><b><u>Tracks</u></b></AutoCompleteGroupTitle>,
+    ...topResults.filter(option => option.type === 'track').map(option => getAutocompleteItem(option, 'track')),
+  ];
+
+  const artistGroup = [
+    <AutoCompleteGroupTitle key='group-key'><b><u>Artists</u></b></AutoCompleteGroupTitle>,
+    ...topResults.filter(option => option.type === 'artist').map(option => getAutocompleteItem(option, 'artist')),
+  ];
+
+  const genreGroup = [
+    <AutoCompleteGroupTitle key='group-key'><b><u>Genres</u></b></AutoCompleteGroupTitle>,
+    ...topResults.filter(option => option.type === 'genre').map(option => getAutocompleteItem(option, 'genre')),
+  ];
+
+  return <AutoComplete filter={(query, optionValue) => {
+    return allAutocompleteOptions.some(opt => opt.uri === optionValue);
+  }}
                        multiple
                        onChange={handleAutocompleteSelectedValuesChange}>
     <AutoCompleteInput variant='filled' placeholder='Enter a Spotify track, artist, or genre...' autoFocus
                        value={inputText}
-                       onChange={
-                         async e => {
-                           if (e.target.value.length <= 1) await handleInputChange(e);
-                           else await handleInputChangeDebounced(e);
-                         }
-                       }>
+                       onChange={async e => await handleInputChange(e, setInputText, searchAndFilterResults)}>
       {({ tags }) => {
         return tags.map(tag => {
           const uri = tag.label;
@@ -169,7 +184,7 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
             const newSelectedObjects = { ...selectedObjects };
             delete newSelectedObjects[uri];
             setSelectedObjects(newSelectedObjects);
-            tag.onRemove();
+            setTagToRemove(tag);
           }
 
           return <AutoCompleteTag
@@ -184,22 +199,16 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
       }
     </AutoCompleteInput>
     <AutoCompleteList maxH='100%'>
-      <AutoCompleteGroup id='track' showDivider>
-        <AutoCompleteGroupTitle><b><u>Tracks</u></b></AutoCompleteGroupTitle>
-
-        {topTenResults.filter(option => option.type === 'track').map(option => getAutocompleteItem(option, 'track'))}
+      <AutoCompleteGroup showDivider>
+        {trackGroup}
       </AutoCompleteGroup>
 
-      <AutoCompleteGroup id='artist' showDivider>
-        <AutoCompleteGroupTitle><b><u>Artists</u></b></AutoCompleteGroupTitle>
-
-        {topTenResults.filter(option => option.type === 'artist').map(option => getAutocompleteItem(option, 'artist'))}
+      <AutoCompleteGroup showDivider>
+        {artistGroup}
       </AutoCompleteGroup>
 
-      <AutoCompleteGroup id='genre' showDivider>
-        <AutoCompleteGroupTitle><b><u>Genres</u></b></AutoCompleteGroupTitle>
-
-        {topTenResults.filter(option => option.type === 'genre').map(option => getAutocompleteItem(option, 'genre'))}
+      <AutoCompleteGroup showDivider>
+        {genreGroup}
       </AutoCompleteGroup>
 
     </AutoCompleteList>

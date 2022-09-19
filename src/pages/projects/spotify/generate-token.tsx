@@ -113,8 +113,7 @@ function SpotifyGenerateTokenRoute() {
         </CheckboxGroup>
         <Text fontSize='lg'><b>Your generated url is:</b> <Link
           onClick={handleRedirectToSpotifyLinkClicked}>{generatedOAuthRedirectUrl}</Link></Text>
-        {window !== undefined &&
-          <Text>The redirect uri used to generate this link was: <u>{spotifyRedirectUri()}</u></Text>}
+        {!!window && <Text>The redirect uri used to generate this link was: <u>{spotifyRedirectUri()}</u></Text>}
       </Box>
     </ProjectPage>
   </SpotifyRouteComponent>;
