@@ -28,7 +28,7 @@ function App({ Component, pageProps }: AppProps) {
     <Head>
       <title>Adam Ratzman | adamratzman.com</title>
     </Head>
-    <ColorModeScript />
+    <ColorModeScript initialColorMode="system" />
     <ChakraProvider theme={theme}>
       <Flex direction='column' minH='100vh'>
         <Navbar />

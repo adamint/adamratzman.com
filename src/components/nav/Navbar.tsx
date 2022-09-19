@@ -15,6 +15,7 @@ import {
   Text,
   useBreakpointValue,
   useColorMode,
+  useColorModeValue,
 } from '@chakra-ui/react';
 import { FaGithub, FaRegPaperPlane } from 'react-icons/all';
 import { ColorModeSwitcher } from '../../ColorModeSwitcher';
@@ -23,6 +24,7 @@ import { HamburgerIcon } from '@chakra-ui/icons';
 import React, { ReactElement } from 'react';
 import { useRouter } from 'next/router';
 import NextLink from 'next/link';
+import { FaMoon, FaSun } from 'react-icons/fa';
 
 interface NavbarLink {
   title: string;
@@ -34,7 +36,7 @@ interface NavbarLink {
 const navbarLinks: NavbarLink[] = [
   { title: 'Online Projects', path: '/projects' },
   { title: 'Portfolio', path: '/portfolio' },
-  { title: 'Education', path: '/academics'},
+  { title: 'Education', path: '/academics' },
   {
     title: 'GitHub',
     icon: <Icon as={FaGithub} w={30} h={30} />,
@@ -67,6 +69,7 @@ function MobileNavbar() {
   const colorModeColor = useColorModeColor();
   const router = useRouter();
   const { toggleColorMode } = useColorMode();
+  const SwitchIcon = useColorModeValue(FaMoon, FaSun);
 
   async function handleMenuItemClicked(link: NavbarLink) {
     if (link.notOnSite) window.open(link.path);
@@ -94,7 +97,7 @@ function MobileNavbar() {
                 </Link>
               </MenuItem>)}
               <MenuItem onClick={toggleColorMode}>
-                Switch theme <ColorModeSwitcher aria-label='Color mode switcher button' />
+                <>Switch theme {<SwitchIcon />}</>
               </MenuItem>
             </MenuList>
           </>

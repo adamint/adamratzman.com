@@ -120,8 +120,7 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
   function getAutocompleteItem(option: AutocompleteOption, groupId: AutocompleteType) {
     return <AutoCompleteItem
       key={`autocomplete-spotify-option-${option.uri}`}
-      value={option}
-      groupId={groupId}>
+      value={option}>
       {option.textMapper()}
     </AutoCompleteItem>;
   }

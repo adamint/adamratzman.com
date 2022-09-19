@@ -1,12 +1,12 @@
 import { useData } from '../../../utils/useData';
-import { useEffect } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Box, filter, Flex } from '@chakra-ui/react';
 import Pagination from '@choc-ui/paginator';
 import { TimeRange } from '../../../utils/SpotifyTypes';
 import { SpotifyPagination } from '../../../utils/SpotifyApiPaginationHelper';
 import { useRouter } from 'next/router';
 
-type PaginatedSpotifyDisplayProps<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType> = {
+type PaginatedSpotifyDisplayProps<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType extends ReactNode> = {
   dataProducer: (...args: any[]) => Promise<DataType>;
   childDataMapper: (child: ChildType) => ChildMappedType;
   timeRange?: TimeRange | null;
@@ -17,7 +17,7 @@ type PaginatedSpotifyDisplayProps<DataType extends SpotifyPagination<ChildType>,
   filterNotNull: (child: any) => boolean
 }
 
-export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType>({
+export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType extends any>({
                                                                                                                      dataProducer,
                                                                                                                      childDataMapper,
                                                                                                                      timeRange = null,
