@@ -2,7 +2,6 @@ import { Sha256 } from '@aws-crypto/sha256-browser';
 import base64url from 'base64url';
 import axios, { AxiosResponse } from 'axios';
 import SpotifyWebApi from 'spotify-web-api-js';
-import { useEffect, useState } from 'react';
 
 export interface PkceGuardedSpotifyWebApiJs {
   getApi: () => Promise<SpotifyWebApi.SpotifyWebApiJs>;
@@ -35,7 +34,6 @@ export function useSpotifyWebApiGuardValidPkceToken(clientId: string, spotifyTok
 export async function getPkceAuthUrlFull(scopes: string[], clientId: string, redirectUri: string, codeVerifier: string, state: string | null): Promise<string> {
   if (codeVerifier.length < 43 || codeVerifier.length > 128) throw new Error('Code verifier must be between 43..128 characters long');
   const codeChallenge = await getCodeChallengeForCodeVerifier(codeVerifier);
-
   let url = `https://accounts.spotify.com/authorize/?client_id=${clientId}`
     + `&response_type=code`
     + `&redirect_uri=${redirectUri}`
@@ -44,7 +42,6 @@ export async function getPkceAuthUrlFull(scopes: string[], clientId: string, red
 
   if (state) url += `&state=${state}`;
   if (scopes.length > 0) url += `&scope=${scopes.join('%20')}`;
-
   return url;
 }
 
@@ -66,7 +63,9 @@ export async function redirectToSpotifyLogin(codeVerifier: string, redirectPathA
   localStorage.setItem('spotify_code_verifier', codeVerifier);
   localStorage.setItem('spotify_redirect_after_auth', redirectPathAfter);
   setCodeVerifier(codeVerifier);
-  window.location.href = await getPkceAuthUrlFull(scopes, clientId, redirectUri, codeVerifier, state);
+  // noinspection UnnecessaryLocalVariableJS
+  const pkceUrl = await getPkceAuthUrlFull(scopes, clientId, redirectUri, codeVerifier, state);
+  window.location.href = pkceUrl;
 }
 
 export async function doSpotifyPkceRefresh(clientId: string, refreshToken: string, setSpotifyTokenInfo: Function): Promise<SpotifyToken | null> {
@@ -82,7 +81,7 @@ export async function doSpotifyPkceRefresh(clientId: string, refreshToken: strin
     console.log('refreshed token via pkce');
     return token;
   } catch (e) {
-    console.log(e)
+    console.log(e);
     setSpotifyTokenInfo(null);
     logoutOfSpotify();
     return null;
