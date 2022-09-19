@@ -43,7 +43,7 @@ function HomeRoute() {
       <Text>In my day job, I&apos;m a Software Engineer at <b>Microsoft</b> on the .NET Developer Experience team, where
         I help C# and VB
         Visual Studio developers be more productive.
-        Oh, and I'm an <ChakraRouterLink href='/academics/mba'>MBA candidate</ChakraRouterLink> at the University of
+        Oh, and I&apos;m an <ChakraRouterLink href='/academics/mba'>MBA candidate</ChakraRouterLink> at the University of
         Arizona <ArizonaWildcatIcon />.</Text>
     </TitledSection>
 
