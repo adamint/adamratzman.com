@@ -469,7 +469,7 @@ const secondYearMba: AcademicYear = {
           code: 'FIN 510A',
           title: 'Financial Management (1)',
           credits: 2,
-          grade: 'In Progress',
+          grade: 'A',
         },
         {
           code: 'FIN 510B',
