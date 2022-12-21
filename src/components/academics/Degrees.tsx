@@ -475,10 +475,27 @@ const secondYearMba: AcademicYear = {
           code: 'FIN 510B',
           title: 'Financial Management (2)',
           credits: 2,
-          grade: 'In Progress',
+          grade: 'A',
         }
       ],
     },
+    {
+      name: 'Spring 2023',
+      classes: [
+        {
+          code: 'BCOM 511',
+          title: 'Communication Management',
+          credits: 2,
+          grade: 'In Progress'
+        },
+        {
+          code: 'MKTG 579E',
+          title: 'Marketing of Innovations',
+          credits: 2,
+          grade: 'In Progress'
+        }
+      ]
+    }
   ],
 };
 

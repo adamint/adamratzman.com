@@ -55,7 +55,7 @@ function HomeRoute() {
                   additionalRightSideContext={<>GPA: <ChakraRouterLink
                     href='/academics/mba'><u>{calculateGpaForClasses(getAllClassesForDegree(mbaDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
                   bullets={[
-                    'Eller School of Business Online MBA',
+                    'Eller School of Business MBA',
                   ]}
       />
       <Experience place='Indiana University Bloomington'
