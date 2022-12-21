@@ -4,16 +4,13 @@ import { ChakraRouterLink } from '../components/utils/ChakraRouterLink';
 import { TitledSection } from '../components/containers/TitledSection';
 import { IuTridentIcon } from '../components/icons/IuTridentIcon';
 import { Experience } from '../components/home/Experience';
-import { ReactIcon } from '../components/icons/ReactIcon';
-import { JavaIcon } from '../components/icons/JavaIcon';
-import { CSharpIcon } from '../components/icons/CSharpIcon';
-import { KotlinIcon } from '../components/icons/KotlinIcon';
 import { TechnicalSkillsSection } from '../components/home/TechnicalSkillsSection';
 import { ColorModeSwitcher } from '../ColorModeSwitcher';
 import Head from 'next/head';
 import { bachelorsDegree, mastersDegree, mbaDegree } from '../components/academics/Degrees';
 import { calculateGpaForClasses, getAllClassesForDegree } from '../components/academics/Degree';
 import { ArizonaWildcatIcon } from '../components/icons/ArizonaWildcatIcon';
+import { MicrosoftIcon } from '../components/icons/MicrosoftIcon';
 
 function HomeRoute() {
   const oppositeColorMode = useColorMode().colorMode === 'dark' ? 'light' : 'dark';
@@ -26,8 +23,7 @@ function HomeRoute() {
       <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpan
         tooltip='You thought there was going to be something here, didn&apos;t you?'>Adam Ratzman</DashedSpan>, a
         software
-        engineer at Microsoft and a JVM <JavaIcon w={35} h={35} /> <KotlinIcon w={35} h={35} />,
-        React <ReactIcon />, and .NET <CSharpIcon w={35} h={35} /> developer.</Heading>
+        engineer at Microsoft and midwestern expat.</Heading>
       <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink
         href='/projects'>interactive
         projects →</ChakraRouterLink></Text>
@@ -36,15 +32,16 @@ function HomeRoute() {
     </Box>
 
     <TitledSection title='About me'>
-      <Text>I&apos;m a graduate of <b>Indiana University</b> Bloomington <IuTridentIcon />, where I received a BS and
-        MS in Computer Science.</Text>
-      <Text>I build software and distributed systems, tools, and APIs, and climb 🧗‍♂️, run 🏃, hike 🥾, and play frisbee
+      <Text mb={1}>I&apos;m a graduate of <b>Indiana University</b> Bloomington <IuTridentIcon />, where I received a BS and
+        MS in Computer Science and am an experienced JVM, React, and .NET developer.</Text>
+      <Text mb={1}>I build software and distributed systems, tools, and APIs, and climb, run, hike, and play frisbee
         🥏 with my puppy.</Text>
-      <Text>In my day job, I&apos;m a Software Engineer at <b>Microsoft</b> on the .NET Developer Experience team, where
+      <Text>Currently, I&apos;m a Software Engineer at <b>Microsoft</b> <MicrosoftIcon /> on the
+        <ChakraRouterLink target='_blank' href="https://github.com/dotnet/project-system">.NET Developer Experience team</ChakraRouterLink>, where
         I help C# and VB
         Visual Studio developers be more productive.
-        Oh, and I&apos;m an <ChakraRouterLink href='/academics/mba'>MBA candidate</ChakraRouterLink> at the University of
-        Arizona <ArizonaWildcatIcon />.</Text>
+        Oh, and I&apos;m an <ChakraRouterLink href='/academics/mba'>MBA</ChakraRouterLink> candidate at the <b>University of
+          Arizona <ArizonaWildcatIcon /></b>.</Text>
     </TitledSection>
 
     <TitledSection title='Education'>
@@ -55,7 +52,7 @@ function HomeRoute() {
                   additionalRightSideContext={<>GPA: <ChakraRouterLink
                     href='/academics/mba'><u>{calculateGpaForClasses(getAllClassesForDegree(mbaDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
                   bullets={[
-                    'Eller School of Business MBA',
+                    'Eller School of Business',
                   ]}
       />
       <Experience place='Indiana University Bloomington'
@@ -90,7 +87,7 @@ function HomeRoute() {
                   date='January 2022 - Present'
                   bullets={[
                     'A member of the C# Project team in the Developer Division at Microsoft.',
-                    'I help VS .NET developers be more productive in their work, and help bring new .NET features to Visual Studio. Sometimes, I break things (sorry). More often, I fix them.',
+                    'I help VS .NET developers be more productive in their work, and help bring new .NET features to Visual Studio. Sometimes, I break things (sorry). Slightly more often, I fix them.',
                   ]}
       />
 
@@ -172,7 +169,7 @@ function HomeRoute() {
                   title='Creator, Maintainer'
                   date='September 2017 - Present'
                   bullets={[
-                    'Created and maintain a modern, asynchronous Kotlin MPP library for the Spotify Web, Web Playback, and auth APIs with 110+ stars',
+                    'Created and maintain a modern, asynchronous Kotlin MPP library for the Spotify Web, Web Playback, and auth APIs with 140+ stars',
                     'Developed using TDD and Agile methods',
                   ]}
       />
