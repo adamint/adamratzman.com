@@ -1,6 +1,6 @@
 import { TitledSection } from '../containers/TitledSection';
 import { Box, Heading, Icon, Text } from '@chakra-ui/react';
-import { SiChakraui, SiReact, SiTypescript } from 'react-icons/all';
+import { SiChakraui, SiReact, SiTypescript } from 'react-icons/si';
 import { ChakraRouterLink } from '../utils/ChakraRouterLink';
 
 export const skills: Map<string, string[]> = new Map([

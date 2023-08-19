@@ -1,5 +1,5 @@
 import { Box, Button, Heading, Text } from '@chakra-ui/react';
-import { FaSpotify } from 'react-icons/all';
+import { FaSpotify } from 'react-icons/fa';
 import React, { useEffect } from 'react';
 import randomstring from 'randomstring';
 import { redirectToSpotifyLogin } from './SpotifyAuthUtils';

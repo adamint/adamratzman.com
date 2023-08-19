@@ -2,7 +2,8 @@ import { ProjectPage } from '../../../components/projects/ProjectPage';
 import { SpotifyLogoutButton } from '../../../spotify-utils/auth/SpotifyLogoutButton';
 import { FormControl, FormLabel, Icon, Select, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
 import React, { useState } from 'react';
-import { BsPeopleFill, MdPlayCircleOutline } from 'react-icons/all';
+import { MdPlayCircleOutline } from 'react-icons/md';
+import { BsPeopleFill} from 'react-icons/bs'
 import { SpotifyTrack } from '../../../components/projects/spotify/views/SpotifyTrack';
 import { PaginatedSpotifyDisplay } from '../../../components/projects/spotify/views/PaginatedSpotifyDisplay';
 import { SpotifyArtist } from '../../../components/projects/spotify/views/SpotifyArtist';

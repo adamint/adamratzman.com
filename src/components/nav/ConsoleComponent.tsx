@@ -80,7 +80,7 @@ export function ConsoleComponent() {
 
         <AccordionPanel>
           <Terminal
-            welcomeMessage={`Hi, I'm Adam Ratzman. I'm a software engineer at Microsoft and a full-stack JS, JVM, and .NET engineer.
+            welcomeMessage={`Hi, I'm Adam Ratzman. I'm a software engineer at Microsoft.
       Type help to see what commands are available, or type exit to close this`}
             promptLabel='you@adamratzman:~$'
             errorText='Command not found. Please type help to see available commands'

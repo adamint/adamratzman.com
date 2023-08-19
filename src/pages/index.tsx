@@ -1,5 +1,15 @@
-import { Box, Heading, Link, Text, useColorMode } from '@chakra-ui/react';
-import { DashedSpan } from '../components/utils/DashedSpan';
+import {
+  Box,
+  Button,
+  Heading, Image,
+  Link,
+  Popover, PopoverArrow, PopoverBody, PopoverCloseButton,
+  PopoverContent, PopoverHeader,
+  PopoverTrigger, Portal,
+  Text,
+  useColorMode, useDisclosure,
+} from '@chakra-ui/react';
+import { DashedSpan, DashedSpanWithTooltip } from '../components/utils/DashedSpanWithTooltip';
 import { ChakraRouterLink } from '../components/utils/ChakraRouterLink';
 import { TitledSection } from '../components/containers/TitledSection';
 import { IuTridentIcon } from '../components/icons/IuTridentIcon';
@@ -11,6 +21,8 @@ import { bachelorsDegree, mastersDegree, mbaDegree } from '../components/academi
 import { calculateGpaForClasses, getAllClassesForDegree } from '../components/academics/Degree';
 import { ArizonaWildcatIcon } from '../components/icons/ArizonaWildcatIcon';
 import { MicrosoftIcon } from '../components/icons/MicrosoftIcon';
+import { useColorModeColor } from '../components/utils/useColorModeColor';
+import { KomootMonthlyModeShare } from '../components/projects/fitness/KomootMonthlyModeShare';
 
 function HomeRoute() {
   const oppositeColorMode = useColorMode().colorMode === 'dark' ? 'light' : 'dark';
@@ -20,10 +32,10 @@ function HomeRoute() {
       <title>Home</title>
     </Head>
     <Box mb={5}>
-      <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpan
-        tooltip='You thought there was going to be something here, didn&apos;t you?'>Adam Ratzman</DashedSpan>, a
-        software
-        engineer at Microsoft and midwestern expat.</Heading>
+      <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpanWithTooltip
+        tooltip='You thought there was going to be something here, didn&apos;t you?'>Adam
+        Ratzman</DashedSpanWithTooltip>, a
+        software engineer at Microsoft.</Heading>
       <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink
         href='/projects'>interactive
         projects →</ChakraRouterLink></Text>
@@ -32,16 +44,14 @@ function HomeRoute() {
     </Box>
 
     <TitledSection title='About me'>
-      <Text mb={1}>I&apos;m a graduate of <b>Indiana University</b> Bloomington <IuTridentIcon />, where I received a BS and
-        MS in Computer Science and am an experienced JVM, React, and .NET developer.</Text>
-      <Text mb={1}>I build software and distributed systems, tools, and APIs, and climb, run, hike, and play frisbee
-        🥏 with my puppy.</Text>
-      <Text>Currently, I&apos;m a Software Engineer at <b>Microsoft</b> <MicrosoftIcon /> on the
-        <ChakraRouterLink target='_blank' href="https://github.com/dotnet/project-system">.NET Developer Experience team</ChakraRouterLink>, where
-        I help C# and VB
-        Visual Studio developers be more productive.
-        Oh, and I&apos;m an <ChakraRouterLink href='/academics/mba'>MBA</ChakraRouterLink> candidate at the <b>University of
-          Arizona <ArizonaWildcatIcon /></b>.</Text>
+      <Text mb={1}>Currently, I&apos;m a Software Engineer at <b>Microsoft</b> <MicrosoftIcon /> on the <ChakraRouterLink
+        target='_blank' href='https://github.com/dotnet/project-system'>Visual Studio .NET Developer Experience
+        team</ChakraRouterLink>, where I help C# and VB.NET developers be more productive.</Text>
+
+      <Text mb={5}>I graduated from <b>Indiana University Bloomington</b> <IuTridentIcon />, where I received a BS and
+        MS in Computer Science. I build software and distributed systems and tools, and in addition to
+        my <PuppyPopover />, I'm an avid runner and biker and track my activities using <ChakraRouterLink href="https://komoot.de">Komoot</ChakraRouterLink>.</Text>
+      <KomootMonthlyModeShare />
     </TitledSection>
 
     <TitledSection title='Education'>
@@ -195,6 +205,23 @@ function HomeRoute() {
 
 
   </>;
+}
+
+function PuppyPopover() {
+  const colorModeColor = useColorModeColor();
+
+  return <Popover>
+    <PopoverTrigger>
+      <Link color='current' borderBottom={`1px dashed ${colorModeColor}`}>puppy</Link>
+    </PopoverTrigger>
+    <Portal>
+      <PopoverContent>
+        <PopoverArrow />
+        <PopoverCloseButton />
+        <PopoverHeader>Benjamin at 2</PopoverHeader>
+        <PopoverBody><Image src='/ben.jpg' /></PopoverBody>
+      </PopoverContent></Portal>
+  </Popover>;
 }
 
 export default HomeRoute;

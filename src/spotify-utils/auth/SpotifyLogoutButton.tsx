@@ -1,5 +1,5 @@
 import { Button } from '@chakra-ui/react';
-import { FaSpotify } from 'react-icons/all';
+import { FaSpotify } from 'react-icons/fa';
 import { logoutOfSpotify } from './SpotifyAuthUtils';
 
 type SpotifyLogoutButtonProps = {

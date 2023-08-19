@@ -12,9 +12,6 @@ export function ChakraRouterLink({
                                    href,
                                    ...rest
                                  }: ChakraRouterLinkProps & ChakraLinkProps & React.PropsWithChildren<LinkProps>) {
-  if (href.startsWith('/')) return <Link href={href} passHref>
-    <ChakraLink href={href}
-                color='#149dcc' {...rest}>{children}</ChakraLink>
-  </Link>;
+  if (href.startsWith('/')) return <ChakraLink as={Link} href={href} color='#149dcc' {...rest}>{children}</ChakraLink>
   else return <ChakraLink href={href} color='#149dcc' {...rest}>{children}</ChakraLink>;
 }

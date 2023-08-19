@@ -1,5 +1,7 @@
 import { Box, Center, HStack, Icon, Link, Text } from '@chakra-ui/react';
-import { BiEnvelope, FaLinkedinIn, FiGithub } from 'react-icons/all';
+import { FaLinkedinIn  } from 'react-icons/fa';
+import { BiEnvelope } from 'react-icons/bi';
+import { FiGithub } from 'react-icons/fi';
 import { useColorModeColor } from '../utils/useColorModeColor';
 
 export function Footer() {

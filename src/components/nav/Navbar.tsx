@@ -17,7 +17,7 @@ import {
   useColorMode,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { FaGithub, FaRegPaperPlane } from 'react-icons/all';
+import { FaGithub, FaRegPaperPlane } from 'react-icons/fa';
 import { ColorModeSwitcher } from '../../ColorModeSwitcher';
 import { useColorModeColor } from '../utils/useColorModeColor';
 import { HamburgerIcon } from '@chakra-ui/icons';
@@ -111,11 +111,9 @@ function Logo() {
   const colorModeColor = useColorModeColor();
 
   return <Center>
-    <NextLink href='/'>
-      <Link color={colorModeColor}>
+    <Link as={NextLink} href='/' color={colorModeColor}>
         <Heading size='sm' fontWeight={700} fontFamily="'Rubik', sans-serif">Adam Ratzman</Heading>
-      </Link>
-    </NextLink>
+    </Link>
   </Center>;
 }
 
@@ -134,7 +132,7 @@ function NavbarLinks() {
       {navbarLinks.map(link => <Box key={link.path}>
         {link.notOnSite ?
           <Link href={link.path} color={colorModeColor}>{innerLinkContent(link)}</Link> :
-          <NextLink href={link.path}><Link color={colorModeColor}>{innerLinkContent(link)}</Link></NextLink>}
+          <Link as={NextLink} href={link.path} color={colorModeColor}>{innerLinkContent(link)}</Link>}
       </Box>)}
     </HStack>
     <ColorModeSwitcher aria-label='Color mode switcher button' />

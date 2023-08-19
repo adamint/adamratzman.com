@@ -7,10 +7,17 @@ type DashedSpanProps = {
   tooltip?: string;
 }
 
-export function DashedSpan({ children, tooltip } : DashedSpanProps) {
+export function DashedSpanWithTooltip({ children, tooltip } : DashedSpanProps) {
+  return <DashedSpan tooltip={tooltip}>
+    {tooltip ? <Tooltip label={tooltip}>{children}</Tooltip> : children}
+  </DashedSpan>;
+}
+
+export function DashedSpan({children} : DashedSpanProps) {
   const colorModeColor = useColorModeColor();
 
   return <Box as='span' borderBottom={`1px dashed ${colorModeColor}`}>
-    {tooltip ? <Tooltip label={tooltip}>{children}</Tooltip> : children}
+    {children}
   </Box>;
+
 }
