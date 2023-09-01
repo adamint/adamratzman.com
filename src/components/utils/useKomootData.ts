@@ -1,153 +1,131 @@
 import useSWR from 'swr';
 import { fetcher } from './SwrUtils';
 
-interface KomootTourData {
-  sortedTours: Tour[];
+interface PaginationResponse<T> {
+  data: T;
+  total: number;
+  next?: PaginationRequest | null;
+  previous?: PaginationRequest | null;
 }
 
-export function useKomootData(): KomootTourData | null {
-  const request = useSWR<Tour[], Error>("http://adamratzmancombackend.azurewebsites.net/komoot-tours", fetcher)
-
-  const tours = request.data;
-  if (request.isLoading || request.error || !tours) return null;
-
-  const sortedTours = tours.sort((tour, otherTour) => {
-    return Date.parse(tour.date) - Date.parse(otherTour.date)
-  })
-
-  return {
-    sortedTours: sortedTours
-  }
-
+export interface PaginationRequest {
+  offset: number;
+  limit: number;
 }
 
-export interface Tour {
-  changed_at: string
-  date: string
-  distance: number
-  duration: number
-  elevation_down: number
-  elevation_up: number
-  _embedded: Embedded
-  id: number
-  kcal_active: number
-  kcal_resting: number
-  _links: Links2
-  map_image: MapImage
-  map_image_preview: MapImagePreview
-  name: string
-  potential_route_update: boolean
-  source: string
-  sport: string
-  start_point: StartPoint
-  status: string
-  time_in_motion: number
-  type: string
-  vector_map_image: VectorMapImage
-  vector_map_image_preview: VectorMapImagePreview
+export interface Pair<K, T> {
+  first: K;
+  second: T;
 }
 
-export interface Embedded {
-  creator: Creator
+export interface WeekMonthYearPair {
+  weekStartDay: number;
+  weekStartMonth: number;
+  weekEndDay: number;
+  weekEndMonth: number;
+  year: number;
 }
 
-export interface Creator {
-  avatar: Avatar
-  display_name: string
-  is_premium: boolean
-  _links: Links
-  status: string
-  username: string
+export interface DayMonth {
+  day: number;
+  month: number;
 }
 
-export interface Avatar {
-  src: string
-  templated: boolean
-  type: string
+export type SportType = 'Biking' | 'EBiking' | 'Running' | 'Hiking' | 'Other'
+
+export type ActivityStatsByWeekResponse = Pair<WeekMonthYearPair, Record<SportType, number>>[]
+
+type PaginationProps = {
+  offset: number;
+  limit: number;
 }
 
-export interface Links {
-  relation: Relation
-  self: Self
+type useActivityStatsByWeekProps = PaginationProps
+
+export function useActivityStatsByWeek({
+                                         offset,
+                                         limit,
+                                       }: useActivityStatsByWeekProps): PaginationResponse<ActivityStatsByWeekResponse> | null {
+  const latestToursUrl = `${process.env.NEXT_PUBLIC_REDIRECT_PROTOCOL}://${process.env.NEXT_PUBLIC_BACKEND_SITE_URL}/activity-stats-by-week?limit=${limit}&offset=${offset}`;
+
+  const request = useSWR<PaginationResponse<ActivityStatsByWeekResponse>, Error>(latestToursUrl, fetcher);
+
+  const data = request.data;
+  if (request.isLoading || request.error || !data) return null;
+
+  return data;
 }
 
-export interface Relation {
-  href: string
-  templated: boolean
+type useToursByMonthProps = PaginationProps
+
+export type ToursByMonthResponse = ToursInMonthYear[]
+
+export function useToursByMonth({
+                                  offset,
+                                  limit,
+                                }: useToursByMonthProps): PaginationResponse<ToursByMonthResponse> | null {
+  const latestToursUrl = `${process.env.NEXT_PUBLIC_REDIRECT_PROTOCOL}://${process.env.NEXT_PUBLIC_BACKEND_SITE_URL}/latest-komoot-tours-by-month?limit=${limit}&offset=${offset}`;
+
+  const request = useSWR<PaginationResponse<ToursByMonthResponse>, Error>(latestToursUrl, fetcher);
+
+  const data = request.data;
+  if (request.isLoading || request.error || !data) return null;
+
+  return data;
 }
 
-export interface Self {
-  href: string
+export type ToursInMonthYear = {
+  monthYearPair: MonthYearPair;
+  tours: PublicTourInfo[];
+  distanceBySportType: Record<SportType, number>;
 }
 
-export interface Links2 {
-  coordinates: Coordinates
-  cover_images: CoverImages
-  creator: Creator2
-  participants: Participants
-  self: Self2
-  timeline: Timeline
-  translations: Translations
+type MonthYearPair = {
+  month: string;
+  year: number;
 }
 
-export interface Coordinates {
-  href: string
+export type PublicTourInfo = {
+  name: string;
+  duration: number;
+  distance: number;
+  sportType: SportType;
+  bicycleInfo?: SerializableBikeInfo;
+  date: SerializableLocalDate;
+  mapImage: MapImage
+  elevation: RouteElevation;
 }
 
-export interface CoverImages {
-  href: string
+type SerializableBikeInfo = {
+  name: string;
+  isElectric: boolean;
 }
 
-export interface Creator2 {
-  href: string
+type SerializableLocalDate = {
+  dateMillis: number;
+  minute: number;
+  hourOfDay: number;
+  dayOfWeek: SerializableDayOfWeek;
+  dayOfMonth: number;
+  month: SerializableMonth;
+  year: number;
 }
 
-export interface Participants {
-  href: string
+type SerializableDayOfWeek = {
+  number: number;
+  name: string;
 }
 
-export interface Self2 {
-  href: string
-}
+type SerializableMonth = SerializableDayOfWeek
 
-export interface Timeline {
-  href: string
-}
-
-export interface Translations {
-  href: string
+type RouteElevation = {
+  up: number;
+  down: number;
 }
 
 export interface MapImage {
-  attribution: string
-  src: string
-  templated: boolean
-  type: string
-}
-
-export interface MapImagePreview {
-  attribution: string
-  src: string
-  templated: boolean
-  type: string
-}
-
-export interface StartPoint {
-  alt: number
-  lat: number
-  lng: number
-}
-
-export interface VectorMapImage {
-  attribution: string
-  src: string
-  templated: boolean
-  type: string
-}
-
-export interface VectorMapImagePreview {
-  attribution: string
-  src: string
-  templated: boolean
-  type: string
+  attribution: string;
+  src: string;
+  templated: boolean;
+  type: string;
 }

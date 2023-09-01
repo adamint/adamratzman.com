@@ -3,7 +3,7 @@ import { useColorModeColor } from './useColorModeColor';
 import React from 'react';
 
 type DashedSpanProps = {
-  children: React.ReactNode;
+  children: any;
   tooltip?: string;
 }
 

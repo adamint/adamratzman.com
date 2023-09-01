@@ -10,7 +10,7 @@ interface SpotifyStore {
   spotifyRedirectUri: () => string;
 }
 
-const spotifyRedirectProtocol: string = process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_PROTOCOL ?? "unknown";
+const spotifyRedirectProtocol: string = process.env.NEXT_PUBLIC_REDIRECT_PROTOCOL ?? "unknown";
 
 export const useSpotifyStore = create<SpotifyStore>(set => ({
   codeVerifier: undefined,

@@ -1,15 +1,20 @@
 import {
   Box,
-  Button,
-  Heading, Image,
+  Heading,
+  Image,
   Link,
-  Popover, PopoverArrow, PopoverBody, PopoverCloseButton,
-  PopoverContent, PopoverHeader,
-  PopoverTrigger, Portal,
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverCloseButton,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTrigger,
+  Portal,
   Text,
-  useColorMode, useDisclosure,
+  useColorMode,
 } from '@chakra-ui/react';
-import { DashedSpan, DashedSpanWithTooltip } from '../components/utils/DashedSpanWithTooltip';
+import { DashedSpanWithTooltip } from '../components/utils/DashedSpanWithTooltip';
 import { ChakraRouterLink } from '../components/utils/ChakraRouterLink';
 import { TitledSection } from '../components/containers/TitledSection';
 import { IuTridentIcon } from '../components/icons/IuTridentIcon';
@@ -19,13 +24,14 @@ import { ColorModeSwitcher } from '../ColorModeSwitcher';
 import Head from 'next/head';
 import { bachelorsDegree, mastersDegree, mbaDegree } from '../components/academics/Degrees';
 import { calculateGpaForClasses, getAllClassesForDegree } from '../components/academics/Degree';
-import { ArizonaWildcatIcon } from '../components/icons/ArizonaWildcatIcon';
 import { MicrosoftIcon } from '../components/icons/MicrosoftIcon';
 import { useColorModeColor } from '../components/utils/useColorModeColor';
-import { KomootMonthlyModeShare } from '../components/projects/fitness/KomootMonthlyModeShare';
+import dynamic from 'next/dynamic';
+import { ViewToursByMonthComponent } from '../components/projects/fitness/ViewToursByMonth';
 
 function HomeRoute() {
   const oppositeColorMode = useColorMode().colorMode === 'dark' ? 'light' : 'dark';
+  const ViewActivityByWeekComponent = dynamic(async () => (await import('../components/projects/fitness/ViewActivityByWeek')).ViewActivityByWeek, { ssr: false });
 
   return <>
     <Head>
@@ -44,47 +50,40 @@ function HomeRoute() {
     </Box>
 
     <TitledSection title='About me'>
-      <Text mb={1}>Currently, I&apos;m a Software Engineer at <b>Microsoft</b> <MicrosoftIcon /> on the <ChakraRouterLink
-        target='_blank' href='https://github.com/dotnet/project-system'>Visual Studio .NET Developer Experience
-        team</ChakraRouterLink>, where I help C# and VB.NET developers be more productive.</Text>
+      <Text mb={1}>Currently, I&apos;m a Software Engineer at <b>Microsoft</b> <MicrosoftIcon /> on
+        the <ChakraRouterLink
+          target='_blank' href='https://github.com/dotnet/project-system'>Visual Studio .NET Developer Experience
+          team</ChakraRouterLink>, where I help C# and VB.NET developers be more productive.</Text>
 
       <Text mb={5}>I graduated from <b>Indiana University Bloomington</b> <IuTridentIcon />, where I received a BS and
         MS in Computer Science. I build software and distributed systems and tools, and in addition to
-        my <PuppyPopover />, I'm an avid runner and biker and track my activities using <ChakraRouterLink href="https://komoot.de">Komoot</ChakraRouterLink>.</Text>
-      <KomootMonthlyModeShare />
+        my <PuppyPopover />, I'm an avid runner and biker and track my activities using <ChakraRouterLink
+          href='https://komoot.de'>Komoot</ChakraRouterLink>.</Text>
+
+      <ViewActivityByWeekComponent />
+      <ViewToursByMonthComponent />
     </TitledSection>
 
     <TitledSection title='Education'>
-      <Experience place='University of Arizona'
-                  location='Tucson, AZ (Remote)'
-                  title={<>MBA with specializations in entrepreneurship and MIS</>}
-                  date='Summer 2022 - Present'
-                  additionalRightSideContext={<>GPA: <ChakraRouterLink
-                    href='/academics/mba'><u>{calculateGpaForClasses(getAllClassesForDegree(mbaDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
-                  bullets={[
-                    'Eller School of Business',
-                  ]}
-      />
       <Experience place='Indiana University Bloomington'
                   location='Bloomington, IN'
                   title={<><Box as='span'>MS in Computer Science</Box> (<ChakraRouterLink href='/academics/masters'>See
                     what I studied</ChakraRouterLink>)</>}
-                  date='Summer 2021 - Fall 2021'
+                  date='Spring 2021 - Fall 2021'
                   additionalRightSideContext={<>GPA: <ChakraRouterLink
                     href='/academics/masters'><u>{calculateGpaForClasses(getAllClassesForDegree(mastersDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
       />
 
       <Experience place='Indiana University Bloomington'
                   location='Bloomington, IN'
-                  title={<><Box as='span'>Bachelor of Science in Computer Science with Highest
-                    Distinction</Box> (<ChakraRouterLink
+                  title={<><Box as='span'>Bachelor of Science in Computer Science</Box> (<ChakraRouterLink
                     href='/academics/bachelors'>See what I studied</ChakraRouterLink>)</>}
                   date='Fall 2019 - Fall 2021'
                   additionalRightSideContext={<>GPA: <ChakraRouterLink
                     href='/academics/bachelors'><u>{calculateGpaForClasses(getAllClassesForDegree(bachelorsDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
                   bullets={[
                     'Honors: Hudson & Holland Scholar, Founders Scholar, Provost’s Scholarship, Hutton Honors College.',
-                    'Graduated with Highest Distinction, awarded to graduates with a 3.9 or above GPA',
+                    'Graduated with Highest Distinction, awarded to graduates with a 3.9 or above GPA.',
                     'Part of the BS/MS Computer Science program.',
                   ]}
       />
