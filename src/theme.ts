@@ -1,9 +1,9 @@
 import { extendTheme } from '@chakra-ui/react';
-import { StepsStyleConfig as Steps } from 'chakra-ui-steps';
+import { StepsTheme } from 'chakra-ui-steps';
 
 export const theme = extendTheme({
   components: {
-    Steps,
+    StepsTheme,
     Heading: {
       baseStyle: {
         fontWeight: 500,
