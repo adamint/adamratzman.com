@@ -68,7 +68,7 @@ export function ConsoleComponent() {
   if (!shouldShow || !shouldRenderConsole) return null;
 
   return <VStack position='fixed' bottom={0} right={0} width={500} alignItems='unset' bgColor='#212121'>
-    <Accordion allowToggle defaultIndex={0}>
+    <Accordion allowToggle>
       <AccordionItem>
         <HStack w='100%'>
           <CloseButton color='white' onClick={handleCloseConsole} />
