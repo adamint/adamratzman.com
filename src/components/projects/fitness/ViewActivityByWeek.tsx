@@ -40,7 +40,7 @@ export function ViewActivityByWeek() {
         },
       },
     ],
-    [],
+    [response?.data],
   );
 
   if (response === null) return;

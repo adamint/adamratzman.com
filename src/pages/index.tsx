@@ -57,7 +57,7 @@ function HomeRoute() {
 
       <Text mb={5}>I graduated from <b>Indiana University Bloomington</b> <IuTridentIcon />, where I received a BS and
         MS in Computer Science. I build software and distributed systems and tools, and in addition to
-        my <PuppyPopover />, I'm an avid runner and biker and track my activities using <ChakraRouterLink
+        my <PuppyPopover />, I&apos;m an avid runner and biker and track my activities using <ChakraRouterLink
           href='https://komoot.de'>Komoot</ChakraRouterLink>.</Text>
 
       <ViewActivityByWeekComponent />
@@ -218,7 +218,7 @@ function PuppyPopover() {
         <PopoverArrow />
         <PopoverCloseButton />
         <PopoverHeader>Benjamin at 2</PopoverHeader>
-        <PopoverBody><Image src='/ben.jpg' /></PopoverBody>
+        <PopoverBody><Image src='/ben.jpg' alt='Ben the labradoodle!'/></PopoverBody>
       </PopoverContent></Portal>
   </Popover>;
 }
