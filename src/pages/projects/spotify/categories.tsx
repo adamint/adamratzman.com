@@ -1,6 +1,6 @@
 import { ProjectPage } from '../../../components/projects/ProjectPage';
 import { getAllPagesNode } from '../../../components/utils/SpotifyApiPaginationHelper';
-import { Box, Heading, Image, SimpleGrid } from '@chakra-ui/react';
+import { Box, Heading, Image, SimpleGrid, useBreakpointValue } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../components/utils/ChakraRouterLink';
 import Head from 'next/head';
 import { GetServerSideProps } from 'next';
@@ -11,12 +11,13 @@ type SpotifyViewAllCategoriesRouteProps = {
 }
 
 function SpotifyViewAllCategoriesRoute({ categories }: SpotifyViewAllCategoriesRouteProps) {
+  const columnNumber = useBreakpointValue({base: 1, md: 3})
   return <>
     <Head>
       <title>Spotify Categories</title>
     </Head>
     <ProjectPage projectTitle='Spotify Category List'>
-      <SimpleGrid columns={3} spacing={10}>
+      <SimpleGrid columns={columnNumber} spacing={10}>
         {categories.map((category, idx) => <Box key={`${category.id}-${idx}`} boxShadow='0 5px 15px rgb(0 0 0 / 8%)'
                                                 minW='25%' p={10}>
           <Heading size='mdx' mb={3}><ChakraRouterLink

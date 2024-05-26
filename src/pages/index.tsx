@@ -45,7 +45,7 @@ function HomeRoute() {
       <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink
         href='/projects'>interactive
         projects →</ChakraRouterLink></Text>
-      <Text>Have a strong preference towards a {oppositeColorMode}er color scheme? <ColorModeSwitcher
+      <Text>Want a {oppositeColorMode}er color scheme? <ColorModeSwitcher
         aria-label='Switch color mode' /></Text>
     </Box>
 
@@ -55,10 +55,9 @@ function HomeRoute() {
           target='_blank' href='https://github.com/dotnet/project-system'>Visual Studio .NET Developer Experience
           team</ChakraRouterLink>, where I help C# and VB.NET developers be more productive.</Text>
 
-      <Text mb={5}>I graduated from <b>Indiana University Bloomington</b> <IuTridentIcon />, where I received a BS and
+      <Text mb={5}>I graduated from <b>Indiana University Bloomington</b> <IuTridentIcon /> in 2021, where I received a BS and
         MS in Computer Science. I build software and distributed systems and tools, and in addition to
-        my <PuppyPopover />, I&apos;m an avid runner and biker and track my activities using <ChakraRouterLink
-          href='https://komoot.de'>Komoot</ChakraRouterLink>.</Text>
+        my <PuppyPopover />, I&apos;m an avid runner and cyclist.</Text>
 
       <ViewActivityByWeekComponent />
       <ViewToursByMonthComponent />
@@ -82,21 +81,21 @@ function HomeRoute() {
                   additionalRightSideContext={<>GPA: <ChakraRouterLink
                     href='/academics/bachelors'><u>{calculateGpaForClasses(getAllClassesForDegree(bachelorsDegree).filter(clazz => clazz.grade !== 'T' && clazz.grade !== 'In Progress')).toFixed(3)}</u></ChakraRouterLink></>}
                   bullets={[
-                    'Honors: Hudson & Holland Scholar, Founders Scholar, Provost’s Scholarship, Hutton Honors College.',
-                    'Graduated with Highest Distinction, awarded to graduates with a 3.9 or above GPA.',
-                    'Part of the BS/MS Computer Science program.',
+                    'Honors: Hudson & Holland Scholar, Founders Scholar, Provost’s Scholarship, Hutton Honors College',
+                    'Graduated with Highest Distinction',
                   ]}
       />
     </TitledSection>
 
     <TitledSection title='Work Experience'>
       <Experience place='Microsoft'
-                  location='Redmond, WA'
-                  title='Software Engineer'
+                  location='Washington, DC'
+                  title='Software Engineer II'
                   date='January 2022 - Present'
                   bullets={[
-                    'A member of the C# Project team in the Developer Division at Microsoft.',
-                    'I help VS .NET developers be more productive in their work, and help bring new .NET features to Visual Studio. Sometimes, I break things (sorry). Slightly more often, I fix them.',
+                    'I am a member of the Visual Studio .NET Project team in the Developer Division at Microsoft',
+                    'I help VS .NET developers be more productive in their work, and help bring new .NET features to Visual Studio',
+                    <>I also have worked on other dotnet initiatives such as <ChakraRouterLink href="https://github.com/dotnet/aspire">.NET Aspire</ChakraRouterLink></>
                   ]}
       />
 
@@ -106,7 +105,7 @@ function HomeRoute() {
                   date='August 2021 - December 2021'
                   bullets={[
                     'One of 10 AIs and UIs to help in this introductory CS core class',
-                    'Co-lead a weekly lab',
+                    'Co-led a weekly lab',
                   ]}
       />
 
@@ -143,7 +142,6 @@ function HomeRoute() {
                   date='May 2020 - July 2020'
                   bullets={[
                     'Developed a POC extension to the Atlas RP (formerly Azure Service Fabric Mesh) layer in Microsoft Azure Service Fabric',
-                    'Collaborated in a remote environment to meet deadlines',
                   ]}
       />
 
@@ -217,7 +215,7 @@ function PuppyPopover() {
       <PopoverContent>
         <PopoverArrow />
         <PopoverCloseButton />
-        <PopoverHeader>Benjamin at 2</PopoverHeader>
+        <PopoverHeader>Ben, 2</PopoverHeader>
         <PopoverBody><Image src='/ben.jpg' alt='Ben the labradoodle!'/></PopoverBody>
       </PopoverContent></Portal>
   </Popover>;

@@ -15,10 +15,6 @@ function ProjectsHomeRoute() {
       <Project title='Academic record'
                link='/academics'
                description='View my BS, MS, and MBA degree class records.' />
-
-      <Project title='AP Calculus Interactive Review Site'
-               link='http://ap-calculus-review-sohalski.herokuapp.com/'
-               description='A comprehensive review site for calculus theorems, derivatives, and integrals, with options to test yourself with randomly-generated relevant problems' />
     </ProjectCategory>
 
     <ProjectCategory title='spotify'>

@@ -33,7 +33,7 @@ function App({ Component, pageProps }: AppProps) {
       <Flex direction='column' minH='100vh'>
         <Navbar />
 
-        <Box mx='auto' mt='40px' w={['90%', '85%', '66%']}>
+        <Box mx='auto' mt='30px' w={['90%', '85%', '66%']}>
           <Component {...pageProps} />
         </Box>
 

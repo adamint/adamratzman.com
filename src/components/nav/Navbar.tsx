@@ -97,7 +97,7 @@ function MobileNavbar() {
                 </Link>
               </MenuItem>)}
               <MenuItem onClick={toggleColorMode}>
-                <>Switch theme {<SwitchIcon />}</>
+                <><Box as="span" mr={1}>Switch theme</Box> {<SwitchIcon />}</>
               </MenuItem>
             </MenuList>
           </>

@@ -7,7 +7,7 @@ type ExperienceProps = {
   date: string;
   additionalRightSideContext?: React.ReactElement;
   location?: string;
-  bullets?: string[]
+  bullets?: (React.ReactNode | string)[]
 }
 
 export function Experience({

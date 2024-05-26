@@ -1,4 +1,4 @@
-import { Box, BoxProps, Flex, Heading, Spacer, Spinner } from '@chakra-ui/react';
+import { Box, BoxProps, Flex, Heading, Spacer, Spinner, useBreakpointValue } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../utils/ChakraRouterLink';
 import React from 'react';
 
@@ -21,7 +21,7 @@ export function ProjectPage({
                               ...rest
                             }: ProjectPageProps & BoxProps) {
   return <Box {...rest}>
-    <Flex mb={5}>
+    <Box mb={5}>
       <Box>
         <Heading fontSize='2.5rem' variant='semiLight'
                  mb={marginBelowHeadingOverride ? marginBelowHeadingOverride : 2}>{projectTitle}</Heading>
@@ -31,10 +31,10 @@ export function ProjectPage({
       </Box>
       <Spacer />
       <Box>
-        <Box mb={3}>{topRight}</Box>
+        {topRight && <Box my={3}>{topRight}</Box>}
         {isLoading && <Spinner size='lg' color='blue.500' float='right' />}
       </Box>
-    </Flex>
+    </Box>
     <Box>
       {children}
     </Box>
