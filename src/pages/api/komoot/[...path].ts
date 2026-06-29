@@ -1,5 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
+const allowedBackendPaths = new Set([
+  'activity-stats-by-week',
+  'latest-komoot-tours-by-month',
+]);
+
 const backendOrigin = () => {
   const configuredOrigin = process.env.BACKEND_SITE_ORIGIN;
   if (!configuredOrigin) {
@@ -24,7 +29,13 @@ const komootProxy = async (req: NextApiRequest, res: NextApiResponse) => {
     return;
   }
 
-  const url = new URL(path.map(encodeURIComponent).join('/'), `${backendOrigin()}/`);
+  const backendPath = path.map(encodeURIComponent).join('/');
+  if (!allowedBackendPaths.has(backendPath)) {
+    res.status(404).json({ error: 'Unknown backend path.' });
+    return;
+  }
+
+  const url = new URL(backendPath, `${backendOrigin()}/`);
   for (const [key, value] of Object.entries(req.query)) {
     if (key === 'path') {
       continue;

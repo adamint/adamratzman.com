@@ -24,6 +24,7 @@ var web = builder.AddNextJsApp("web", ".", "dev")
 if (builder.ExecutionContext.IsPublishMode)
 {
     builder.AddAzureAppServiceEnvironment("appservice")
+        .WithDashboard(false)
         .ConfigureInfrastructure(infra =>
         {
             var plan = infra.GetProvisionableResources().OfType<AppServicePlan>().Single();
@@ -39,6 +40,7 @@ if (builder.ExecutionContext.IsPublishMode)
         .PublishAsAzureAppServiceWebsite((_, site) =>
         {
             site.SiteConfig.NumberOfWorkers = 1;
+            site.SiteConfig.HealthCheckPath = "/api/health";
         });
 }
 

@@ -43,6 +43,8 @@ Rationale:
 - App Insights is modeled in Aspire and referenced by the web app so the deployed site receives `APPLICATIONINSIGHTS_CONNECTION_STRING`.
 - Browser calls to the existing Komoot/activity backend go through a same-origin Next.js API proxy so backend origin configuration remains a deploy-time server setting instead of a build-time public value.
 - The generated App Service plan is pinned to Basic B1 with one web worker to keep the personal site cost-conscious while retaining stable App Service hosting for the SSR/API app.
+- The deployed Aspire dashboard is disabled for production App Service because the default dashboard App Service is public and unsecured.
+- Azure App Service health checking is explicitly pointed at `/api/health`.
 
 Supporting Azure resources:
 
@@ -50,7 +52,7 @@ Supporting Azure resources:
 - Azure Container Registry for the generated standalone Next.js container image.
 - Azure Application Insights and Log Analytics for diagnostics.
 - Managed identity for App Service to pull from ACR.
-- `.dockerignore` excludes local development artifacts from Aspire's generated container build context while keeping the tracked `.env` available for the public Spotify build-time value.
+- `.dockerignore` excludes local development artifacts and local-only env files from Aspire's generated container build context while keeping the tracked `.env` available for the public Spotify build-time value.
 
 ## NFC recommendation
 
