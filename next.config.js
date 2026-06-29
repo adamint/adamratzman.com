@@ -3,6 +3,10 @@ const withTM = require('next-transpile-modules')(['react-icons']);
  * @type {import('next').NextConfig}
  */
 const nextConfig = withTM({
+  output: 'standalone',
+  experimental: {
+    instrumentationHook: true,
+  },
   async redirects() {
     return [
       {

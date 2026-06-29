@@ -5,6 +5,7 @@
   "dependencies": {
     "@aws-crypto/sha256-browser": "^5.0.0",
     "@aws-sdk/util-hex-encoding": "^3.35.0",
+    "@azure/monitor-opentelemetry": "^1.18.1",
     "@chakra-ui/icons": "^2.0.9",
     "@chakra-ui/react": "^2.3.2",
     "@choc-ui/chakra-autocomplete": "^5.1.2",

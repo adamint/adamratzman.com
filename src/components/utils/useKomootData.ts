@@ -46,7 +46,7 @@ export function useActivityStatsByWeek({
                                          offset,
                                          limit,
                                        }: useActivityStatsByWeekProps): PaginationResponse<ActivityStatsByWeekResponse> | null {
-  const latestToursUrl = `${process.env.NEXT_PUBLIC_REDIRECT_PROTOCOL}://${process.env.NEXT_PUBLIC_BACKEND_SITE_URL}/activity-stats-by-week?limit=${limit}&offset=${offset}`;
+  const latestToursUrl = `/api/komoot/activity-stats-by-week?limit=${limit}&offset=${offset}`;
 
   const request = useSWR<PaginationResponse<ActivityStatsByWeekResponse>, Error>(latestToursUrl, fetcher);
 
@@ -64,7 +64,7 @@ export function useToursByMonth({
                                   offset,
                                   limit,
                                 }: useToursByMonthProps): PaginationResponse<ToursByMonthResponse> | null {
-  const latestToursUrl = `${process.env.NEXT_PUBLIC_REDIRECT_PROTOCOL}://${process.env.NEXT_PUBLIC_BACKEND_SITE_URL}/latest-komoot-tours-by-month?limit=${limit}&offset=${offset}`;
+  const latestToursUrl = `/api/komoot/latest-komoot-tours-by-month?limit=${limit}&offset=${offset}`;
 
   const request = useSWR<PaginationResponse<ToursByMonthResponse>, Error>(latestToursUrl, fetcher);
 
