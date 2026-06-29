@@ -14,7 +14,7 @@ Migrate `adamratzman.com` from Vercel to Azure and add Aspire orchestration so t
 - **Compliance**: No special compliance requirements identified.
 - **Domain**: `adamratzman.com` currently points at Vercel and should move to Azure after deployment validation.
 - **NFC goal**: Support programmable NFC sticker URLs later without requiring sticker rewrites.
-- **Azure context**: Subscription, region, and policy constraints still need confirmation before provisioning.
+- **Azure context**: Target subscription is `VSE sub` (`29044b50-b4c6-4dc7-8a17-cad69868132a`); region and policy constraints still need confirmation before provisioning.
 
 ## Workspace scan
 
@@ -50,6 +50,7 @@ Supporting Azure resources:
 - Azure Container Registry for the generated standalone Next.js container image.
 - Azure Application Insights and Log Analytics for diagnostics.
 - Managed identity for App Service to pull from ACR.
+- `.dockerignore` excludes local development artifacts from Aspire's generated container build context while keeping the tracked `.env` available for the public Spotify build-time value.
 
 ## NFC recommendation
 
@@ -85,8 +86,9 @@ Rationale:
 3. Configure Next.js standalone output for Aspire's generated production container.
 4. Add Azure App Service and Application Insights hosting integrations.
 5. Add a health endpoint for local and App Service health checks.
-6. Validate with `yarn build`, `aspire start`, local health checks, and `aspire deploy --list-steps`.
-7. Run `aspire deploy` only after real production parameter values are available.
+6. Add a Docker ignore file so local build output, dependencies, and agent/deployment metadata are not copied into the generated container build context.
+7. Validate with `yarn build`, `aspire start`, local health checks, and `aspire deploy --list-steps`.
+8. Run `aspire deploy` only after real production parameter values are available.
 
 ## Deployment parameters
 
@@ -102,7 +104,7 @@ Suggested Production deployment context:
 
 - `Azure__Location=westus2`
 - `Azure__ResourceGroup=rg-adamratzman-com-prod`
-- `Azure__SubscriptionId=<free-$150-subscription-id>`
+- `Azure__SubscriptionId=29044b50-b4c6-4dc7-8a17-cad69868132a`
 
 ## Phase 1 checklist
 
@@ -116,7 +118,8 @@ Suggested Production deployment context:
 ## Phase 2 checklist
 
 - [ ] Research selected Azure components
-- [ ] Confirm Azure subscription and location
+- [x] Confirm Azure subscription
+- [ ] Confirm Azure location
 - [x] Generate Aspire and Azure-hosting AppHost artifacts
 - [x] Harden security by keeping Spotify server credentials as Aspire secret parameters
 - [x] Verify locally
