@@ -42,7 +42,7 @@ Rationale:
 - Aspire's Azure App Service integration provisions the App Service plan, ACR, managed identity, website, dashboard, and deployment pipeline from the AppHost model.
 - App Insights is modeled in Aspire and referenced by the web app so the deployed site receives `APPLICATIONINSIGHTS_CONNECTION_STRING`.
 - Browser calls to the existing Komoot/activity backend go through a same-origin Next.js API proxy so backend origin configuration remains a deploy-time server setting instead of a build-time public value.
-- The generated App Service plan is pinned to Basic B1 to keep the personal site cost-conscious while retaining stable App Service hosting for the SSR/API app.
+- The generated App Service plan is pinned to Basic B1 with one web worker to keep the personal site cost-conscious while retaining stable App Service hosting for the SSR/API app.
 
 Supporting Azure resources:
 

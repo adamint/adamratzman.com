@@ -35,7 +35,11 @@ if (builder.ExecutionContext.IsPublishMode)
         });
 
     var appInsights = builder.AddAzureApplicationInsights("appinsights");
-    web.WithReference(appInsights);
+    web.WithReference(appInsights)
+        .PublishAsAzureAppServiceWebsite((_, site) =>
+        {
+            site.SiteConfig.NumberOfWorkers = 1;
+        });
 }
 
 builder.Build().Run();
