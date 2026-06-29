@@ -1,6 +1,6 @@
 # Azure Deployment Plan
 
-Status: Prepared for Aspire Deployment
+Status: Deployed to Azure App Service
 
 ## Goal
 
@@ -14,7 +14,7 @@ Migrate `adamratzman.com` from Vercel to Azure and add Aspire orchestration so t
 - **Compliance**: No special compliance requirements identified.
 - **Domain**: `adamratzman.com` currently points at Vercel and should move to Azure after deployment validation.
 - **NFC goal**: Support programmable NFC sticker URLs later without requiring sticker rewrites.
-- **Azure context**: Target subscription is `VSE sub` (`29044b50-b4c6-4dc7-8a17-cad69868132a`); region and policy constraints still need confirmation before provisioning.
+- **Azure context**: Target subscription is `VSE sub` (`29044b50-b4c6-4dc7-8a17-cad69868132a`); production deployment uses `centralus` in `rg-adamratzman-com-prod-centralus`.
 
 ## Workspace scan
 
@@ -39,7 +39,7 @@ Rationale:
 - The app is not purely static: it has API routes and multiple `getServerSideProps` pages.
 - Azure Static Web Apps would require accepting the current Next.js SSR limitations or changing the app shape.
 - Azure App Service is the best fit for `adamratzman.com` as a public website: one stable HTTPS website, no scale-to-zero cold start, and a first-class Aspire `aspire deploy` path.
-- Aspire's Azure App Service integration provisions the App Service plan, ACR, managed identity, website, dashboard, and deployment pipeline from the AppHost model.
+- Aspire's Azure App Service integration provisions the App Service plan, ACR, managed identity, website, and deployment pipeline from the AppHost model.
 - App Insights is modeled in Aspire and referenced by the web app so the deployed site receives `APPLICATIONINSIGHTS_CONNECTION_STRING`.
 - Browser calls to the existing Komoot/activity backend go through a same-origin Next.js API proxy so backend origin configuration remains a deploy-time server setting instead of a build-time public value.
 - The generated App Service plan is pinned to Basic B1 with one web worker to keep the personal site cost-conscious while retaining stable App Service hosting for the SSR/API app.
@@ -90,7 +90,7 @@ Rationale:
 5. Add a health endpoint for local and App Service health checks.
 6. Add a Docker ignore file so local build output, dependencies, and agent/deployment metadata are not copied into the generated container build context.
 7. Validate with `yarn build`, `aspire start`, local health checks, and `aspire deploy --list-steps`.
-8. Run `aspire deploy` only after real production parameter values are available.
+8. Run `aspire deploy` with real production parameter values.
 
 ## Deployment parameters
 
@@ -102,11 +102,18 @@ Rationale:
 
 `NEXT_PUBLIC_SPOTIFY_CLIENT_ID` remains the public browser-side Spotify PKCE client ID and is currently supplied from the tracked `.env` file at build time. Change that file and rebuild if the public Spotify app ID changes.
 
-Suggested Production deployment context:
+Production deployment context:
 
-- `Azure__Location=westus2`
-- `Azure__ResourceGroup=rg-adamratzman-com-prod`
+- `Azure__Location=centralus`
+- `Azure__ResourceGroup=rg-adamratzman-com-prod-centralus`
 - `Azure__SubscriptionId=29044b50-b4c6-4dc7-8a17-cad69868132a`
+- URL: `https://web-5pjadlrxljbbk.azurewebsites.net`
+
+Notes:
+
+- `westus2` failed because this subscription had zero App Service VM quota there.
+- `eastus` failed with transient App Service capacity plus ACR tenant-token issues.
+- Partial failed-attempt resources remain in `rg-adamratzman-com-prod` and `rg-adamratzman-com-prod-eastus` until cleanup is approved.
 
 ## Phase 1 checklist
 
@@ -119,10 +126,10 @@ Suggested Production deployment context:
 
 ## Phase 2 checklist
 
-- [ ] Research selected Azure components
+- [x] Research selected Azure components
 - [x] Confirm Azure subscription
-- [ ] Confirm Azure location
+- [x] Confirm Azure location
 - [x] Generate Aspire and Azure-hosting AppHost artifacts
 - [x] Harden security by keeping Spotify server credentials as Aspire secret parameters
 - [x] Verify locally
-- [ ] Run `aspire deploy` with real production parameter values
+- [x] Run `aspire deploy` with real production parameter values
