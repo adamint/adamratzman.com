@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { ApiError, errorResponse } from './errors.js';
 import { registerHealthRoutes } from './routes/health.js';
+import { registerProxyRoutes, type ProxyDependencies } from './routes/proxies.js';
 
 const fastifyBadRequestErrorCodes = new Set([
   'FST_ERR_CTP_INVALID_JSON_BODY',
@@ -56,8 +57,14 @@ function errorResponseForClientStatusCode(statusCode: number) {
   return errorResponse('client_error', 'The request could not be completed.');
 }
 
-export function buildApp() {
+export type AppDependencies = Partial<ProxyDependencies>;
+
+export function buildApp(dependencies: AppDependencies = {}) {
   const app = Fastify({ logger: true });
+  const proxyDependencies: ProxyDependencies = {
+    fetch: dependencies.fetch ?? fetch,
+    backendOrigin: dependencies.backendOrigin ?? process.env.BACKEND_SITE_ORIGIN,
+  };
 
   app.setNotFoundHandler(async (_request, reply) => {
     await reply.code(404).send(errorResponse('not_found', 'Route not found.'));
@@ -85,5 +92,6 @@ export function buildApp() {
   });
 
   void app.register(registerHealthRoutes);
+  void app.register(registerProxyRoutes, proxyDependencies);
   return app;
 }
