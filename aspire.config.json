@@ -1,8 +1,9 @@
 {
   "appHost": {
-    "path": "apphost.cs"
+    "path": "apphost.mts",
+    "language": "typescript/nodejs"
   },
-  "channel": "daily",
+  "channel": "staging",
   "profiles": {
     "https": {
       "applicationUrl": "https://localhost:17264;http://localhost:15141",
@@ -19,5 +20,8 @@
         "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true"
       }
     }
+  },
+  "sdk": {
+    "version": "13.5.0"
   }
 }
