@@ -3,15 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "^22.13.0 || >=24"
+  },
   "scripts": {
     "predev": "npm run build --workspace @adamratzman/contracts",
     "dev": "tsx watch src/server.ts",
     "prebuild": "npm run build --workspace @adamratzman/contracts",
     "build": "tsc -p tsconfig.json",
     "pretypecheck": "npm run build --workspace @adamratzman/contracts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.test.json",
     "prelint": "npm run build --workspace @adamratzman/contracts",
-    "lint": "eslint --config ../../eslint.config.mjs src",
+    "lint": "eslint --config ../../eslint.config.mjs src test",
     "start": "node --enable-source-maps dist/server.js",
     "pretest": "npm run build --workspace @adamratzman/contracts",
     "test": "vitest run"
