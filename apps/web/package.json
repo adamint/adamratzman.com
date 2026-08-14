@@ -6,7 +6,10 @@
     "@aws-crypto/sha256-browser": "^5.0.0",
     "@aws-sdk/util-hex-encoding": "^3.35.0",
     "@azure/monitor-opentelemetry": "^1.18.1",
+    "@chakra-ui/hooks": "2.4.6",
+    "@chakra-ui/icon": "^3.2.0",
     "@chakra-ui/icons": "^2.0.9",
+    "@chakra-ui/layout": "2.3.1",
     "@chakra-ui/react": "^2.3.2",
     "@choc-ui/chakra-autocomplete": "^5.1.2",
     "@choc-ui/paginator": "^3.2.2",
@@ -50,10 +53,11 @@
     "zustand": "^4.1.1"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "next dev ../..",
+    "build": "next build ../.. --no-lint",
+    "start": "next start ../..",
+    "lint": "cd ../.. && NODE_PATH=./apps/web/node_modules ./apps/web/node_modules/.bin/eslint --no-eslintrc --config ./.eslintrc.json --resolve-plugins-relative-to ./apps/web --ext .js,.jsx,.ts,.tsx ./src ./next.config.js",
+    "typecheck": "tsc --project ../../tsconfig.json --noEmit"
   },
   "browserslist": {
     "production": [
@@ -76,6 +80,7 @@
     "@types/papaparse": "^5.3.0",
     "@types/randomcolor": "^0.5.6",
     "@types/randomstring": "^1.1.7",
+    "@types/react": "18.3.31",
     "@types/react-dom": "^18.0.6",
     "@types/react-leaflet-markercluster": "^3.0.0",
     "@types/react-simple-maps": "^3.0.0",
