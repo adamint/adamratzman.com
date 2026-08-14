@@ -2,6 +2,8 @@ import Fastify from 'fastify';
 import { ApiError, errorResponse } from './errors.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerProxyRoutes, type ProxyDependencies } from './routes/proxies.js';
+import { registerSpotifyRoutes } from './routes/spotify.js';
+import { createSpotifyClient, type SpotifyClientFactory } from './spotify/client.js';
 
 const fastifyBadRequestErrorCodes = new Set([
   'FST_ERR_CTP_INVALID_JSON_BODY',
@@ -57,7 +59,9 @@ function errorResponseForClientStatusCode(statusCode: number) {
   return errorResponse('client_error', 'The request could not be completed.');
 }
 
-export type AppDependencies = Partial<ProxyDependencies>;
+export type AppDependencies = Partial<ProxyDependencies> & {
+  spotifyFactory?: SpotifyClientFactory;
+};
 
 export function buildApp(dependencies: AppDependencies = {}) {
   const app = Fastify({ logger: true });
@@ -65,6 +69,7 @@ export function buildApp(dependencies: AppDependencies = {}) {
     fetch: dependencies.fetch ?? fetch,
     backendOrigin: dependencies.backendOrigin ?? process.env.BACKEND_SITE_ORIGIN,
   };
+  const spotifyFactory = dependencies.spotifyFactory ?? createSpotifyClient;
 
   app.setNotFoundHandler(async (_request, reply) => {
     await reply.code(404).send(errorResponse('not_found', 'Route not found.'));
@@ -93,5 +98,6 @@ export function buildApp(dependencies: AppDependencies = {}) {
 
   void app.register(registerHealthRoutes);
   void app.register(registerProxyRoutes, proxyDependencies);
+  void app.register(registerSpotifyRoutes, { spotifyFactory });
   return app;
 }
