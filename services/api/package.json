@@ -2,5 +2,33 @@
   "name": "@adamratzman/api",
   "version": "1.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "predev": "npm run build --workspace @adamratzman/contracts",
+    "dev": "tsx watch src/server.ts",
+    "prebuild": "npm run build --workspace @adamratzman/contracts",
+    "build": "tsc -p tsconfig.json",
+    "pretypecheck": "npm run build --workspace @adamratzman/contracts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prelint": "npm run build --workspace @adamratzman/contracts",
+    "lint": "eslint --config ../../eslint.config.mjs src",
+    "start": "node --enable-source-maps dist/server.js",
+    "pretest": "npm run build --workspace @adamratzman/contracts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@adamratzman/contracts": "file:../../packages/contracts",
+    "@azure/monitor-opentelemetry": "1.19.0",
+    "fastify": "5.11.2",
+    "spotify-web-api-node": "5.0.2",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "@types/spotify-api": "0.0.26",
+    "@types/spotify-web-api-node": "5.0.3",
+    "tsx": "4.23.11",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
 }
