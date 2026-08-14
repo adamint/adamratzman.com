@@ -56,7 +56,7 @@
     "dev": "next dev ../..",
     "build": "next build ../.. --no-lint",
     "start": "next start ../..",
-    "lint": "cd ../.. && NODE_PATH=./apps/web/node_modules ./apps/web/node_modules/.bin/eslint --no-eslintrc --config ./.eslintrc.json --resolve-plugins-relative-to ./apps/web --ext .js,.jsx,.ts,.tsx ./src ./next.config.js",
+    "lint": "node -e \"const Module=require('node:module'); const path=require('node:path'); const repoRoot=path.resolve('../..'); const webNodeModules=path.join(repoRoot, 'apps/web/node_modules'); process.env.NODE_PATH=webNodeModules; Module._initPaths(); process.chdir(repoRoot); require(path.join(webNodeModules, 'eslint/bin/eslint.js'));\" -- --no-eslintrc --config ./.eslintrc.json --resolve-plugins-relative-to ./apps/web --ext .js,.jsx,.ts,.tsx ./src ./next.config.js",
     "typecheck": "tsc --project ../../tsconfig.json --noEmit"
   },
   "browserslist": {
