@@ -1,0 +1,60 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ES2022"
+    ],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "next": [
+        "src/compat/next/index.ts"
+      ],
+      "next/app": [
+        "src/compat/next/app.ts"
+      ],
+      "next/document": [
+        "src/compat/next/document.tsx"
+      ],
+      "next/dynamic": [
+        "src/compat/next/dynamic.tsx"
+      ],
+      "next/head": [
+        "src/compat/next/head.tsx"
+      ],
+      "next/link": [
+        "src/compat/next/link.tsx"
+      ],
+      "next/router": [
+        "src/compat/next/router.ts"
+      ]
+    },
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "types": [
+      "vite/client",
+      "vitest/globals"
+    ]
+  },
+  "include": [
+    "src",
+    "test",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}

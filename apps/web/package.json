@@ -1,11 +1,20 @@
 {
   "name": "@adamratzman/web",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "npm run build --workspace @adamratzman/contracts",
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint --config ../../eslint.config.mjs src test vite.config.ts"
+  },
   "dependencies": {
+    "@adamratzman/contracts": "file:../../packages/contracts",
     "@aws-crypto/sha256-browser": "^5.0.0",
     "@aws-sdk/util-hex-encoding": "^3.35.0",
-    "@azure/monitor-opentelemetry": "^1.18.1",
     "@chakra-ui/hooks": "2.4.6",
     "@chakra-ui/icon": "^3.2.0",
     "@chakra-ui/icons": "^2.0.9",
@@ -15,9 +24,6 @@
     "@choc-ui/paginator": "^3.2.2",
     "@emotion/react": "^11.0.0",
     "@emotion/styled": "^11.0.0",
-    "@testing-library/jest-dom": "^6.0.1",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/user-event": "^14.4.3",
     "awesome-debounce-promise": "^2.1.0",
     "axios": "^1.4.0",
     "base64url": "^3.0.1",
@@ -30,8 +36,6 @@
     "fuse.js": "^6.4.6",
     "humanize-duration": "^3.27.0",
     "moment": "^2.29.1",
-    "next": "^13.4.19",
-    "next-transpile-modules": "^10.0.1",
     "papaparse": "^5.3.1",
     "randomcolor": "^0.6.2",
     "randomstring": "^1.2.1",
@@ -41,23 +45,16 @@
     "react-debounce-input": "^3.3.0",
     "react-dom": "^18.2.0",
     "react-ga": "^3.3.0",
+    "react-helmet-async": "3.0.0",
     "react-icons": "^4.2.0",
     "react-random-reveal": "^2.0.0",
+    "react-router-dom": "7.18.2",
     "react-simple-maps": "^3.0.0",
     "spotify-web-api-js": "^1.5.1",
-    "spotify-web-api-node": "^5.0.2",
     "swr": "^2.2.1",
-    "typescript": "^5.1.6",
     "use-deep-compare-effect": "^1.8.0",
     "web-vitals": "^3.0.2",
     "zustand": "^4.1.1"
-  },
-  "scripts": {
-    "dev": "next dev ../..",
-    "build": "next build ../.. --no-lint",
-    "start": "next start ../..",
-    "lint": "node -e \"const Module=require('node:module'); const path=require('node:path'); const repoRoot=path.resolve('../..'); const webNodeModules=path.join(repoRoot, 'apps/web/node_modules'); process.env.NODE_PATH=webNodeModules; Module._initPaths(); process.chdir(repoRoot); require(path.join(webNodeModules, 'eslint/bin/eslint.js'));\" -- --no-eslintrc --config ./.eslintrc.json --resolve-plugins-relative-to ./apps/web --ext .js,.jsx,.ts,.tsx ./src ./next.config.js",
-    "typecheck": "tsc --project ../../tsconfig.json --noEmit"
   },
   "browserslist": {
     "production": [
@@ -72,21 +69,29 @@
     ]
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "7.0.0",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.3",
     "@types/color-hash": "^1.0.2",
     "@types/d3-scale": "^4.0.1",
     "@types/deep-equal": "^1.0.1",
     "@types/humanize-duration": "^3.25.1",
+    "@types/jest-axe": "3.5.9",
     "@types/luxon": "^3.0.1",
     "@types/papaparse": "^5.3.0",
     "@types/randomcolor": "^0.5.6",
     "@types/randomstring": "^1.1.7",
     "@types/react": "18.3.31",
-    "@types/react-dom": "^18.0.6",
+    "@types/react-dom": "18.3.7",
     "@types/react-leaflet-markercluster": "^3.0.0",
     "@types/react-simple-maps": "^3.0.0",
-    "@types/spotify-web-api-node": "^5.0.3",
-    "eslint": "8.47.0",
-    "eslint-config-next": "13.4.19"
-  },
-  "type": "module"
+    "@types/spotify-api": "0.0.26",
+    "@vitejs/plugin-react": "6.0.5",
+    "eslint": "10.8.0",
+    "jest-axe": "11.0.0",
+    "jsdom": "30.0.1",
+    "typescript": "5.9.3",
+    "vite": "8.2.1",
+    "vitest": "4.1.10"
+  }
 }
