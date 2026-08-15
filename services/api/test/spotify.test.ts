@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { InjectOptions } from 'light-my-request';
 import { buildApp } from '../src/app.js';
+import { ApiError } from '../src/errors.js';
 import type { SpotifyClient } from '../src/spotify/client.js';
 import { createFakeSpotifyClient, type FakeSpotifyClient } from './helpers.js';
 
@@ -588,6 +589,20 @@ describe('spotify routes', () => {
       arrange: (spotify) => {
         spotify.getCategories.mockResolvedValue(
           spotifyResponse<'getCategories'>({ categories: { total: 1, next: null } }),
+        );
+      },
+    },
+    {
+      label: 'category pages without totals',
+      request: { method: 'GET', url: '/api/spotify/categories' },
+      arrange: (spotify) => {
+        spotify.getCategories.mockResolvedValue(
+          spotifyResponse<'getCategories'>({
+            categories: {
+              items: [createCategory()],
+              next: null,
+            },
+          }),
         );
       },
     },
@@ -1485,7 +1500,6 @@ describe('spotify routes', () => {
     expect(logError).toHaveBeenCalledWith({
       err: {
         classification: 'spotify_request_failure',
-        statusCode: 429,
       },
       method: 'GET',
       route: '/api/spotify/genres',
@@ -1512,6 +1526,99 @@ describe('spotify routes', () => {
         },
       });
       throw error;
+    });
+    const app = buildApp({ spotifyFactory });
+    apps.push(app);
+
+    app.addHook('onRequest', async (request) => {
+      await Promise.resolve();
+      Object.assign(request.log, { error: logError });
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/genres',
+    });
+
+    expect(spotifyFactory).toHaveBeenCalledOnce();
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
+    expect(logError).toHaveBeenCalledOnce();
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        classification: 'spotify_request_failure',
+      },
+      method: 'GET',
+      route: '/api/spotify/genres',
+    }, 'Spotify request failed');
+    expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
+    expect(response.body).not.toContain(sentinel);
+  });
+
+  it('turns injected ApiError failures into a safe 502 without leaking sentinels', async () => {
+    const sentinelCode = 'sentinel_code';
+    const sentinelMessage = 'SENTINEL_MESSAGE';
+    const logError = vi.fn();
+    const spotifyFactory = vi.fn(async (): Promise<SpotifyClient> => {
+      await Promise.resolve();
+      throw new ApiError(418, sentinelCode, sentinelMessage);
+    });
+    const app = buildApp({ spotifyFactory });
+    apps.push(app);
+
+    app.addHook('onRequest', async (request) => {
+      await Promise.resolve();
+      Object.assign(request.log, { error: logError });
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/genres',
+    });
+
+    expect(spotifyFactory).toHaveBeenCalledOnce();
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        classification: 'spotify_request_failure',
+      },
+      method: 'GET',
+      route: '/api/spotify/genres',
+    }, 'Spotify request failed');
+    expect(response.body).not.toContain(sentinelCode);
+    expect(response.body).not.toContain(sentinelMessage);
+    expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinelCode);
+    expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinelMessage);
+  });
+
+  it('turns proxy trap failures into a safe 502 without leaking sentinels', async () => {
+    const sentinel = 'TOPSECRETTOKEN';
+    const logError = vi.fn();
+    const spotifyFactory = vi.fn(async (): Promise<SpotifyClient> => {
+      await Promise.resolve();
+      const trappedError: Error = new Proxy(new Error('opaque dependency failure'), {
+        getPrototypeOf() {
+          throw new Error(`prototype ${sentinel}`);
+        },
+        getOwnPropertyDescriptor() {
+          throw new Error(`descriptor ${sentinel}`);
+        },
+        get() {
+          throw new Error(`get ${sentinel}`);
+        },
+      });
+      throw trappedError;
     });
     const app = buildApp({ spotifyFactory });
     apps.push(app);
@@ -1696,12 +1803,9 @@ describe('spotify pagination helper', () => {
         throw new Error('Unexpected extra page request');
       });
 
-    await expect(getAllPages(request)).resolves.toEqual({
-      marker: 'first-page',
-      items: ['a'],
-      next: 'page-2',
-      total: 2,
-    });
+    await expect(getAllPages(request)).rejects.toThrow(
+      'Spotify pagination did not advance.',
+    );
     expect(request).toHaveBeenCalledTimes(2);
     expect(request).toHaveBeenNthCalledWith(1, 50, 0);
     expect(request).toHaveBeenNthCalledWith(2, 50, 1);
@@ -1723,10 +1827,49 @@ describe('spotify pagination helper', () => {
     await expect(getAllPages(request)).resolves.toEqual({
       marker: 'first-page',
       items: ['a'],
-      next: 'page-2',
+      next: null,
       total: 1,
     });
     expect(request).toHaveBeenCalledTimes(1);
     expect(request).toHaveBeenCalledWith(50, 0);
+  });
+
+  it('rejects pages without totals', async () => {
+    const { getAllPages } = await loadPaginationModule();
+    const request = vi.fn(async () => {
+      await Promise.resolve();
+      return {
+        marker: 'first-page',
+        items: ['a'],
+        next: null,
+      };
+    });
+
+    await expect(getAllPages(request)).rejects.toThrow(
+      'Spotify pagination did not include a valid total.',
+    );
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith(50, 0);
+  });
+
+  it('rejects pagination that exceeds the category page cap', async () => {
+    const { getAllPages } = await loadPaginationModule();
+    let page = 0;
+    const request = vi.fn(async (limit: number, offset: number) => {
+      await Promise.resolve();
+      page += 1;
+      return {
+        marker: `page-${page}`,
+        items: [`item-${page}`],
+        next: page < 25 ? `page-${page + 1}` : null,
+        total: 25,
+        requested: { limit, offset },
+      };
+    });
+
+    await expect(getAllPages(request)).rejects.toThrow(
+      'Spotify pagination exceeded the category page cap.',
+    );
+    expect(request).toHaveBeenCalledTimes(20);
   });
 });

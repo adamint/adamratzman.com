@@ -442,36 +442,19 @@ function validateRecommendationSeed(
   return response;
 }
 
-function readSpotifyErrorStatusCode(error: unknown) {
-  if (typeof error !== 'object' || error === null) {
-    return undefined;
-  }
-
+function isSpotifyConfigurationError(error: unknown) {
   try {
-    const descriptor = Object.getOwnPropertyDescriptor(error, 'statusCode');
-    if (descriptor === undefined || !('value' in descriptor)) {
-      return undefined;
-    }
-
-    const statusCode: unknown = descriptor.value;
-    if (typeof statusCode === 'number' && Number.isFinite(statusCode)) {
-      return statusCode;
-    }
+    return error instanceof SpotifyConfigurationError;
   } catch {
-    return undefined;
+    return false;
   }
-
-  return undefined;
 }
 
-function projectSpotifyError(error: unknown) {
-  const statusCode = readSpotifyErrorStatusCode(error);
-
+function projectSpotifyError(isConfigurationError: boolean) {
   return {
-    classification: error instanceof SpotifyConfigurationError
+    classification: isConfigurationError
       ? 'spotify_configuration_error'
       : 'spotify_request_failure',
-    ...(statusCode !== undefined ? { statusCode } : {}),
   };
 }
 
@@ -484,17 +467,15 @@ async function withSpotify<T>(
     const spotify = await spotifyFactory();
     return await callback(spotify);
   } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
+    const isConfigurationError = isSpotifyConfigurationError(error);
 
     request.log.error({
-      err: projectSpotifyError(error),
+      err: projectSpotifyError(isConfigurationError),
       method: request.method,
       route: request.routeOptions.url,
     }, 'Spotify request failed');
 
-    if (error instanceof SpotifyConfigurationError) {
+    if (isConfigurationError) {
       throw new ApiError(500, 'spotify_not_configured', 'Spotify is not configured.');
     }
 
