@@ -1,146 +1,273 @@
 import {
-  Accordion,
-  AccordionButton,
-  AccordionIcon,
-  AccordionItem,
-  AccordionPanel,
-  CloseButton,
+  Box,
+  Button,
+  FormControl,
+  FormLabel,
+  Heading,
   HStack,
+  Input,
   Text,
-  useBreakpointValue,
   VStack,
+  useColorModeValue,
 } from '@chakra-ui/react';
-import React, { useEffect, useState } from 'react';
+import {
+  type FormEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { skills } from '../home/TechnicalSkillsSection';
-import { currentProjects, pastProjects, Project } from '../../routes/portfolio';
+import {
+  currentProjects,
+  pastProjects,
+  type Project,
+} from '../../routes/portfolio';
 
-type TerminalComponent = typeof import('react-console-emulator').default;
-type TerminalModule = {
-  default?: unknown;
-  'module.exports'?: unknown;
+const DESKTOP_CONSOLE_QUERY = '(min-width: 48em)';
+const UNKNOWN_COMMAND_OUTPUT =
+  'Command not found. Please type help to see available commands';
+const PROJECT_USAGE_OUTPUT = 'Incorrect usage. projects past or present';
+const HELP_OUTPUT = [
+  'Available commands:',
+  'job - See what my current job is',
+  'skills - See what I can do',
+  'education - See what my educational background is',
+  'projects <past|present> - See past and present projects',
+  'exit - Hide the console from view',
+  'help - List available commands',
+].join('\n');
+
+type ConsoleCommandResult = {
+  output: string;
+  shouldClose: boolean;
 };
-type LoadTerminalModule = () => Promise<TerminalModule>;
 
-function isTerminalComponent(value: unknown): value is TerminalComponent {
-  return typeof value === 'function';
-}
+type ConsoleHistoryEntry = {
+  command: string;
+  output: string;
+};
 
-export function resolveConsoleTerminal(module: TerminalModule) {
-  if (isTerminalComponent(module.default)) {
-    return module.default;
-  }
+export function executeConsoleCommand(
+  commandLine: string,
+): ConsoleCommandResult | null {
+  const normalizedCommandLine = commandLine.trim();
+  if (!normalizedCommandLine) return null;
 
-  const nestedDefault = (module.default as { default?: unknown } | undefined)?.default;
-  if (isTerminalComponent(nestedDefault)) {
-    return nestedDefault;
-  }
+  const [command, ...argumentsList] = normalizedCommandLine.split(/\s+/u);
 
-  const moduleExportsDefault = (
-    module['module.exports'] as { default?: unknown } | undefined
-  )?.default;
-  if (isTerminalComponent(moduleExportsDefault)) {
-    return moduleExportsDefault;
-  }
+  switch (command) {
+    case 'job':
+      return commandResult(
+        'I am a software engineer on the C# Project System team in Microsoft\'s Developer Division. I am based in Seattle, along with my dog Ben.',
+      );
+    case 'skills':
+      return commandResult(
+        `Technologies that I can work with include:\n${Array.from(skills)
+          .map(([category, entries]) => `${category}: ${entries.join(', ')}`)
+          .join('\n')}`,
+      );
+    case 'education':
+      return commandResult(
+        'I have a Bachelor of Science and Master of Science in Computer Science from Indiana University at Bloomington, obtained in December 2021.',
+      );
+    case 'projects':
+      if (argumentsList.length !== 1) {
+        return commandResult(PROJECT_USAGE_OUTPUT);
+      }
 
-  return null;
-}
+      if (argumentsList[0] === 'past') {
+        return commandResult(formatProjects(pastProjects));
+      }
 
-export async function loadConsoleTerminal(
-  loadModule: LoadTerminalModule = () => import('react-console-emulator'),
-) {
-  try {
-    return resolveConsoleTerminal(await loadModule());
-  } catch {
-    return null;
+      if (argumentsList[0] === 'present') {
+        return commandResult(formatProjects(currentProjects));
+      }
+
+      return commandResult(PROJECT_USAGE_OUTPUT);
+    case 'exit':
+      return {
+        output: 'Closing..',
+        shouldClose: true,
+      };
+    case 'help':
+      return commandResult(HELP_OUTPUT);
+    default:
+      return commandResult(UNKNOWN_COMMAND_OUTPUT);
   }
 }
 
 export function ConsoleComponent() {
-  const [shouldShow, setShouldShow] = useState<boolean>(false);
-  const [Terminal, setTerminal] = useState<TerminalComponent | null>(null);
-  const shouldRenderConsole = useBreakpointValue({ base: false, md: true });
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+  const [isOpen, setIsOpen] = useState<boolean | null>(null);
+  const [commandLine, setCommandLine] = useState('');
+  const [history, setHistory] = useState<ConsoleHistoryEntry[]>([]);
+  const openButtonRef = useRef<HTMLButtonElement>(null);
+  const panelBackground = useColorModeValue('gray.900', 'gray.800');
+  const panelBorder = useColorModeValue('gray.700', 'gray.600');
 
   useEffect(() => {
-    setShouldShow(localStorage.getItem('show_console') !== 'false');
+    const mediaQuery = window.matchMedia(DESKTOP_CONSOLE_QUERY);
 
-    let isMounted = true;
-    void loadConsoleTerminal().then((terminal) => {
-      if (isMounted && terminal) {
-        setTerminal(() => terminal);
+    function updateDesktopState() {
+      setIsDesktop(mediaQuery.matches);
+      if (mediaQuery.matches) {
+        setIsOpen(currentValue => (
+          currentValue ?? localStorage.getItem('show_console') !== 'false'
+        ));
       }
-    });
+    }
 
-    return () => {
-      isMounted = false;
-    };
+    updateDesktopState();
+    mediaQuery.addEventListener('change', updateDesktopState);
+    return () => mediaQuery.removeEventListener('change', updateDesktopState);
   }, []);
 
-  function handleCloseConsole() {
-    localStorage.setItem('show_console', 'false');
-    setShouldShow(false);
+  function openConsole() {
+    localStorage.setItem('show_console', 'true');
+    setIsOpen(true);
   }
 
+  function closeConsole() {
+    localStorage.setItem('show_console', 'false');
+    setIsOpen(false);
+    window.requestAnimationFrame(() => openButtonRef.current?.focus());
+  }
 
-  const commands = {
-    job: {
-      description: 'See what my current job is',
-      fn: () => 'I am a software engineer on the C# Project System team in Microsoft\'s Developer Division. I am based in Seattle, along with my dog Ben.',
-    },
-    skills: {
-      description: 'See what I can do',
-      fn: () => `Technologies that I can work with include:\n${Array.from(skills).map(skill => `${skill[0]}: ${skill[1].join(', ')}`).join('\n')}`,
-    },
-    education: {
-      description: 'See what my educational background is',
-      fn: () => `I have a Bachelor of Science and Master of Science in Computer Science from Indiana University at Bloomington, obtained in December 2021.`,
-    },
-    projects: {
-      description: 'See past and present projects',
-      usage: 'projects <past|present>',
-      fn: (type: string) => {
-        function printProjects(projects: Project[]) {
-          return projects.map(project => `${project.title}: ${project.url}\n${project.description}`).join('\n========\n');
-        }
+  function runCommand(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedCommandLine = commandLine.trim();
+    const result = executeConsoleCommand(normalizedCommandLine);
+    if (!result) return;
 
-        if (type === 'past') return printProjects(pastProjects);
-        else if (type === 'present') return printProjects(currentProjects);
-        else return 'Incorrect usage. projects past or present';
+    setHistory(currentHistory => [
+      ...currentHistory,
+      {
+        command: normalizedCommandLine,
+        output: result.output,
       },
-    },
-    exit: {
-      description: 'Hide the console from view',
-      fn: () => {
-        handleCloseConsole();
-        return 'Closing..';
-      },
-    },
-  };
+    ]);
+    setCommandLine('');
 
-  if (!shouldShow || !shouldRenderConsole || !Terminal) return null;
+    if (result.shouldClose) {
+      closeConsole();
+    }
+  }
 
-  return <VStack position='fixed' bottom={0} right={0} width={500} alignItems='unset' bgColor='#212121'>
-    <Accordion allowToggle>
-      <AccordionItem>
-        <HStack w='100%'>
-          <CloseButton color='white' onClick={handleCloseConsole} />
-          <AccordionButton>
-            <Text color='white' fontSize='sm'><b>Interactive site console</b></Text>
-            <AccordionIcon color='white' />
-          </AccordionButton>
+  if (isDesktop !== true || isOpen === null) return null;
+
+  if (!isOpen) {
+    return (
+      <Button
+        bottom={4}
+        colorScheme="blue"
+        onClick={openConsole}
+        position="fixed"
+        ref={openButtonRef}
+        right={4}
+        size="sm"
+        zIndex="popover"
+      >
+        Open interactive site console
+      </Button>
+    );
+  }
+
+  return (
+    <Box
+      aria-label="Interactive site console"
+      as="section"
+      bg={panelBackground}
+      borderColor={panelBorder}
+      borderRadius="md"
+      borderWidth="1px"
+      bottom={4}
+      boxShadow="xl"
+      color="white"
+      maxH="min(32rem, calc(100vh - 2rem))"
+      overflowY="auto"
+      p={4}
+      position="fixed"
+      right={4}
+      role="region"
+      w="min(32rem, calc(100vw - 2rem))"
+      zIndex="popover"
+    >
+      <VStack align="stretch" spacing={3}>
+        <HStack justify="space-between">
+          <Heading as="h2" size="sm">
+            Interactive site console
+          </Heading>
+          <Button
+            colorScheme="whiteAlpha"
+            onClick={closeConsole}
+            size="xs"
+            variant="outline"
+          >
+            Close interactive site console
+          </Button>
         </HStack>
 
-        <AccordionPanel>
-          <Terminal
-            welcomeMessage={`Hi, I'm Adam Ratzman. I'm a software engineer at Microsoft.
-      Type help to see what commands are available, or type exit to close this`}
-            promptLabel='you@adamratzman:~$'
-            errorText='Command not found. Please type help to see available commands'
-            commands={commands}
-            style={{ marginInlineStart: 0, marginTop: 0 }}
-            contentStyle={{ padding: 20, paddingTop: 0 }}
-          />
-        </AccordionPanel>
-      </AccordionItem>
-    </Accordion>
-  </VStack>;
+        <Text fontSize="sm">
+          Type help to see available commands, or exit to close the console.
+        </Text>
+
+        <Box
+          aria-label="Console output"
+          aria-live="polite"
+          bg="blackAlpha.400"
+          borderRadius="sm"
+          minH="5rem"
+          p={3}
+          role="log"
+        >
+          <VStack align="stretch" spacing={3}>
+            {history.map((entry, index) => (
+              <Box key={`${index}-${entry.command}`}>
+                <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap">
+                  {`> ${entry.command}`}
+                </Text>
+                <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap">
+                  {entry.output}
+                </Text>
+              </Box>
+            ))}
+          </VStack>
+        </Box>
+
+        <Box as="form" onSubmit={runCommand}>
+          <HStack align="end">
+            <FormControl>
+              <FormLabel fontSize="sm" mb={1}>
+                Console command
+              </FormLabel>
+              <Input
+                autoComplete="off"
+                bg="white"
+                color="gray.900"
+                onChange={event => setCommandLine(event.target.value)}
+                size="sm"
+                value={commandLine}
+              />
+            </FormControl>
+            <Button colorScheme="blue" flexShrink={0} size="sm" type="submit">
+              Run command
+            </Button>
+          </HStack>
+        </Box>
+      </VStack>
+    </Box>
+  );
+}
+
+function commandResult(output: string): ConsoleCommandResult {
+  return {
+    output,
+    shouldClose: false,
+  };
+}
+
+function formatProjects(projects: Project[]) {
+  return projects
+    .map(project => `${project.title}: ${project.url}\n${project.description}`)
+    .join('\n========\n');
 }
