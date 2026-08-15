@@ -1,5 +1,12 @@
 import { ChakraProvider, useColorMode } from '@chakra-ui/react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ArizonaWildcatIcon } from '../src/components/icons/ArizonaWildcatIcon';
@@ -13,6 +20,7 @@ import { SpotifyArtist } from '../src/components/projects/spotify/views/SpotifyA
 import { SpotifyEpisode } from '../src/components/projects/spotify/views/SpotifyEpisode';
 import { SpotifyPlaylist } from '../src/components/projects/spotify/views/SpotifyPlaylist';
 import { SpotifyTrack } from '../src/components/projects/spotify/views/SpotifyTrack';
+import SpotifyViewAllCategoriesRoute from '../src/routes/projects/spotify/categories';
 import { routes } from '../src/router';
 import { theme } from '../src/theme';
 import { expectNoAxeViolations } from './a11y';
@@ -362,6 +370,31 @@ describe('site shell accessibility', () => {
     })).textDecoration).toBe('underline');
   });
 
+  it('removes decoration from Spotify category artwork links', async () => {
+    renderWithRouter([{
+      path: '/',
+      loader: () => ({
+        categories: [{
+          icons: [{ url: 'https://example.com/category.jpg' }],
+          id: 'category',
+          name: 'Category Name',
+        }],
+      }),
+      Component: () => (
+        <ChakraProvider theme={theme}>
+          <SpotifyViewAllCategoriesRoute />
+        </ChakraProvider>
+      ),
+    }]);
+
+    const artworkLink = (await screen.findByRole('img', {
+      name: 'Spotify category preview image',
+    })).closest('a');
+
+    expect(artworkLink).not.toBeNull();
+    expect(getComputedStyle(artworkLink as HTMLAnchorElement).textDecoration).toBe('none');
+  });
+
   it('has no axe violations in the representative shell', async () => {
     const { container } = renderWithRouter(routes, {
       initialEntries: ['/contact'],
@@ -447,14 +480,16 @@ describe('site shell accessibility', () => {
     });
   });
 
-  it('uses system color mode unless the user has stored an override', () => {
+  it('uses system color mode initially without following later system changes', () => {
     expect(testTheme.config).toMatchObject({
       initialColorMode: 'system',
-      useSystemColorMode: true,
+      useSystemColorMode: false,
     });
   });
 
-  it('honors an explicit stored color mode override', async () => {
+  it('keeps an explicit stored color mode override after the system mode changes', async () => {
+    const colorScheme = createColorSchemeMediaQuery(true);
+    vi.stubGlobal('matchMedia', () => colorScheme.mediaQueryList);
     localStorage.setItem('chakra-ui-color-mode', 'dark');
 
     render(
@@ -464,6 +499,13 @@ describe('site shell accessibility', () => {
     );
 
     expect(await screen.findByTestId('color-mode')).toHaveTextContent('dark');
+
+    act(() => {
+      colorScheme.setMatches(false);
+    });
+
+    expect(screen.getByTestId('color-mode')).toHaveTextContent('dark');
+    expect(localStorage.getItem('chakra-ui-color-mode')).toBe('dark');
   });
 
   it('defines accessible semantic link styles', () => {
@@ -501,6 +543,52 @@ function ColorModeProbe() {
   const { colorMode } = useColorMode();
 
   return <span data-testid="color-mode">{colorMode}</span>;
+}
+
+function createColorSchemeMediaQuery(initialMatches: boolean) {
+  const listeners = new Set<(event: MediaQueryListEvent) => void>();
+  const legacyListeners = new Set<(event: MediaQueryListEvent) => void>();
+  let matches = initialMatches;
+  const media = '(prefers-color-scheme: dark)';
+  const mediaQueryList = {
+    addEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
+      if (typeof listener === 'function') {
+        listeners.add(listener as (event: MediaQueryListEvent) => void);
+      }
+    },
+    addListener: (listener: (event: MediaQueryListEvent) => void) => {
+      legacyListeners.add(listener);
+    },
+    dispatchEvent: (event: Event) => {
+      listeners.forEach(listener => listener(event as MediaQueryListEvent));
+      legacyListeners.forEach(listener => listener(event as MediaQueryListEvent));
+      return true;
+    },
+    get matches() {
+      return matches;
+    },
+    media,
+    onchange: null,
+    removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
+      if (typeof listener === 'function') {
+        listeners.delete(listener as (event: MediaQueryListEvent) => void);
+      }
+    },
+    removeListener: (listener: (event: MediaQueryListEvent) => void) => {
+      legacyListeners.delete(listener);
+    },
+  } as MediaQueryList;
+
+  return {
+    mediaQueryList,
+    setMatches(nextMatches: boolean) {
+      matches = nextMatches;
+      mediaQueryList.dispatchEvent({
+        matches,
+        media,
+      } as MediaQueryListEvent);
+    },
+  };
 }
 
 function isSemanticColorPair(value: unknown): value is SemanticColorPair {

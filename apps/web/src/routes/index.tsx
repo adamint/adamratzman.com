@@ -206,7 +206,14 @@ function PuppyPopover() {
 
   return <Popover>
     <PopoverTrigger>
-      <Link color='current' borderBottom={`1px dashed ${colorModeColor}`} textDecoration="none">puppy</Link>
+      <Link
+        borderBottom={`1px dashed ${colorModeColor}`}
+        color='current'
+        textDecoration="none"
+        _hover={{ textDecoration: 'none' }}
+      >
+        puppy
+      </Link>
     </PopoverTrigger>
     <Portal>
       <PopoverContent>

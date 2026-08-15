@@ -16,7 +16,7 @@ function SpotifyViewAllCategoriesRoute() {
                                                 minW='25%' p={10}>
           <Heading size='mdx' mb={3}><ChakraRouterLink
             href={`/projects/spotify/categories/${category.id}`}>{category.name}</ChakraRouterLink></Heading>
-          <ChakraRouterLink href={`/projects/spotify/categories/${category.id}`}>
+          <ChakraRouterLink href={`/projects/spotify/categories/${category.id}`} variant='media'>
             <Image src={category.icons[0].url} alt='Spotify category preview image' />
           </ChakraRouterLink>
         </Box>)}

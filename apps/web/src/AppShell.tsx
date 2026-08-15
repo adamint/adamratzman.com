@@ -6,7 +6,7 @@ import { Footer } from './components/nav/Footer';
 import { Navbar } from './components/nav/Navbar';
 import { SkipToContentLink } from './components/nav/SkipToContentLink';
 import { RouteFocusManager } from './components/routing/RouteFocusManager';
-import { theme } from './theme';
+import { colorModeConfig, theme } from './theme';
 
 export function AppShell() {
   return (
@@ -14,7 +14,7 @@ export function AppShell() {
       <Helmet>
         <title>Adam Ratzman | adamratzman.com</title>
       </Helmet>
-      <ColorModeScript initialColorMode="system" />
+      <ColorModeScript initialColorMode={colorModeConfig.initialColorMode} />
       <ChakraProvider theme={theme}>
         <RouteFocusManager />
         <Flex direction="column" minH="100vh">

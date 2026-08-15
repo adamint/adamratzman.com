@@ -243,19 +243,21 @@ describe('navigation primitives', () => {
     expect(await screen.findByRole('heading', { name: 'Destination page' })).toBeVisible();
   });
 
-  it('does not override Chakra router links with a low-contrast literal color', () => {
-    const source = readFileSync(
-      `${process.cwd()}/src/components/utils/ChakraRouterLink.tsx`,
-      'utf8',
-    );
-    const literalColors = Array.from(
-      source.matchAll(/\bcolor=["'](#[\da-f]{6})["']/giu),
-      match => match[1],
-    );
+  it('inherits the semantic link color in Chakra router links', () => {
+    renderWithRouter([
+      {
+        path: '/',
+        Component: () => (
+          <ChakraProvider theme={theme}>
+            <ChakraRouterLink href="/destination">Destination</ChakraRouterLink>
+          </ChakraProvider>
+        ),
+      },
+    ]);
 
-    expect(literalColors.every(color => (
-      color !== undefined && contrastRatioAgainstWhite(color) >= 4.5
-    ))).toBe(true);
+    expect(getComputedStyle(screen.getByRole('link', {
+      name: 'Destination',
+    })).color).toBe('var(--chakra-colors-link)');
   });
 
   it('merges and de-duplicates rel tokens for internal links opened in a new tab', () => {
@@ -495,7 +497,7 @@ describe('navigation primitives', () => {
     })).not.toHaveAttribute('aria-current');
   });
 
-  it('restores desktop navbar labels to Heading sm typography', () => {
+  it('restores desktop navbar labels and navigation link treatment', () => {
     vi.stubGlobal('matchMedia', (query: string): MediaQueryList => ({
       addEventListener: () => undefined,
       addListener: () => undefined,
@@ -517,34 +519,15 @@ describe('navigation primitives', () => {
     }]);
 
     for (const linkName of ['Adam Ratzman', 'Online Projects']) {
-      const label = screen.getByRole('link', {
+      const link = screen.getByRole('link', {
         name: linkName,
-      }).querySelector('span');
+      });
+      const label = link.querySelector('span');
 
       expect(label).not.toBeNull();
       expect(getComputedStyle(label as HTMLSpanElement).fontSize).toBe('var(--chakra-fontSizes-md)');
       expect(getComputedStyle(label as HTMLSpanElement).lineHeight).toBe('1.2');
-    }
-  });
-
-  it('uses named Link variants for navigation and Spotify artwork', () => {
-    const navbarSource = readFileSync(
-      `${process.cwd()}/src/components/nav/Navbar.tsx`,
-      'utf8',
-    );
-    const mediaSources = [
-      'SpotifyTrack.tsx',
-      'SpotifyPlaylist.tsx',
-      'SpotifyArtist.tsx',
-      'SpotifyEpisode.tsx',
-    ].map(fileName => readFileSync(
-      `${process.cwd()}/src/components/projects/spotify/views/${fileName}`,
-      'utf8',
-    ));
-
-    expect(navbarSource.match(/variant=["']navigation["']/gu) ?? []).toHaveLength(3);
-    for (const source of mediaSources) {
-      expect(source).toMatch(/variant=["']media["']/u);
+      expect(getComputedStyle(link).textDecoration).toBe('none');
     }
   });
 
@@ -1019,17 +1002,17 @@ describe('Next compatibility removal', () => {
 });
 
 describe('web dependency scope', () => {
-  it('keeps randomcolor only as a root legacy dependency', () => {
+  it('removes randomcolor from the web package and source', () => {
     const webPackage = JSON.parse(
       readFileSync(`${process.cwd()}/package.json`, 'utf8'),
     ) as PackageManifest;
-    const rootPackage = JSON.parse(
-      readFileSync(`${process.cwd()}/../../package.json`, 'utf8'),
-    ) as PackageManifest;
+    const sourceMatches = collectSourceFiles(`${process.cwd()}/src`).filter(
+      filePath => readFileSync(filePath, 'utf8').includes('randomcolor'),
+    );
 
     expect(webPackage.dependencies).not.toHaveProperty('randomcolor');
     expect(webPackage.devDependencies).not.toHaveProperty('@types/randomcolor');
-    expect(rootPackage.dependencies).toHaveProperty('randomcolor');
+    expect(sourceMatches).toEqual([]);
   });
 });
 
@@ -1048,27 +1031,6 @@ function collectSourceFiles(directory: string): string[] {
 
     return /\.(?:[cm]?[jt]sx?|json)$/u.test(entry.name) ? [path] : [];
   });
-}
-
-function contrastRatioAgainstWhite(hexColor: string) {
-  const channels = hexColor
-    .slice(1)
-    .match(/.{2}/gu)
-    ?.map(channel => Number.parseInt(channel, 16) / 255)
-    .map(channel => (
-      channel <= 0.04045
-        ? channel / 12.92
-        : ((channel + 0.055) / 1.055) ** 2.4
-    ));
-
-  if (!channels || channels.length !== 3) {
-    throw new Error(`Expected a six-digit hex color, received: ${hexColor}`);
-  }
-
-  const [red, green, blue] = channels;
-  const luminance = (0.2126 * red) + (0.7152 * green) + (0.0722 * blue);
-
-  return 1.05 / (luminance + 0.05);
 }
 
 function mockSpotifyTokenExchange(overrides: Record<string, unknown> = {}) {

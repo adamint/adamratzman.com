@@ -1,11 +1,16 @@
-import { extendTheme } from '@chakra-ui/react';
+import { extendTheme, type ColorModeWithSystem } from '@chakra-ui/react';
 import { StepsTheme } from 'chakra-ui-steps';
 
+export const colorModeConfig = {
+  initialColorMode: 'system',
+  useSystemColorMode: false,
+} satisfies {
+  initialColorMode: ColorModeWithSystem;
+  useSystemColorMode: boolean;
+};
+
 export const theme = extendTheme({
-  config: {
-    initialColorMode: 'system',
-    useSystemColorMode: true,
-  },
+  config: colorModeConfig,
   semanticTokens: {
     colors: {
       link: {

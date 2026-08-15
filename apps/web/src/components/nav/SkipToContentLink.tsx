@@ -23,7 +23,6 @@ export function SkipToContentLink() {
     <Link
       bg="blue.700"
       color="white"
-      data-skip-link
       fontWeight="bold"
       href="#main-content"
       left={3}
