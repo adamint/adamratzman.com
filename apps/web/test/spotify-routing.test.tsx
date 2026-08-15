@@ -162,7 +162,13 @@ describe('Spotify route authentication', () => {
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     const authorizationCallsBeforeClick = authorizationUrlSpy.mock.calls.length;
-    authorizationUrlSpy.mockRejectedValueOnce(new Error('RAW_PRIVATE_GENERATION_ERROR'));
+    let consumedCallbackCodeBeforeClickFailure: string | null | undefined;
+    authorizationUrlSpy.mockImplementationOnce(() => {
+      consumedCallbackCodeBeforeClickFailure = localStorage.getItem(
+        SpotifyAuthUtils.spotifyAuthStorageKeys.consumedCallbackCode,
+      );
+      return Promise.reject(new Error('RAW_PRIVATE_GENERATION_ERROR'));
+    });
 
     await user.click(generatedLink);
 
@@ -170,6 +176,7 @@ describe('Spotify route authentication', () => {
       'Spotify sign-in is temporarily unavailable. Please try again.',
     );
     expect(authorizationUrlSpy.mock.calls.length).toBe(authorizationCallsBeforeClick + 1);
+    expect(consumedCallbackCodeBeforeClickFailure).toBeNull();
     expect(document.body).not.toHaveTextContent('RAW_PRIVATE_GENERATION_ERROR');
     expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.verifier)).toBe('generated-verifier');
     expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.state)).toBeNull();
