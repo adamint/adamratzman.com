@@ -233,7 +233,7 @@ describe('site shell accessibility', () => {
   });
 
   it.each([
-    ['/projects/conversion/base-converter', 'Base Conversion Tool | Adam Ratzman'],
+    ['/projects/conversion/base-converter', 'Base converter | Adam Ratzman'],
     ['/projects/spotify/callback', 'Completing Spotify sign-in | Adam Ratzman'],
   ])('sets accurate route metadata at %s', async (path, expectedTitle) => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);

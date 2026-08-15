@@ -15,10 +15,10 @@ import {
   Alert,
   AlertDescription,
   AlertIcon,
-  AlertTitle,
   Box,
   Heading,
   Spinner,
+  VisuallyHidden,
 } from '@chakra-ui/react';
 import { SpotifyTrack } from '../views/SpotifyTrack';
 import { SeedView } from './SeedView';
@@ -87,12 +87,15 @@ export function GetAndShowSpotifyTrackRecommendations({
 
   if (!hasSeeds) return null;
   if (!shouldShow || waitingForDebounce || (loading && !data)) {
-    return <Box>Loading recommendations... <Spinner size='sm' /></Box>;
+    return <Box role='status' aria-live='polite' aria-atomic='true'>
+      Loading recommendations... <Spinner size='sm' />
+    </Box>;
   }
-  else if (error || !data) return <Alert status='error'>
+  else if (error || !data) return <Alert role='alert' status='error'>
     <AlertIcon />
-    <AlertTitle mr={2}>We were unable to get track recommendations.</AlertTitle>
-    <AlertDescription>Please try again.</AlertDescription>
+    <AlertDescription>
+      We were unable to load Spotify recommendations. Please try again.
+    </AlertDescription>
   </Alert>;
   else {
     const { tracks, seeds } = data;
@@ -105,7 +108,15 @@ export function GetAndShowSpotifyTrackRecommendations({
 
     return <>
       <Box>
-        {loading && <Box mb={3}>Loading recommendations... <Spinner size='sm' /></Box>}
+        {loading && <Box role='status'
+                         aria-live='polite'
+                         aria-atomic='true'
+                         mb={3}>
+          Loading recommendations... <Spinner size='sm' />
+        </Box>}
+        <VisuallyHidden role='status' aria-live='polite' aria-atomic='true'>
+          {tracks.length} Spotify recommendations loaded.
+        </VisuallyHidden>
         <Box mb={5}>
           <Heading size='mdx'>Recommended tracks ({tracks.length})</Heading>
           <ChakraRouterLink

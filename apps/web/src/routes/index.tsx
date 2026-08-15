@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Heading,
   Image,
   Link,
@@ -8,7 +9,6 @@ import {
   PopoverBody,
   PopoverCloseButton,
   PopoverContent,
-  PopoverHeader,
   PopoverTrigger,
   Portal,
   Text,
@@ -206,20 +206,34 @@ function PuppyPopover() {
 
   return <Popover>
     <PopoverTrigger>
-      <Link
+      <Button
+        aria-label='Show Ben the labradoodle'
         borderBottom={`1px dashed ${colorModeColor}`}
+        borderRadius={0}
         color='current'
+        display='inline'
+        fontFamily='inherit'
+        fontSize='inherit'
+        fontWeight='inherit'
+        height='auto'
+        lineHeight='inherit'
+        minW={0}
+        p={0}
         textDecoration="none"
+        verticalAlign='baseline'
+        variant='link'
         _hover={{ textDecoration: 'none' }}
       >
         puppy
-      </Link>
+      </Button>
     </PopoverTrigger>
     <Portal>
-      <PopoverContent>
+      <PopoverContent role='dialog' aria-label='Ben the labradoodle'>
         <PopoverArrow />
         <PopoverCloseButton />
-        <PopoverHeader>Ben, 2</PopoverHeader>
+        <Box as='header' borderBottomWidth='1px' fontWeight='semibold' px={3} py={2}>
+          Ben, 2
+        </Box>
         <PopoverBody><Image src='/ben.jpg' alt='Ben the labradoodle!'/></PopoverBody>
       </PopoverContent></Portal>
   </Popover>;

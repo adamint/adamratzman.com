@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { StrictMode, useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
@@ -20,8 +21,11 @@ import {
 } from '../src/routes/projects/spotify/recommend';
 import { SpotifyArtistGenreTrackSearchAutocompleteComponent } from '../src/components/projects/spotify/playlist_generator/SpotifyArtistGenreTrackSearchAutocompleteComponent';
 import { GetAndShowSpotifyTrackRecommendations } from '../src/components/projects/spotify/playlist_generator/GetAndShowSpotifyTrackRecommendations';
+import { SpotifyGenerateAndShowPlaylistRecommendationsComponent } from '../src/components/projects/spotify/playlist_generator/SpotifyGenerateAndShowPlaylistRecommendationsComponent';
+import { tuneableTrackAttributes } from '../src/components/projects/spotify/TrackAttribute';
 import { parseRecommendedTrackIds } from '../src/routes/projects/spotify/recommend/create-playlist';
 import { theme } from '../src/theme';
+import { expectNoAxeViolations } from './a11y';
 import { renderWithRouter } from './render';
 
 afterEach(() => {
@@ -213,6 +217,63 @@ describe('Spotify autocomplete request lifecycle', () => {
 });
 
 describe('Spotify recommendation request lifecycle', () => {
+  it('exposes recommendation validation errors as alerts', () => {
+    const trackAttribute = tuneableTrackAttributes[0];
+    render(
+      <ChakraProvider theme={theme}>
+        <SpotifyGenerateAndShowPlaylistRecommendationsComponent
+          selectedObjects={{}}
+          selectedTrackAttributes={[{
+            id: trackAttribute.id,
+            trackAttribute,
+            type: 'target',
+            value: trackAttribute.defaultValue,
+          }]}
+        />
+      </ChakraProvider>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'You need to add at least one artist, track, or genre.',
+    );
+  });
+
+  it('exposes the maximum seed validation error as an alert', () => {
+    const selectedObjects = Array.from({ length: 6 }).reduce<SelectedObjects>(
+      (objects, _, index) => ({
+        ...objects,
+        ...selectedTrack(String(index)),
+      }),
+      {},
+    );
+    render(
+      <ChakraProvider theme={theme}>
+        <SpotifyGenerateAndShowPlaylistRecommendationsComponent
+          selectedObjects={selectedObjects}
+          selectedTrackAttributes={[]}
+        />
+      </ChakraProvider>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'You can only have between one and five artists, tracks, and genres.',
+    );
+  });
+
+  it('announces loading when no recommendation data is available', async () => {
+    const response = deferred<Response>();
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(response.promise));
+    const view = renderRecommendations(selectedTrack('seed'));
+
+    const status = await screen.findByRole('status');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(status).toHaveTextContent(
+      'Loading recommendations...',
+    );
+
+    view.unmount();
+  });
+
   it('shows the reviewed generic error for malformed recommendations with a missing URI', async () => {
     const malformed = recommendationResponse('RAW MALFORMED TRACK', 'malformed');
     delete (malformed.tracks[0] as Partial<SpotifyRecommendationTrack>).uri;
@@ -220,11 +281,38 @@ describe('Spotify recommendation request lifecycle', () => {
 
     renderRecommendations(selectedTrack('seed'));
 
-    expect(await screen.findByText(
-      'We were unable to get track recommendations.',
-    )).toBeVisible();
-    expect(screen.getByText('Please try again.')).toBeVisible();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We were unable to load Spotify recommendations. Please try again.',
+    );
     expect(document.body).not.toHaveTextContent('RAW MALFORMED TRACK');
+  });
+
+  it('announces the loaded count without wrapping track cards in the status region', async () => {
+    const response = {
+      seeds: [{ id: 'seed' }],
+      tracks: [
+        recommendationTrack('First Recommendation', 'firsttrack'),
+        recommendationTrack('Second Recommendation', 'secondtrack'),
+      ],
+    } satisfies SpotifyRecommendationsResponse;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(response)));
+    const { container } = renderRecommendations(selectedTrack('seed'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(
+        '2 Spotify recommendations loaded.',
+      );
+    });
+    const status = screen.getByRole('status');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(within(status).queryByRole('heading', {
+      name: 'First Recommendation',
+    })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', {
+      name: 'First Recommendation',
+    })).toBeVisible();
+
+    await expectNoAxeViolations(container);
   });
 
   it('renders recommendation text and links without album artwork', async () => {
@@ -465,7 +553,7 @@ describe('Spotify recommendation request lifecycle', () => {
     vi.useRealTimers();
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We were unable to get track recommendations.',
+      'We were unable to load Spotify recommendations. Please try again.',
     );
     expect(screen.queryByRole('heading', {
       name: 'Initial Recommendation',
