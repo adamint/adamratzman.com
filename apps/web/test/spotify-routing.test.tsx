@@ -64,6 +64,7 @@ describe('Spotify route authentication', () => {
       },
     };
     spotifyStoreState.spotifyTokenInfo = tokenInfo;
+    spotifyStoreState.codeVerifier = 'seeded-verifier';
     localStorage.setItem('spotify_token', JSON.stringify(tokenInfo));
     localStorage.setItem(SpotifyAuthUtils.spotifyAuthStorageKeys.verifier, 'seeded-verifier');
     localStorage.setItem(SpotifyAuthUtils.spotifyAuthStorageKeys.state, 'seeded-state');
@@ -96,10 +97,11 @@ describe('Spotify route authentication', () => {
     expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.consumedCallbackCode)).toBe(
       JSON.stringify('callback-code'),
     );
+    expect(spotifyStoreState.codeVerifier).toBeUndefined();
     expect(spotifyStoreState.setCodeVerifier).toHaveBeenLastCalledWith(undefined);
   });
 
-  it('shows a generic error when auth transaction cleanup storage throws during generated login failure', async () => {
+  it('continues Spotify auth rejection cleanup after a storage removal fails', async () => {
     const tokenInfo: SpotifyTokenInfo = {
       expiry: Date.now() + 60_000,
       token: {
@@ -112,15 +114,32 @@ describe('Spotify route authentication', () => {
     };
     spotifyStoreState.spotifyTokenInfo = tokenInfo;
     localStorage.setItem('spotify_token', JSON.stringify(tokenInfo));
-    vi.spyOn(SpotifyAuthUtils, 'getPkceAuthUrlFull').mockRejectedValue(
-      new Error('RAW_PRIVATE_GENERATION_ERROR'),
+    localStorage.setItem(SpotifyAuthUtils.spotifyAuthStorageKeys.verifier, 'seeded-verifier');
+    localStorage.setItem(SpotifyAuthUtils.spotifyAuthStorageKeys.state, 'seeded-state');
+    localStorage.setItem(
+      SpotifyAuthUtils.spotifyAuthStorageKeys.redirectAfterAuth,
+      '/projects/spotify/mytop',
+    );
+    localStorage.setItem(
+      SpotifyAuthUtils.spotifyAuthStorageKeys.consumedCallbackCode,
+      JSON.stringify('callback-code'),
     );
     const originalRemoveItem = Object.getOwnPropertyDescriptor(Storage.prototype, 'removeItem')?.value as (
       this: Storage,
       key: string,
     ) => void;
+    vi.spyOn(SpotifyAuthUtils, 'getPkceAuthUrlFull').mockImplementation(() => (
+      Promise.resolve().then(() => {
+        Reflect.apply(originalRemoveItem, localStorage, [
+          SpotifyAuthUtils.spotifyAuthStorageKeys.consumedCallbackCode,
+        ]);
+        throw new Error('RAW_PRIVATE_GENERATION_ERROR');
+      })
+    ));
+    let removalFailed = false;
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
-      if (key === SpotifyAuthUtils.spotifyAuthStorageKeys.verifier) {
+      if (!removalFailed && key === SpotifyAuthUtils.spotifyAuthStorageKeys.verifier) {
+        removalFailed = true;
         throw new DOMException('blocked', 'SecurityError');
       }
 
@@ -144,6 +163,12 @@ describe('Spotify route authentication', () => {
       'Spotify sign-in is temporarily unavailable. Please try again.',
     );
     expect(document.body).not.toHaveTextContent('RAW_PRIVATE_GENERATION_ERROR');
+    expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.verifier)).toBe('seeded-verifier');
+    expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.state)).toBeNull();
+    expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.redirectAfterAuth)).toBeNull();
+    expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.consumedCallbackCode)).toBe(
+      JSON.stringify('callback-code'),
+    );
     expect(spotifyStoreState.setCodeVerifier).toHaveBeenLastCalledWith(undefined);
   });
 

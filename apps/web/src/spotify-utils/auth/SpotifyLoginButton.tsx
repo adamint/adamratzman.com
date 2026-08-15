@@ -81,11 +81,15 @@ function clearFailedAuthorizationAttempt(
 ) {
   try {
     SpotifyAuthUtils.clearAuthorizationTransaction();
-    if (consumedCallbackCode !== null) {
-      localStorage.setItem(spotifyAuthStorageKeys.consumedCallbackCode, consumedCallbackCode);
-    }
   } catch {
-    // Best-effort cleanup: still surface the generic error and clear in-memory verifier state.
+    // Continue with the remaining best-effort cleanup.
+  }
+  if (consumedCallbackCode !== null) {
+    try {
+      localStorage.setItem(spotifyAuthStorageKeys.consumedCallbackCode, consumedCallbackCode);
+    } catch {
+      // Keep the UI unauthenticated when storage remains unavailable.
+    }
   }
   setCodeVerifier(undefined);
 }

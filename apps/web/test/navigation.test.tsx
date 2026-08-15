@@ -129,6 +129,73 @@ describe('navigation primitives', () => {
     expect(setCodeVerifier).toHaveBeenLastCalledWith(undefined);
   });
 
+  it('continues Spotify auth rejection cleanup after a storage removal fails', async () => {
+    const user = userEvent.setup();
+    let reactCodeVerifier: string | undefined = 'seeded-verifier';
+    const setCodeVerifier = vi.fn((newVerifier: string | null | undefined) => {
+      reactCodeVerifier = newVerifier ?? undefined;
+    });
+    localStorage.setItem(spotifyAuthStorageKeys.verifier, 'seeded-verifier');
+    localStorage.setItem(spotifyAuthStorageKeys.state, 'seeded-state');
+    localStorage.setItem(
+      spotifyAuthStorageKeys.redirectAfterAuth,
+      '/projects/spotify/mytop',
+    );
+    localStorage.setItem(
+      spotifyAuthStorageKeys.consumedCallbackCode,
+      JSON.stringify('callback-code'),
+    );
+    const originalRemoveItem = Object.getOwnPropertyDescriptor(
+      Storage.prototype,
+      'removeItem',
+    )?.value as (this: Storage, key: string) => void;
+    vi.spyOn(SpotifyRedirectModule, 'redirectToSpotifyLogin').mockImplementation(
+      (codeVerifier, _redirectPathAfter, setVerifier) => {
+        Reflect.apply(originalRemoveItem, localStorage, [
+          spotifyAuthStorageKeys.consumedCallbackCode,
+        ]);
+        setVerifier(codeVerifier);
+        return Promise.reject(new Error('RAW_PRIVATE_AUTHORIZATION_ERROR'));
+      },
+    );
+    let removalFailed = false;
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
+      if (!removalFailed && key === spotifyAuthStorageKeys.verifier) {
+        removalFailed = true;
+        throw new DOMException('blocked', 'SecurityError');
+      }
+
+      return Reflect.apply(originalRemoveItem, this, [key]);
+    });
+
+    render(
+      <ChakraProvider theme={theme}>
+        <SpotifyLoginButton
+          scopes={['user-top-read']}
+          clientId="client-id"
+          redirectUri="https://example.com/projects/spotify/callback"
+          setCodeVerifier={setCodeVerifier}
+          redirectPathAfter="/projects/spotify/mytop"
+        />
+      </ChakraProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in is temporarily unavailable. Please try again.',
+    );
+    expect(document.body).not.toHaveTextContent('RAW_PRIVATE_AUTHORIZATION_ERROR');
+    expect(localStorage.getItem(spotifyAuthStorageKeys.verifier)).toBe('seeded-verifier');
+    expect(localStorage.getItem(spotifyAuthStorageKeys.state)).toBeNull();
+    expect(localStorage.getItem(spotifyAuthStorageKeys.redirectAfterAuth)).toBeNull();
+    expect(localStorage.getItem(spotifyAuthStorageKeys.consumedCallbackCode)).toBe(
+      JSON.stringify('callback-code'),
+    );
+    expect(reactCodeVerifier).toBeUndefined();
+    expect(setCodeVerifier).toHaveBeenLastCalledWith(undefined);
+  });
+
   it('uses React Router navigation for internal Chakra links', async () => {
     const user = userEvent.setup();
 

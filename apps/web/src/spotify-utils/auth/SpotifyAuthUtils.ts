@@ -97,10 +97,22 @@ function removeStoredTokenOnly() {
   localStorage.removeItem(spotifyAuthStorageKeys.token);
 }
 
+function removeStoredItemsBestEffort(storageKeys: readonly string[]) {
+  for (const storageKey of storageKeys) {
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // Continue attempting the remaining independent cleanup operations.
+    }
+  }
+}
+
 function clearPendingAuthorizationTransaction() {
-  localStorage.removeItem(spotifyAuthStorageKeys.verifier);
-  localStorage.removeItem(spotifyAuthStorageKeys.state);
-  localStorage.removeItem(spotifyAuthStorageKeys.redirectAfterAuth);
+  removeStoredItemsBestEffort([
+    spotifyAuthStorageKeys.verifier,
+    spotifyAuthStorageKeys.state,
+    spotifyAuthStorageKeys.redirectAfterAuth,
+  ]);
 }
 
 function clearStoredTokenAndPendingAuthorizationTransaction() {
