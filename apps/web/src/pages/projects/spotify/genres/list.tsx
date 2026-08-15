@@ -2,15 +2,12 @@ import { ProjectPage } from '../../../../components/projects/ProjectPage';
 import { ListItem, Text, UnorderedList } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../../components/utils/ChakraRouterLink';
 import Head from 'next/head';
-import { useLoaderData } from 'react-router-dom';
-import { loadSpotifyGenreListRouteData } from '../../../../api/spotifyLoaders';
 
-function SpotifyGenreListRoute() {
-  const loaderData = useLoaderData<typeof loadSpotifyGenreListRouteData>();
-  if (loaderData instanceof Response) {
-    return null;
-  }
-  const { genres } = loaderData;
+type SpotifyGenreListRouteProps = {
+  genres: string[]
+}
+
+function SpotifyGenreListRoute({ genres }: SpotifyGenreListRouteProps) {
   return <>
     <Head>
       <title>Spotify Genres</title>

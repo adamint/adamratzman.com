@@ -9,19 +9,17 @@ import { SpotifyPlaylist } from '../../../../components/projects/spotify/views/S
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import axios, { AxiosResponse } from 'axios';
-import { useLoaderData } from 'react-router-dom';
-import { loadSpotifyUserRouteData } from '../../../../api/spotifyLoaders';
 
 type SpotifyUserViewRouteParams = {
   userId: string;
 }
 
-function SpotifyUserViewRoute() {
-  const loaderData = useLoaderData<typeof loadSpotifyUserRouteData>();
-  if (loaderData instanceof Response) {
-    return null;
-  }
-  const { totalPlaylists, user } = loaderData;
+type SpotifyUserViewRouteProps = {
+  totalPlaylists: number;
+  user: SpotifyApi.UserProfileResponse
+}
+
+function SpotifyUserViewRoute({ totalPlaylists, user }: SpotifyUserViewRouteProps) {
   const router = useRouter();
   const { userId } = router.query as SpotifyUserViewRouteParams;
   const [limitPerPage, setLimitPerPage] = useState<number>(10);

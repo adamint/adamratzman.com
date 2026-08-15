@@ -4,8 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '../src/AppShell';
 import {
   RootRouteErrorBoundary,
+  RouterLoadingFallback,
   routePaths,
   routes,
+  temporarilyDeferredSpotifyRoutePaths,
 } from '../src/router';
 import { renderWithRouter } from './render';
 
@@ -15,14 +17,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    headers: {
-      'content-type': 'application/json',
-    },
-    status,
-  });
-}
+const deferredSpotifyRoutePaths = Object.values(temporarilyDeferredSpotifyRoutePaths);
 
 describe('route table', () => {
   it('preserves the exact public path order', () => {
@@ -54,6 +49,37 @@ describe('route table', () => {
       '*',
     ]);
   });
+
+  it('wires the exported root route error and loading boundaries', () => {
+    expect(routes).toHaveLength(1);
+
+    const [rootRoute] = routes;
+    expect(rootRoute?.Component).toBe(AppShell);
+    expect(rootRoute?.ErrorBoundary).toBe(RootRouteErrorBoundary);
+    expect(rootRoute?.HydrateFallback).toBe(RouterLoadingFallback);
+  });
+
+  it.each(deferredSpotifyRoutePaths)(
+    'keeps %s as a temporary redirect without Task 8 loaders',
+    async (publicPath) => {
+      const childRoute = routes[0]?.children?.find(
+        route => route.path === publicPath.slice(1),
+      );
+
+      expect(childRoute?.loader).toBeUndefined();
+      expect(childRoute?.lazy).toBeUndefined();
+
+      const renderedPath = publicPath.replace(/:[^/]+/g, 'example');
+      const { router } = renderWithRouter(routes, {
+        initialEntries: [renderedPath],
+      });
+
+      await waitFor(() => {
+        expect(router.state.location.pathname).toBe('/projects');
+      });
+      expect(await screen.findByRole('heading', { name: 'Projects' })).toBeVisible();
+    },
+  );
 });
 
 describe('memory router integration', () => {
@@ -87,37 +113,6 @@ describe('memory router integration', () => {
       name: /that page wasn't found/i,
     })).toBeVisible();
     expect(document.querySelector('#main-content')).toBeInTheDocument();
-  });
-
-  it('renders loader data returned by a Spotify route', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse([
-      {
-        id: 'focus',
-        icons: [{ url: 'https://example.com/focus.png' }],
-        name: 'Focus',
-      },
-    ])));
-
-    renderWithRouter(routes, {
-      initialEntries: ['/projects/spotify/categories'],
-    });
-
-    expect(await screen.findByRole('heading', { name: 'Focus' })).toBeVisible();
-  });
-
-  it('redirects safely when a Spotify loader fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
-      new Response('internal API detail', { status: 503 }),
-    ));
-
-    const { router } = renderWithRouter(routes, {
-      initialEntries: ['/projects/spotify/categories'],
-    });
-
-    await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/projects');
-    });
-    expect(screen.queryByText(/internal API detail/i)).not.toBeInTheDocument();
   });
 
   it('shows a visible fallback while an initial lazy route loads', async () => {

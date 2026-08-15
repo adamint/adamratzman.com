@@ -9,8 +9,7 @@
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "lint": "npm run lint:task6",
-    "lint:task6": "eslint --config ../../eslint.config.mjs src/AppShell.tsx src/main.tsx src/router.tsx src/api src/compat/next src/components/nav/ConsoleComponent.tsx src/components/projects/spotify/playlist_generator/GetAndShowSpotifyTrackRecommendations.tsx src/components/projects/spotify/playlist_generator/SpotifyArtistGenreTrackSearchAutocompleteComponent.tsx src/components/utils/useSpotifyStore.ts 'src/pages/projects/spotify/artists/[artistId].tsx' src/pages/projects/spotify/categories.tsx 'src/pages/projects/spotify/categories/[categoryId].tsx' src/pages/projects/spotify/genres/list.tsx 'src/pages/projects/spotify/playlists/[playlistId].tsx' src/pages/projects/spotify/recommend/index.tsx 'src/pages/projects/spotify/tracks/[trackId].tsx' 'src/pages/projects/spotify/users/[userId].tsx' src/spotify-utils/auth/RedirectToSpotifyLogin.ts src/spotify-utils/auth/RequireSpotifyScopesOrElseShowLogin.tsx src/spotify-utils/auth/SpotifyAuthUtils.ts src/spotify-utils/auth/SpotifyCallbackIngestionTokenProducerComponent.tsx src/spotify-utils/auth/SpotifyLoginButton.tsx test vite.config.ts"
+    "lint": "eslint src test vite.config.ts"
   },
   "dependencies": {
     "@adamratzman/contracts": "file:../../packages/contracts",

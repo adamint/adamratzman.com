@@ -5,15 +5,6 @@ import {
   type RouteObject,
 } from 'react-router-dom';
 import { AppShell } from './AppShell';
-import {
-  loadSpotifyArtistRouteData,
-  loadSpotifyCategoriesRouteData,
-  loadSpotifyCategoryRouteData,
-  loadSpotifyGenreListRouteData,
-  loadSpotifyPlaylistRouteData,
-  loadSpotifyTrackRouteData,
-  loadSpotifyUserRouteData,
-} from './api/spotifyLoaders';
 
 type LazyPageModule = {
   default: ComponentType;
@@ -50,6 +41,23 @@ function createChildRoute({
   } as RouteObject;
 }
 
+export const temporarilyDeferredSpotifyRoutePaths = {
+  artist: '/projects/spotify/artists/:artistId',
+  categories: '/projects/spotify/categories',
+  category: '/projects/spotify/categories/:categoryId',
+  genres: '/projects/spotify/genres/list',
+  playlist: '/projects/spotify/playlists/:playlistId',
+  track: '/projects/spotify/tracks/:trackId',
+  user: '/projects/spotify/users/:userId',
+} as const;
+
+function temporarilyDeferredSpotifyRoute(publicPath: string): AppRouteSpec {
+  return {
+    publicPath,
+    element: <Navigate replace to="/projects" />,
+  };
+}
+
 const appRouteSpecs: AppRouteSpec[] = [
   { publicPath: '/', lazy: lazyPage(() => import('./pages/index')) },
   { publicPath: '/academics', lazy: lazyPage(() => import('./pages/academics')) },
@@ -63,49 +71,21 @@ const appRouteSpecs: AppRouteSpec[] = [
   { publicPath: '/projects/character-counter', lazy: lazyPage(() => import('./pages/projects/character-counter')) },
   { publicPath: '/projects/conversion/base-converter', lazy: lazyPage(() => import('./pages/projects/conversion/base-converter')) },
   { publicPath: '/projects/spotify', element: <Navigate replace to="/projects" /> },
-  {
-    publicPath: '/projects/spotify/artists/:artistId',
-    loader: loadSpotifyArtistRouteData,
-    lazy: lazyPage(() => import('./pages/projects/spotify/artists/[artistId]')),
-  },
+  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.artist),
   { publicPath: '/projects/spotify/callback', lazy: lazyPage(() => import('./pages/projects/spotify/callback')) },
-  {
-    publicPath: '/projects/spotify/categories',
-    loader: loadSpotifyCategoriesRouteData,
-    lazy: lazyPage(() => import('./pages/projects/spotify/categories')),
-  },
-  {
-    publicPath: '/projects/spotify/categories/:categoryId',
-    loader: loadSpotifyCategoryRouteData,
-    lazy: lazyPage(() => import('./pages/projects/spotify/categories/[categoryId]')),
-  },
+  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.categories),
+  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.category),
   { publicPath: '/projects/spotify/generate-token', lazy: lazyPage(() => import('./pages/projects/spotify/generate-token')) },
-  {
-    publicPath: '/projects/spotify/genres/list',
-    loader: loadSpotifyGenreListRouteData,
-    lazy: lazyPage(() => import('./pages/projects/spotify/genres/list')),
-  },
+  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.genres),
   { publicPath: '/projects/spotify/mytop', lazy: lazyPage(() => import('./pages/projects/spotify/mytop')) },
-  {
-    publicPath: '/projects/spotify/playlists/:playlistId',
-    loader: loadSpotifyPlaylistRouteData,
-    lazy: lazyPage(() => import('./pages/projects/spotify/playlists/[playlistId]')),
-  },
+  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.playlist),
   { publicPath: '/projects/spotify/recommend', lazy: lazyPage(() => import('./pages/projects/spotify/recommend')) },
   {
     publicPath: '/projects/spotify/recommend/create-playlist',
     lazy: lazyPage(() => import('./pages/projects/spotify/recommend/create-playlist')),
   },
-  {
-    publicPath: '/projects/spotify/tracks/:trackId',
-    loader: loadSpotifyTrackRouteData,
-    lazy: lazyPage(() => import('./pages/projects/spotify/tracks/[trackId]')),
-  },
-  {
-    publicPath: '/projects/spotify/users/:userId',
-    loader: loadSpotifyUserRouteData,
-    lazy: lazyPage(() => import('./pages/projects/spotify/users/[userId]')),
-  },
+  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.track),
+  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.user),
   { publicPath: '*', lazy: lazyPage(() => import('./pages/404')) },
 ];
 

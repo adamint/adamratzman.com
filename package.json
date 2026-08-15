@@ -10,6 +10,9 @@
   "engines": {
     "node": "^22.13.0 || >=24"
   },
+  "overrides": {
+    "jsdom": "29.1.1"
+  },
   "scripts": {
     "aspire:require-cli": "node -e \"const { spawnSync } = require('node:child_process'); const result = spawnSync('aspire', ['--version'], { stdio: 'ignore' }); if (result.error || result.status !== 0) { console.error('Aspire CLI is required. Run aspire update --self --channel staging --yes --non-interactive.'); process.exit(1); }\"",
     "aspire:restore": "npm run aspire:require-cli && aspire restore --apphost apphost.mts --non-interactive",
@@ -81,6 +84,7 @@
     "@types/node": "22.20.1",
     "eslint": "10.8.0",
     "globals": "17.9.0",
+    "jsdom": "29.1.1",
     "tsx": "4.23.11",
     "typescript": "5.9.3",
     "typescript-eslint": "8.57.1"
