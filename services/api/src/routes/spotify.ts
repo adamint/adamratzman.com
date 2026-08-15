@@ -14,6 +14,7 @@ import {
   type SpotifyClient,
 } from '../spotify/client.js';
 import { getAllPages } from '../spotify/pagination.js';
+import { projectSpotifyResponse } from '../spotify/serialization.js';
 
 export type SpotifyClientResolver = () => Promise<
   | { kind: 'client'; client: SpotifyClient }
@@ -482,7 +483,7 @@ async function withSpotify<T>(
   }
 
   try {
-    return await callback(resolvedSpotify.client);
+    return projectSpotifyResponse(await callback(resolvedSpotify.client));
   } catch {
     request.log.error({
       err: projectSpotifyError('spotify_request_failure'),

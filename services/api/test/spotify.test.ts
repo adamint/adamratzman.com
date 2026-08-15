@@ -9,6 +9,10 @@ async function loadPaginationModule() {
   return import('../src/spotify/pagination.js');
 }
 
+async function loadSerializationModule() {
+  return import('../src/spotify/serialization.js');
+}
+
 describe('spotify routes', () => {
   const apps: Array<ReturnType<typeof buildApp>> = [];
   type SpotifyValidationCase = {
@@ -1735,6 +1739,133 @@ describe('spotify routes', () => {
     expect(response.body).not.toContain(sentinel);
   });
 
+  it('turns Spotify response toJSON serialization failures into a safe 502 without leaking sentinels', async () => {
+    const sentinel = 'SERIALIZE_SENTINEL';
+    const logError = vi.fn();
+    const { app, spotify, spotifyFactory } = createSpotifyApp();
+
+    app.addHook('onRequest', async (request) => {
+      await Promise.resolve();
+      Object.assign(request.log, { error: logError });
+    });
+
+    spotify.getTrack.mockResolvedValue(spotifyResponse<'getTrack'>({
+      ...createTrackDetail(),
+      toJSON() {
+        throw new Error(`toJSON ${sentinel}`);
+      },
+    }));
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/tracks/track-1',
+    });
+
+    expect(spotifyFactory).toHaveBeenCalledOnce();
+    expect(spotify.getTrack).toHaveBeenCalledOnce();
+    expect(spotify.getTrack).toHaveBeenCalledWith('track-1');
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        classification: 'spotify_request_failure',
+      },
+      method: 'GET',
+      route: '/api/spotify/tracks/:trackId(^.+$)',
+    }, 'Spotify request failed');
+    expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
+    expect(response.body).not.toContain(sentinel);
+  });
+
+  it('turns Spotify response getter serialization failures into a safe 502 without leaking sentinels', async () => {
+    const sentinel = 'SERIALIZE_SENTINEL';
+    const logError = vi.fn();
+    const { app, spotify, spotifyFactory } = createSpotifyApp();
+
+    app.addHook('onRequest', async (request) => {
+      await Promise.resolve();
+      Object.assign(request.log, { error: logError });
+    });
+
+    const track = createTrackDetail() as Record<string, unknown>;
+    Object.defineProperty(track, 'escaped', {
+      enumerable: true,
+      get() {
+        throw new Error(`getter ${sentinel}`);
+      },
+    });
+    spotify.getTrack.mockResolvedValue(spotifyResponse<'getTrack'>(track));
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/tracks/track-1',
+    });
+
+    expect(spotifyFactory).toHaveBeenCalledOnce();
+    expect(spotify.getTrack).toHaveBeenCalledOnce();
+    expect(spotify.getTrack).toHaveBeenCalledWith('track-1');
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        classification: 'spotify_request_failure',
+      },
+      method: 'GET',
+      route: '/api/spotify/tracks/:trackId(^.+$)',
+    }, 'Spotify request failed');
+    expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
+    expect(response.body).not.toContain(sentinel);
+  });
+
+  it('turns cyclic Spotify responses into a safe 502', async () => {
+    const logError = vi.fn();
+    const { app, spotify, spotifyFactory } = createSpotifyApp();
+
+    app.addHook('onRequest', async (request) => {
+      await Promise.resolve();
+      Object.assign(request.log, { error: logError });
+    });
+
+    const track = createTrackDetail() as Record<string, unknown>;
+    track.self = track;
+    spotify.getTrack.mockResolvedValue(spotifyResponse<'getTrack'>(track));
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/tracks/track-1',
+    });
+
+    expect(spotifyFactory).toHaveBeenCalledOnce();
+    expect(spotify.getTrack).toHaveBeenCalledOnce();
+    expect(spotify.getTrack).toHaveBeenCalledWith('track-1');
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        classification: 'spotify_request_failure',
+      },
+      method: 'GET',
+      route: '/api/spotify/tracks/:trackId(^.+$)',
+    }, 'Spotify request failed');
+    expect(response.body).not.toContain('circular');
+    expect(JSON.stringify(logError.mock.calls)).not.toContain('circular');
+  });
+
   it('returns a safe 500 when Spotify is not configured', async () => {
     const originalClientId = process.env.SPOTIFY_CLIENT_ID;
     const originalClientSecret = process.env.SPOTIFY_CLIENT_SECRET;
@@ -1803,6 +1934,63 @@ describe('spotify routes', () => {
       error: { code: 'not_found', message: 'Route not found.' },
     });
     expect(spotifyFactory).not.toHaveBeenCalled();
+  });
+});
+
+describe('spotify serialization helper', () => {
+  it('projects Spotify responses to plain JSON-safe data without changing payload shape', async () => {
+    const { projectSpotifyResponse } = await loadSerializationModule();
+    const expectedTrack = {
+      id: 'track-1',
+      uri: 'spotify:track:track-1',
+      name: 'Garden Song',
+      artists: [
+        {
+          id: 'artist-1',
+          name: 'Phoebe Bridgers',
+          uri: 'spotify:artist:artist-1',
+        },
+      ],
+      album: {
+        images: [{ url: 'https://images.example/track.png' }],
+      },
+      popularity: 84,
+      duration_ms: 207000,
+      preview_url: null,
+      external_urls: { spotify: 'https://open.spotify.com/track/track-1' },
+    };
+    const sourceTrack = Object.assign(
+      Object.create({ inherited: 'root' }) as Record<string, unknown>,
+      {
+        ...expectedTrack,
+        artists: [
+          Object.assign(
+            Object.create({ inherited: 'artist' }) as Record<string, unknown>,
+            expectedTrack.artists[0],
+          ),
+        ],
+        album: Object.assign(
+          Object.create({ inherited: 'album' }) as Record<string, unknown>,
+          { images: [Object.assign(
+            Object.create({ inherited: 'image' }) as Record<string, unknown>,
+            expectedTrack.album.images[0],
+          )] },
+        ),
+        external_urls: Object.assign(
+          Object.create({ inherited: 'url' }) as Record<string, unknown>,
+          expectedTrack.external_urls,
+        ),
+      },
+    );
+
+    const projectedTrack = projectSpotifyResponse<typeof sourceTrack>(sourceTrack);
+
+    expect(projectedTrack).toEqual(expectedTrack);
+    expect(Object.getPrototypeOf(projectedTrack)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(projectedTrack.artists[0])).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(projectedTrack.album)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(projectedTrack.album.images[0])).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(projectedTrack.external_urls)).toBe(Object.prototype);
   });
 });
 
