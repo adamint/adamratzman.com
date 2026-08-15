@@ -10,6 +10,7 @@ import {
   Input,
   Select,
   Text,
+  useColorModeValue,
 } from '@chakra-ui/react';
 import { useState } from 'react';
 import { PageTitle } from '../../../components/meta/PageTitle';
@@ -18,6 +19,21 @@ import { ProjectPage } from '../../../components/projects/ProjectPage';
 const validBases: number[] = [];
 for (let i = 2; i <= 32; i++) validBases.push(i);
 const supportedDigits = '0123456789abcdefghijklmnopqrstuv';
+
+export const BASE_CONVERTER_BUTTON_COLORS = {
+  light: {
+    background: 'orange.700',
+    border: 'orange.900',
+    foreground: 'white',
+    hoverBackground: 'orange.800',
+  },
+  dark: {
+    background: 'orange.300',
+    border: 'orange.50',
+    foreground: 'gray.900',
+    hoverBackground: 'orange.200',
+  },
+} as const;
 
 type Conversion = {
   kind: 'error';
@@ -30,6 +46,10 @@ function BaseConverterRoute() {
   const [numberToConvert, setNumberToConvert] = useState<string>('');
   const [baseToConvertFrom, setBaseToConvertFrom] = useState<number | null>(null);
   const [baseToConvertTo, setBaseToConvertTo] = useState<number | null>(null);
+  const inverseButtonColors = useColorModeValue(
+    BASE_CONVERTER_BUTTON_COLORS.light,
+    BASE_CONVERTER_BUTTON_COLORS.dark,
+  );
   const conversion = convertNumber(
     numberToConvert,
     baseToConvertFrom,
@@ -96,7 +116,17 @@ function BaseConverterRoute() {
       <Text><b>Result: </b> {conversion.result}</Text>
     </Box>}
 
-    <Button colorScheme='orange' onClick={handleInverseButtonClicked}>Inverse to/from</Button>
+    <Button
+      background={inverseButtonColors.background}
+      borderColor={inverseButtonColors.border}
+      borderStyle='solid'
+      borderWidth='1px'
+      color={inverseButtonColors.foreground}
+      onClick={handleInverseButtonClicked}
+      _hover={{ background: inverseButtonColors.hoverBackground }}
+    >
+      Inverse to/from
+    </Button>
 
   </ProjectPage>;
 }

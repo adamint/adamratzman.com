@@ -181,6 +181,47 @@ describe('Accessible Spotify pagination', () => {
     expect(nextResults).toHaveFocus();
   });
 
+  it('keeps one polite loading status node across a user page request', async () => {
+    const user = userEvent.setup();
+    const nextPage = deferred<ReturnType<typeof page>>();
+    const dataProducer = vi.fn((
+      _limit: number,
+      offset: number,
+    ) => offset === 0
+      ? Promise.resolve(page('first'))
+      : nextPage.promise);
+
+    renderPaginator(dataProducer);
+
+    const initialResults = await screen.findByRole('region', {
+      name: 'Spotify results',
+    });
+    const status = getLoadingStatus();
+    expect(status).toHaveTextContent('');
+    expect(status).not.toContainElement(initialResults);
+    expect(initialResults).not.toContainElement(status);
+
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    await waitFor(() => {
+      expect(dataProducer).toHaveBeenCalledTimes(2);
+    });
+
+    expect(getLoadingStatus()).toBe(status);
+    expect(status).toHaveTextContent('Loading Spotify results');
+    expect(screen.queryByRole('region', {
+      name: 'Spotify results',
+    })).not.toBeInTheDocument();
+
+    nextPage.resolve(page('second'));
+    const nextResults = await screen.findByRole('region', {
+      name: 'Spotify results',
+    });
+    expect(getLoadingStatus()).toBe(status);
+    expect(status).toHaveTextContent('');
+    expect(status).not.toContainElement(nextResults);
+    expect(nextResults).not.toContainElement(status);
+  });
+
   it('does not steal focus from another live control while a requested page loads', async () => {
     const user = userEvent.setup();
     const nextPage = deferred<ReturnType<typeof page>>();
@@ -790,10 +831,19 @@ function page(id: string, total = 50) {
 }
 
 function expectLoadingStatus() {
-  const status = screen.getByRole('status');
-  expect(status).toBeVisible();
+  const status = getLoadingStatus();
+  expect(status).toBeInTheDocument();
   expect(status).toHaveTextContent('Loading Spotify results');
   expect(status).not.toHaveAttribute('aria-label');
+  expect(document.querySelector('.chakra-spinner')).toBeVisible();
+}
+
+function getLoadingStatus() {
+  const status = document.querySelector<HTMLElement>(
+    '[role="status"][aria-live="polite"][aria-atomic="true"]',
+  );
+  expect(status).not.toBeNull();
+  return status as HTMLElement;
 }
 
 function deferred<T>() {

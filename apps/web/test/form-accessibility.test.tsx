@@ -13,15 +13,33 @@ import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DashedSpanWithTooltip } from '../src/components/utils/DashedSpanWithTooltip';
 import CharacterCounterRoute, { countWords } from '../src/routes/projects/character-counter';
-import BaseConverterRoute from '../src/routes/projects/conversion/base-converter';
+import BaseConverterRoute, {
+  BASE_CONVERTER_BUTTON_COLORS,
+} from '../src/routes/projects/conversion/base-converter';
 import { routes } from '../src/router';
 import { theme } from '../src/theme';
 import { expectNoAxeViolations } from './a11y';
 import { renderWithRouter } from './render';
 
+const EXPECTED_BASE_CONVERTER_BUTTON_COLORS = {
+  light: {
+    background: 'orange.700',
+    border: 'orange.900',
+    foreground: 'white',
+    hoverBackground: 'orange.800',
+  },
+  dark: {
+    background: 'orange.300',
+    border: 'orange.50',
+    foreground: 'gray.900',
+    hoverBackground: 'orange.200',
+  },
+} as const;
+
 afterEach(() => {
   cleanup();
   document.title = '';
+  localStorage.clear();
   vi.useRealTimers();
 });
 
@@ -97,6 +115,98 @@ describe('keyboard-accessible triggers', () => {
     await waitFor(() => {
       expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
     });
+  });
+
+  it('dismisses a pointer-opened tooltip with document Escape while body has focus', async () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <DashedSpanWithTooltip tooltip="Hover Escape tooltip">
+          Hover Escape trigger
+        </DashedSpanWithTooltip>
+      </ChakraProvider>,
+    );
+
+    const trigger = screen.getByRole('button', {
+      name: 'Hover Escape trigger',
+    });
+    expect(document.body).toHaveFocus();
+    fireEvent.pointerEnter(trigger, { pointerType: 'mouse' });
+    await waitFor(() => {
+      expect(screen.getByRole('tooltip')).toBeVisible();
+    });
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('clears overlay hover ownership after Escape so focus and blur can close again', async () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <DashedSpanWithTooltip tooltip="Lifecycle tooltip">
+          Lifecycle trigger
+        </DashedSpanWithTooltip>
+      </ChakraProvider>,
+    );
+
+    const trigger = screen.getByRole('button', {
+      name: 'Lifecycle trigger',
+    });
+    fireEvent.pointerEnter(trigger, { pointerType: 'mouse' });
+    await waitFor(() => {
+      expect(screen.getByRole('tooltip')).toBeVisible();
+    });
+    const tooltip = screen.getByRole('tooltip');
+    fireEvent.pointerLeave(trigger, { pointerType: 'mouse' });
+    fireEvent.pointerEnter(tooltip, { pointerType: 'mouse' });
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+
+    trigger.focus();
+    await waitFor(() => {
+      expect(screen.getByRole('tooltip')).toBeVisible();
+    });
+    trigger.blur();
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+  });
+
+  it('removes the document Escape listener and pending close timer on cleanup', async () => {
+    const addEventListener = vi.spyOn(document, 'addEventListener');
+    const removeEventListener = vi.spyOn(document, 'removeEventListener');
+    const clearTimeout = vi.spyOn(window, 'clearTimeout');
+    const { unmount } = render(
+      <ChakraProvider theme={theme}>
+        <DashedSpanWithTooltip tooltip="Cleanup tooltip">
+          Cleanup trigger
+        </DashedSpanWithTooltip>
+      </ChakraProvider>,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Cleanup trigger' });
+    fireEvent.pointerEnter(trigger, { pointerType: 'mouse' });
+    await screen.findByRole('tooltip');
+    const keydownListener = addEventListener.mock.calls
+      .filter(([type]) => type === 'keydown')
+      .at(-1)?.[1];
+    expect(keydownListener).toBeTypeOf('function');
+
+    fireEvent.pointerLeave(trigger, { pointerType: 'mouse' });
+    unmount();
+
+    expect(removeEventListener).toHaveBeenCalledWith(
+      'keydown',
+      keydownListener,
+    );
+    expect(clearTimeout).toHaveBeenCalled();
   });
 
   it.each([
@@ -317,6 +427,52 @@ describe('base converter accessibility', () => {
     },
   );
 
+  it('defines AA-contrast inverse button colors with explicit borders', () => {
+    expect(BASE_CONVERTER_BUTTON_COLORS)
+      .toEqual(EXPECTED_BASE_CONVERTER_BUTTON_COLORS);
+
+    for (const colors of Object.values(BASE_CONVERTER_BUTTON_COLORS)) {
+      expect(colors.border).toBeTruthy();
+      expect(contrastRatio(
+        resolveThemeColor(colors.foreground),
+        resolveThemeColor(colors.background),
+      )).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(
+        resolveThemeColor(colors.foreground),
+        resolveThemeColor(colors.hoverBackground),
+      )).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.each(Object.entries(EXPECTED_BASE_CONVERTER_BUTTON_COLORS))(
+    'emits bounded inverse button styles in %s mode',
+    (colorMode, colors) => {
+      localStorage.setItem('chakra-ui-color-mode', colorMode);
+      renderProjectRoute(<BaseConverterRoute />);
+
+      const button = screen.getByRole('button', {
+        name: 'Inverse to/from',
+      });
+      const style = getComputedStyle(button);
+      const generatedClass = button.className.split(' ').at(-1);
+      const rules = Array.from(document.styleSheets)
+        .flatMap(sheet => Array.from(sheet.cssRules)) as CSSStyleRule[];
+      const baseRule = rules.find(rule => rule.selectorText === `.${generatedClass}`);
+      const hoverRule = rules.find(rule => (
+        rule.selectorText?.includes(`.${generatedClass}:hover`)
+      ));
+
+      expect(baseRule?.style.background).toBe(toColorVariable(colors.background));
+      expect(baseRule?.style.color).toBe(toColorVariable(colors.foreground));
+      expect(baseRule?.style.borderColor).toBe(toColorVariable(colors.border));
+      expect(hoverRule?.style.background).toBe(
+        toColorVariable(colors.hoverBackground),
+      );
+      expect(style.borderStyle).toBe('solid');
+      expect(style.borderWidth).toBe('1px');
+    },
+  );
+
   it('has no axe violations', async () => {
     const { container } = renderProjectRoute(<BaseConverterRoute />);
 
@@ -333,4 +489,56 @@ function renderProjectRoute(element: ReactElement) {
       </ChakraProvider>
     ),
   }]);
+}
+
+function resolveThemeColor(token: string) {
+  if (token.startsWith('#')) return token;
+
+  const colors = theme.colors as Record<string, string | Record<string, string>>;
+  const [palette, shade] = token.split('.');
+  const paletteColor = colors[palette ?? token];
+  const color = shade && paletteColor && typeof paletteColor !== 'string'
+    ? paletteColor[shade]
+    : paletteColor;
+
+  if (typeof color !== 'string') {
+    throw new Error(`Unknown theme color: ${token}`);
+  }
+
+  return color;
+}
+
+function toColorVariable(token: string) {
+  return `var(--chakra-colors-${token.replace('.', '-')})`;
+}
+
+function contrastRatio(foreground: string, background: string) {
+  const foregroundLuminance = relativeLuminance(foreground);
+  const backgroundLuminance = relativeLuminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance(color: string) {
+  const channels = color.startsWith('#')
+    ? color
+      .slice(1)
+      .match(/.{2}/gu)
+      ?.map(channel => Number.parseInt(channel, 16))
+    : color.match(/[\d.]+/gu)?.slice(0, 3).map(Number);
+
+  if (!channels || channels.length !== 3) {
+    throw new Error(`Expected a color with three channels, received: ${color}`);
+  }
+
+  const [red, green, blue] = channels.map(channel => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+
+  return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue);
 }

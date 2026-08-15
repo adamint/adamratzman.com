@@ -153,22 +153,6 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
 
   if (error) return null;
 
-  if (loading) {
-    return <Flex
-      alignItems='center'
-      aria-atomic='true'
-      aria-live='polite'
-      justifyContent='center'
-      py={8}
-      role='status'
-    >
-      <Spinner aria-hidden='true' color='blue.500' size='lg' />
-      <VisuallyHidden>Loading Spotify results</VisuallyHidden>
-    </Flex>;
-  }
-
-  if (!data) return null;
-
   function handlePageSizeChange(size: number) {
     const normalizedSize = normalizePageSize(size);
     if (normalizedSize === limitPerPage && pageOffset === 0) {
@@ -190,35 +174,51 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
     setPageOffset(nextPageOffset);
   }
 
-  const items = data.items.filter(filterNotNull);
+  const items = data?.items.filter(filterNotNull) ?? [];
 
   return <>
-    <Box
-      aria-label='Spotify results'
-      mb={5}
-      ref={resultsRegionRef}
-      role='region'
-      tabIndex={-1}
+    <VisuallyHidden
+      aria-atomic='true'
+      aria-live='polite'
+      role='status'
     >
-      {items.map(item => childDataMapper(item))}
-    </Box>
-    <Box>
-      <Flex
-        w='full'
-        p={5}
-        alignItems='center'
-        justifyContent='center'
+      {loading ? 'Loading Spotify results' : ''}
+    </VisuallyHidden>
+    {loading && <Flex
+      alignItems='center'
+      justifyContent='center'
+      py={8}
+    >
+      <Spinner aria-hidden='true' color='blue.500' size='lg' />
+    </Flex>}
+    {!loading && data && <>
+      <Box
+        aria-label='Spotify results'
+        mb={5}
+        ref={resultsRegionRef}
+        role='region'
+        tabIndex={-1}
       >
-        <AccessiblePagination
-          allowedPageSizes={SPOTIFY_PAGE_SIZES}
-          currentPage={pageOffset + 1}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-          pageSize={limitPerPage}
-          totalItems={data.total}
-        />
-      </Flex>
-    </Box>
+        {items.map(item => childDataMapper(item))}
+      </Box>
+      <Box>
+        <Flex
+          w='full'
+          p={5}
+          alignItems='center'
+          justifyContent='center'
+        >
+          <AccessiblePagination
+            allowedPageSizes={SPOTIFY_PAGE_SIZES}
+            currentPage={pageOffset + 1}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+            pageSize={limitPerPage}
+            totalItems={data.total}
+          />
+        </Flex>
+      </Box>
+    </>}
   </>;
 }
 

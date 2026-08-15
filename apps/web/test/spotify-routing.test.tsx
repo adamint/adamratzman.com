@@ -664,10 +664,13 @@ function renderMyTopRoute() {
 
 function expectCurrentLoadingSpinner() {
   const status = screen.getByRole('status');
-  expect(status).toBeVisible();
+  const spinner = document.querySelector<HTMLElement>('.chakra-spinner');
+
+  expect(status).toBeInTheDocument();
   expect(status).toHaveTextContent('Loading Spotify results');
   expect(status).not.toHaveAttribute('aria-label');
-  expect(status.querySelector('.chakra-spinner')).toBeInTheDocument();
+  expect(status).not.toContainElement(spinner);
+  expect(spinner).toBeVisible();
   expect(document.querySelectorAll('.chakra-spinner')).toHaveLength(1);
 }
 

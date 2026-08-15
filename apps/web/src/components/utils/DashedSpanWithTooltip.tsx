@@ -1,6 +1,7 @@
 import { Box, Button, Tooltip } from '@chakra-ui/react';
 import { useColorModeColor } from './useColorModeColor';
 import React, {
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -24,21 +25,23 @@ export function DashedSpanWithTooltip({ children, tooltip } : DashedSpanProps) {
   const triggerHoveredRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  function clearCloseTimer() {
+  const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current === null) return;
     window.clearTimeout(closeTimerRef.current);
     closeTimerRef.current = null;
-  }
+  }, []);
 
   function openTooltip() {
     clearCloseTimer();
     setIsOpen(true);
   }
 
-  function closeTooltip() {
+  const forceCloseTooltip = useCallback(() => {
     clearCloseTimer();
+    overlayHoveredRef.current = false;
+    triggerHoveredRef.current = false;
     setIsOpen(false);
-  }
+  }, [clearCloseTimer]);
 
   function scheduleClose() {
     clearCloseTimer();
@@ -56,7 +59,20 @@ export function DashedSpanWithTooltip({ children, tooltip } : DashedSpanProps) {
     }, TOOLTIP_CLOSE_DELAY_MS);
   }
 
-  useEffect(() => () => clearCloseTimer(), []);
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleDocumentKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      forceCloseTooltip();
+    }
+
+    document.addEventListener('keydown', handleDocumentKeyDown);
+    return () => document.removeEventListener('keydown', handleDocumentKeyDown);
+  }, [forceCloseTooltip, isOpen]);
+
+  useEffect(() => () => clearCloseTimer(), [clearCloseTimer]);
 
   if (!tooltip) return <DashedSpan>{children}</DashedSpan>;
 
@@ -100,7 +116,7 @@ export function DashedSpanWithTooltip({ children, tooltip } : DashedSpanProps) {
       onKeyDown={event => {
         if (event.key !== 'Escape') return;
         event.preventDefault();
-        closeTooltip();
+        forceCloseTooltip();
       }}
       onPointerEnter={() => {
         triggerHoveredRef.current = true;
