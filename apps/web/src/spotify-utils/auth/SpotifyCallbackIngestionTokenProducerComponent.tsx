@@ -28,7 +28,7 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
   const [spotifyPkceCallbackCodeLocalStorage, setSpotifyPkceCallbackCodeLocalStorage] = useLocalStorage<string | null>('spotify_pkce_callback_code');
   const requestStartedRef = useRef<boolean>(false);
 
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
           return;
         }
 
-        const authCode = new URLSearchParams(window.location.search).get('code');
+        const authCode = new URLSearchParams(search).get('code');
         const existingTokenInfo: SpotifyTokenInfo | null = spotifyTokenInfoStringLocalStorage ? spotifyTokenInfoStringLocalStorage : null;
         if (spotifyPkceCallbackCodeLocalStorage !== authCode && codeVerifier && authCode) {
           setSpotifyPkceCallbackCodeLocalStorage(authCode);
@@ -53,9 +53,13 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
             requestStartedRef.current = true;
             const pkceResponse = await axios.post<URLSearchParams, AxiosResponse<SpotifyToken>>('https://accounts.spotify.com/api/token', params);
             const pathToRedirectTo = saveTokenAndGetRedirectPath(pkceResponse.data, setSpotifyTokenInfo);
+            const destination = pathToRedirectTo?.startsWith('/') && !pathToRedirectTo.startsWith('//')
+              ? pathToRedirectTo
+              : '/projects/spotify';
             requestStartedRef.current = false;
-            void navigate(pathToRedirectTo ?? '/projects/spotify', { replace: true });
+            await navigate(destination, { replace: true });
           } catch (e) {
+            requestStartedRef.current = false;
             console.log(e);
             logoutOfSpotify();
           }
@@ -70,7 +74,7 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
         } else setSpotifyTokenInfo(existingTokenInfo);
       }
     )();
-  }, [spotifyPkceCallbackCodeLocalStorage, codeVerifier, pathname]);
+  }, [spotifyPkceCallbackCodeLocalStorage, codeVerifier, pathname, search]);
 
 
   return null;

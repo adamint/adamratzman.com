@@ -44,7 +44,7 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
   useEffect(() => {
     if (error) {
       console.log(error);
-      void navigate('/projects/spotify');
+      void navigate('/projects/spotify', { replace: true });
     }
   }, [error, navigate]);
 

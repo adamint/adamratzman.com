@@ -9,6 +9,14 @@ export interface PkceGuardedSpotifyWebApiJs {
 export type SetCodeVerifier = (newVerifier: string | null | undefined) => void;
 export type SetSpotifyTokenInfo = (newSpotifyTokenInfo: SpotifyTokenInfo | null) => void;
 
+export function buildSpotifyRedirectPath(location: {
+  pathname: string;
+  search: string;
+  hash: string;
+}) {
+  return `${location.pathname}${location.search}${location.hash}`;
+}
+
 const pkceCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
 
 export function createPkceCodeVerifier(

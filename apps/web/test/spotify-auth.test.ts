@@ -22,6 +22,22 @@ const deterministicCrypto = {
 };
 
 describe('Spotify PKCE browser compatibility', () => {
+  it('preserves pathname, search, and hash in the post-auth redirect', async () => {
+    const authUtils = await import('../src/spotify-utils/auth/SpotifyAuthUtils') as typeof import('../src/spotify-utils/auth/SpotifyAuthUtils') & {
+      buildSpotifyRedirectPath?: (location: {
+        pathname: string;
+        search: string;
+        hash: string;
+      }) => string;
+    };
+
+    expect(authUtils.buildSpotifyRedirectPath?.({
+      pathname: '/projects/spotify/recommend/create-playlist',
+      search: '?trackIds=one,two',
+      hash: '#selected-tracks',
+    })).toBe('/projects/spotify/recommend/create-playlist?trackIds=one,two#selected-tracks');
+  });
+
   it.each([43, 128])('creates a verifier at the allowed %i character boundary', (length) => {
     const verifier = createPkceCodeVerifier(length, deterministicCrypto);
 

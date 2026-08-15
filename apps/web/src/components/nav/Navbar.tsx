@@ -19,7 +19,7 @@ import {
 } from '@chakra-ui/react';
 import { FaGithub, FaRegPaperPlane } from 'react-icons/fa';
 import { FaMoon, FaSun } from 'react-icons/fa';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { ColorModeSwitcher } from '../../ColorModeSwitcher';
 import { useColorModeColor } from '../utils/useColorModeColor';
 import { HamburgerIcon } from '@chakra-ui/icons';
@@ -66,14 +66,8 @@ export function Navbar() {
 
 function MobileNavbar() {
   const colorModeColor = useColorModeColor();
-  const location = useLocation();
-  const navigate = useNavigate();
   const { toggleColorMode } = useColorMode();
   const SwitchIcon = useColorModeValue(FaMoon, FaSun);
-
-  function handleMenuItemClicked(link: NavbarLink) {
-    void navigate(link.path);
-  }
 
   return <>
     <Flex mx='auto' w='90%' mt={4}>
@@ -107,9 +101,10 @@ function MobileNavbar() {
                   )
                 : (
                     <MenuItem
-                      aria-current={location.pathname === link.path ? 'page' : undefined}
+                      as={NavLink}
+                      end
                       key={link.path}
-                      onClick={() => handleMenuItemClicked(link)}
+                      to={link.path}
                     >
                       <HStack color={colorModeColor}>
                         {link.icon && <Box mx={1}>{link.icon}</Box>}
@@ -164,7 +159,7 @@ function NavbarLinks() {
               </Link>
             )
           : (
-              <Link as={NavLink} color={colorModeColor} to={link.path}>
+              <Link as={NavLink} color={colorModeColor} end to={link.path}>
                 {innerLinkContent(link)}
               </Link>
             )}

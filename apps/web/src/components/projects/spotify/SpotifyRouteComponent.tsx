@@ -4,6 +4,7 @@ import { useSpotifyStore } from '../../utils/useSpotifyStore';
 import shallow from 'zustand/shallow';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { buildSpotifyRedirectPath } from '../../../spotify-utils/auth/SpotifyAuthUtils';
 
 type SpotifyRouteComponentProps = {
   children: ReactNode;
@@ -24,7 +25,8 @@ export function SpotifyRouteComponent({ title, children }: SpotifyRouteComponent
 
   function buildSpotifyScopes(baseScopes: string[]) {
     const scopes = [...baseScopes];
-    switch (location.pathname) {
+    const normalizedPathname = location.pathname.toLowerCase().replace(/\/+$/u, '') || '/';
+    switch (normalizedPathname) {
       case '/projects/spotify/mytop':
         scopes.push('user-top-read');
         break;
@@ -55,7 +57,7 @@ export function SpotifyRouteComponent({ title, children }: SpotifyRouteComponent
         redirectUri={spotifyRedirectUri()}
         codeVerifier={codeVerifier}
         setCodeVerifier={setCodeVerifier}
-        redirectPathAfter={`${location.pathname}${location.search}`}
+        redirectPathAfter={buildSpotifyRedirectPath(location)}
         buttonText='Log in with Spotify to view this page'
         title={title}
       />

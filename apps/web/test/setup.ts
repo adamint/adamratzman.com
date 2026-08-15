@@ -1,5 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
+HTMLElement.prototype.scrollTo = () => undefined;
+
 Object.defineProperty(window, 'matchMedia', {
   configurable: true,
   value: (query: string): MediaQueryList => ({

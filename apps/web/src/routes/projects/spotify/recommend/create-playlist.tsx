@@ -5,7 +5,10 @@ import { RequireSpotifyScopesOrElseShowLogin } from '../../../../spotify-utils/a
 import { SpotifyRouteComponent } from '../../../../components/projects/spotify/SpotifyRouteComponent';
 import { useSpotifyStore } from '../../../../components/utils/useSpotifyStore';
 import shallow from 'zustand/shallow';
-import { useSpotifyWebApiGuardValidPkceToken } from '../../../../spotify-utils/auth/SpotifyAuthUtils';
+import {
+  buildSpotifyRedirectPath,
+  useSpotifyWebApiGuardValidPkceToken,
+} from '../../../../spotify-utils/auth/SpotifyAuthUtils';
 import { useData } from '../../../../components/utils/useData';
 import { Box, Button, Heading, Spinner, useDisclosure } from '@chakra-ui/react';
 import { CreateSpotifyPlaylistModal } from '../../../../components/projects/spotify/playlist_generator/CreateSpotifyPlaylistModal';
@@ -68,7 +71,7 @@ function CreatePlaylistFromRecommendationsRoute() {
         redirectUri={spotifyRedirectUri()}
         codeVerifier={codeVerifier}
         setCodeVerifier={setCodeVerifier}
-        redirectPathAfter={`${location.pathname}${location.search}`}
+        redirectPathAfter={buildSpotifyRedirectPath(location)}
         spotifyToken={spotifyTokenInfo.token}
         title='Create a playlist from your recommended tracks'>
         <ProjectPage
