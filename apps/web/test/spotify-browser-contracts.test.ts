@@ -35,11 +35,11 @@ const recommendationTrack = {
   },
   artists: [{ id: 'artist-1', name: 'Phoebe Bridgers' }],
   duration_ms: 207_000,
-  id: 'track-1',
+  id: 'track1',
   name: 'Garden Song',
   popularity: 84,
   preview_url: null,
-  uri: 'spotify:track:track-1',
+  uri: 'spotify:track:track1',
 } satisfies SpotifyRecommendationTrack;
 
 const recommendations = {
@@ -122,6 +122,26 @@ describe('Spotify browser response guards', () => {
       }],
     })).toBe(false);
   });
+
+  it('allows recommendation tracks without album artwork', () => {
+    expect(isSpotifyRecommendationsResponse({
+      ...recommendations,
+      tracks: [{
+        ...recommendationTrack,
+        album: { images: [] },
+      }],
+    })).toBe(true);
+  });
+
+  it.each(['track-id', 'track/id', 'track id', 'track.id'])(
+    'rejects recommendation track ID %s',
+    (id) => {
+      expect(isSpotifyRecommendationsResponse({
+        ...recommendations,
+        tracks: [{ ...recommendationTrack, id }],
+      })).toBe(false);
+    },
+  );
 
   it.each([
     ['duration', { duration_ms: Number.NaN }],

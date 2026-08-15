@@ -27,6 +27,7 @@ import { useNoShowBeforeRender } from '../../../../components/utils/useNoShowBef
 import { PageTitle } from '../../../../components/meta/PageTitle';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useLatestAsyncData } from '../../../../components/utils/useLatestAsyncData';
+import { isSpotifyTrackId } from '../../../../api/spotifyBrowserValidation';
 
 type RecommendedPlaylistData = {
   recommendedTracks: SpotifyApi.TrackObjectFull[];
@@ -47,7 +48,7 @@ export function parseRecommendedTrackIds(
     for (const rawTrackId of parameter.split(',')) {
       const trackId = rawTrackId.trim();
       if (!trackId || seenTrackIds.has(trackId)) continue;
-      if (!/^[A-Za-z0-9]+$/u.test(trackId)) return { kind: 'invalid' };
+      if (!isSpotifyTrackId(trackId)) return { kind: 'invalid' };
 
       seenTrackIds.add(trackId);
       trackIds.push(trackId);
@@ -67,30 +68,30 @@ function CreatePlaylistFromRecommendationsRoute() {
 
   return <>
     <PageTitle title="Create your Spotify Playlist" />
-    <SpotifyRouteComponent title='Create a playlist from your recommended tracks'>
-      {recommendedTrackIds.kind === 'invalid'
+    {recommendedTrackIds.kind === 'invalid'
+      ? <PlaylistRouteMessage>
+        <Alert status='error'>
+          <AlertIcon />
+          <AlertTitle mr={2}>We were unable to load these recommendations.</AlertTitle>
+          <AlertDescription>Please return to the recommendation page and try again.</AlertDescription>
+        </Alert>
+      </PlaylistRouteMessage>
+      : recommendedTrackIds.trackIds.length === 0
         ? <PlaylistRouteMessage>
-          <Alert status='error'>
+          <Alert status='info'>
             <AlertIcon />
-            <AlertTitle mr={2}>We were unable to load these recommendations.</AlertTitle>
-            <AlertDescription>Please return to the recommendation page and try again.</AlertDescription>
+            <AlertTitle mr={2}>There are no recommended tracks to add.</AlertTitle>
+            <AlertDescription>
+              Go back to the <ChakraRouterLink href='/projects/spotify/recommend'>recommendation page
+                →</ChakraRouterLink>
+            </AlertDescription>
           </Alert>
         </PlaylistRouteMessage>
-        : recommendedTrackIds.trackIds.length === 0
-          ? <PlaylistRouteMessage>
-            <Alert status='info'>
-              <AlertIcon />
-              <AlertTitle mr={2}>There are no recommended tracks to add.</AlertTitle>
-              <AlertDescription>
-                Go back to the <ChakraRouterLink href='/projects/spotify/recommend'>recommendation page
-                  →</ChakraRouterLink>
-              </AlertDescription>
-            </Alert>
-          </PlaylistRouteMessage>
-          : <CreatePlaylistFromRecommendationsContent
+        : <SpotifyRouteComponent title='Create a playlist from your recommended tracks'>
+          <CreatePlaylistFromRecommendationsContent
             trackIds={recommendedTrackIds.trackIds}
-          />}
-    </SpotifyRouteComponent>
+          />
+        </SpotifyRouteComponent>}
   </>;
 }
 
@@ -150,8 +151,9 @@ function CreatePlaylistFromRecommendationsContent({
         spotifyToken={spotifyTokenInfo.token}
         title='Create a playlist from your recommended tracks'>
         <ProjectPage
-          projectTitle={<>Create your Spotify playlist
-            - <b>{trackIds.length}</b> tracks</>}
+          projectTitle={<>Create your Spotify playlist{data
+            ? <> - <b>{data.recommendedTracks.length}</b> tracks</>
+            : null}</>}
           topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}
           descriptionOverride={<>Go back to the <ChakraRouterLink href='/projects/spotify/recommend'>recommendation page
             →</ChakraRouterLink></>}>
@@ -163,7 +165,22 @@ function CreatePlaylistFromRecommendationsContent({
             </Alert>
             : (loading || !noShowBeforeRender || !data)
               ? <Box>Loading recommended tracks... <Spinner size='sm' /></Box>
-              : <>
+              : data.recommendedTracks.length === 0
+                ? <Alert status='error'>
+                  <AlertIcon />
+                  <AlertTitle mr={2}>We were unable to load any of the recommended tracks.</AlertTitle>
+                  <AlertDescription>
+                    Please return to the recommendation page and try again.
+                  </AlertDescription>
+                </Alert>
+                : <>
+              {data.recommendedTracks.length < trackIds.length && <Alert status='warning' mb={5}>
+                <AlertIcon />
+                <AlertTitle mr={2}>Some recommended tracks are unavailable.</AlertTitle>
+                <AlertDescription>
+                  Your playlist will include the tracks shown below.
+                </AlertDescription>
+              </Alert>}
               {!createPlaylistDisclosure.isOpen && <Box mb={10}>
                 <Button colorScheme='green' onClick={createPlaylistDisclosure.onOpen}>Create playlist</Button>
               </Box>}

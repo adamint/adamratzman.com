@@ -10,8 +10,11 @@ import { SpotifyPlaylist } from '../src/components/projects/spotify/views/Spotif
 import { SpotifyTrack } from '../src/components/projects/spotify/views/SpotifyTrack';
 import { SpotifyArtist } from '../src/components/projects/spotify/views/SpotifyArtist';
 import { SpotifyEpisode } from '../src/components/projects/spotify/views/SpotifyEpisode';
+import SpotifyPlaylistViewRoute from '../src/routes/projects/spotify/playlists/[playlistId]';
+import type { SpotifyPlaylistDetails } from '../src/api/spotifyLoaderTypes';
 import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
+import axios from 'axios';
 
 type PageItem = {
   id: string;
@@ -353,7 +356,7 @@ describe('Spotify paginated result cards', () => {
 
   it('renders an episode without artwork', () => {
     renderCard(
-      <SpotifyEpisode episode={{
+      <SpotifyEpisode openInNewTab episode={{
         description: 'Episode description',
         duration_ms: 120_000,
         external_urls: {
@@ -377,8 +380,54 @@ describe('Spotify paginated result cards', () => {
     })).toBeVisible();
     expect(screen.getByText(/Example Show/u)).toBeVisible();
     expect(screen.getByText(/Episode description/u)).toBeVisible();
+    expect(screen.getByRole('link', {
+      name: 'No Image Episode',
+    })).toHaveAttribute('rel', 'noopener noreferrer');
     expect(screen.queryByRole('img', {
       name: 'Spotify episode preview image',
+    })).not.toBeInTheDocument();
+  });
+});
+
+describe('Spotify playlist route header', () => {
+  it('renders without a src-less playlist image', async () => {
+    vi.spyOn(axios, 'post').mockResolvedValue({
+      data: {
+        items: [],
+        total: 0,
+      },
+    });
+    const playlist = {
+      collaborative: false,
+      description: null,
+      external_urls: {
+        spotify: 'https://open.spotify.com/playlist/playlist',
+      },
+      followers: { total: 1 },
+      id: 'playlist',
+      images: [],
+      name: 'Playlist Without Artwork',
+      owner: {
+        display_name: 'Adam',
+        id: 'adam',
+      },
+      public: true,
+      tracks: { total: 0 },
+    } satisfies SpotifyPlaylistDetails;
+
+    renderWithRouter([
+      {
+        path: '/projects/spotify/playlists/:playlistId',
+        loader: () => ({ playlist, playlistId: playlist.id }),
+        Component: SpotifyPlaylistViewRoute,
+      },
+    ], {
+      initialEntries: ['/projects/spotify/playlists/playlist'],
+    });
+
+    expect(await screen.findByText('Playlist Without Artwork')).toBeVisible();
+    expect(screen.queryByRole('img', {
+      name: 'First playlist album image',
     })).not.toBeInTheDocument();
   });
 });

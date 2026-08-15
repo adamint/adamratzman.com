@@ -17,6 +17,7 @@ import {
   CreateSpotifyPlaylistModal,
   getSafeSpotifyPlaylistUrl,
 } from '../src/components/projects/spotify/playlist_generator/CreateSpotifyPlaylistModal';
+import type { SpotifyTokenInfo } from '../src/spotify-utils/auth/SpotifyAuthUtils';
 import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
 
@@ -34,7 +35,7 @@ const spotifyStoreState = vi.hoisted(() => ({
       scope: 'playlist-modify-public playlist-modify-private playlist-read-collaborative',
       token_type: 'Bearer',
     },
-  },
+  } as SpotifyTokenInfo | null,
   setSpotifyTokenInfo: vi.fn(),
 }));
 
@@ -59,7 +60,11 @@ vi.mock('../src/spotify-utils/auth/SpotifyAuthUtils', async importOriginal => {
 });
 
 vi.mock('../src/components/projects/spotify/SpotifyRouteComponent', () => ({
-  SpotifyRouteComponent: ({ children }: { children: React.ReactNode }) => children,
+  SpotifyRouteComponent: ({ children }: { children: React.ReactNode }) => (
+    spotifyStoreState.spotifyTokenInfo
+      ? children
+      : <div data-testid="spotify-login-gate">Spotify login required</div>
+  ),
 }));
 
 vi.mock('../src/spotify-utils/auth/RequireSpotifyScopesOrElseShowLogin', () => ({
@@ -73,9 +78,12 @@ vi.mock('../src/components/utils/useNoShowBeforeRender', () => ({
 afterEach(() => {
   cleanup();
   authMocks.useGuard.mockReset();
+  spotifyStoreState.spotifyTokenInfo = loggedInSpotifyTokenInfo;
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
+
+const loggedInSpotifyTokenInfo = spotifyStoreState.spotifyTokenInfo;
 
 describe('recommended track ID parsing', () => {
   it('normalizes repeated and legacy comma-separated values', () => {
@@ -146,6 +154,34 @@ describe('create-playlist route request lifecycle', () => {
     expect(await screen.findByRole('alert')).toBeVisible();
     expect(authMocks.useGuard).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['/projects/spotify/recommend/create-playlist?trackIds=bad-id', 'error'],
+    ['/projects/spotify/recommend/create-playlist', 'info'],
+  ])('renders %s guidance before Spotify login', async (path, status) => {
+    spotifyStoreState.spotifyTokenInfo = null;
+
+    renderRoute(path);
+
+    expect(await screen.findByRole('alert')).toHaveAttribute(
+      'data-status',
+      status,
+    );
+    expect(screen.queryByTestId('spotify-login-gate')).not.toBeInTheDocument();
+    expect(authMocks.useGuard).not.toHaveBeenCalled();
+  });
+
+  it('requires Spotify login only for valid non-empty IDs', async () => {
+    spotifyStoreState.spotifyTokenInfo = null;
+
+    renderRoute(
+      '/projects/spotify/recommend/create-playlist?trackIds=validTrack1',
+    );
+
+    expect(await screen.findByTestId('spotify-login-gate')).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(authMocks.useGuard).not.toHaveBeenCalled();
+  });
 });
 
 describe('playlist creation modal', () => {
@@ -202,6 +238,42 @@ describe('playlist creation modal', () => {
       })).toBeEnabled();
     });
 
+    it('retries adding tracks without creating a second playlist', async () => {
+      const createPlaylist = vi.fn().mockResolvedValue(createdPlaylist(
+        'https://open.spotify.com/playlist/created',
+      ));
+      const addTracksToPlaylist = vi.fn()
+        .mockRejectedValueOnce(new Error('RAW FIRST ADD FAILURE'))
+        .mockResolvedValueOnce({});
+      vi.spyOn(window, 'open').mockImplementation(() => null);
+      renderModal({ addTracksToPlaylist, createPlaylist });
+
+      submitPlaylist();
+
+      await waitFor(() => {
+        expect(addTracksToPlaylist).toHaveBeenCalledOnce();
+      });
+      expect(await screen.findByText(
+        'Failed to create playlist. Please reload the page and try again',
+      )).toBeVisible();
+
+      submitPlaylist();
+
+      expect(await screen.findByText('Successfully created playlist.')).toBeVisible();
+      expect(createPlaylist).toHaveBeenCalledOnce();
+      expect(addTracksToPlaylist).toHaveBeenCalledTimes(2);
+      expect(addTracksToPlaylist).toHaveBeenNthCalledWith(
+        1,
+        'created-playlist',
+        ['spotify:track:first', 'spotify:track:second'],
+      );
+      expect(addTracksToPlaylist).toHaveBeenNthCalledWith(
+        2,
+        'created-playlist',
+        ['spotify:track:first', 'spotify:track:second'],
+      );
+    });
+
     it('prevents duplicate submission while loading and recovers after failure', async () => {
       const playlistRequest = deferred<SpotifyApi.CreatePlaylistResponse>();
       const createPlaylist = vi.fn().mockReturnValue(playlistRequest.promise);
@@ -231,7 +303,40 @@ describe('playlist creation modal', () => {
       expect(submitButton).toBeEnabled();
     });
 
-    it('opens a safe Spotify destination with exact target and features', async () => {
+    it('disables modal close, escape, and overlay dismissal while submitting', async () => {
+      const playlistRequest = deferred<SpotifyApi.CreatePlaylistResponse>();
+      const createPlaylist = vi.fn().mockReturnValue(playlistRequest.promise);
+      const { disclosure } = renderModal({
+        addTracksToPlaylist: vi.fn(),
+        createPlaylist,
+      });
+
+      submitPlaylist();
+
+      await waitFor(() => {
+        expect(createPlaylist).toHaveBeenCalledOnce();
+      });
+      const closeButtons = screen.getAllByRole('button', { name: 'Close' });
+      expect(closeButtons).toHaveLength(2);
+      expect(closeButtons.every(button => button.hasAttribute('disabled'))).toBe(true);
+
+      closeButtons.forEach(button => fireEvent.click(button));
+      fireEvent.keyDown(document, { code: 'Escape', key: 'Escape' });
+      const overlay = document.querySelector('.chakra-modal__overlay');
+      if (!(overlay instanceof HTMLElement)) {
+        throw new Error('Expected the modal overlay.');
+      }
+      fireEvent.click(overlay);
+
+      expect(disclosure.onClose).not.toHaveBeenCalled();
+
+      playlistRequest.reject(new Error('expected test failure'));
+      await act(async () => {
+        await playlistRequest.promise.catch(() => undefined);
+      });
+    });
+
+    it('opens a safe Spotify destination immediately and renders a fallback link', async () => {
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
       renderModal({
         addTracksToPlaylist: vi.fn().mockResolvedValue({}),
@@ -243,14 +348,24 @@ describe('playlist creation modal', () => {
       submitPlaylist();
 
       expect(await screen.findByText('Successfully created playlist.')).toBeVisible();
-      await waitFor(() => {
-        expect(openSpy).toHaveBeenCalledOnce();
-      }, { timeout: 2500 });
+      expect(openSpy).toHaveBeenCalledOnce();
       expect(openSpy).toHaveBeenCalledWith(
         'https://open.spotify.com/playlist/created?si=one',
         '_blank',
         'noopener,noreferrer',
       );
+      expect(screen.getByRole('link', {
+        name: 'Open playlist on Spotify',
+      })).toHaveAttribute(
+        'href',
+        'https://open.spotify.com/playlist/created?si=one',
+      );
+      expect(screen.getByRole('link', {
+        name: 'Open playlist on Spotify',
+      })).toHaveAttribute('target', '_blank');
+      expect(screen.getByRole('link', {
+        name: 'Open playlist on Spotify',
+      })).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
     it.each([
@@ -278,8 +393,12 @@ describe('playlist creation modal', () => {
       await waitFor(() => {
         expect(addTracksToPlaylist).toHaveBeenCalledOnce();
       });
+      expect(await screen.findByText('Successfully created playlist.')).toBeVisible();
       expect(getSafeSpotifyPlaylistUrl(destination)).toBeNull();
       expect(openSpy).not.toHaveBeenCalled();
+      expect(screen.queryByRole('link', {
+        name: 'Open playlist on Spotify',
+      })).not.toBeInTheDocument();
     });
 
     it('accepts only an exact safe Spotify HTTPS destination', () => {
@@ -304,6 +423,9 @@ describe('playlist creation modal', () => {
         'Failed to create playlist. Please reload the page and try again',
       )).not.toBeInTheDocument();
       expect(openSpy).not.toHaveBeenCalled();
+      expect(screen.queryByRole('link', {
+        name: 'Open playlist on Spotify',
+      })).not.toBeInTheDocument();
     });
 });
 
@@ -353,6 +475,64 @@ describe('create-playlist route request lifecycle', () => {
     })).toBeVisible();
     expect(getTracks).toHaveBeenCalledOnce();
     expect(getMe).toHaveBeenCalledOnce();
+  });
+
+  it('shows the actual zero-track result without a create action', async () => {
+    mockSpotifyApi({
+      getMe: vi.fn().mockResolvedValue(userProfile()),
+      getTracks: vi.fn().mockResolvedValue({
+        tracks: [null, null],
+      }),
+    });
+
+    renderRoute(
+      '/projects/spotify/recommend/create-playlist?trackIds=first&trackIds=second',
+    );
+
+    expect(await screen.findByRole('heading', {
+      name: 'Create your Spotify playlist - 0 tracks',
+    })).toBeVisible();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'We were unable to load any of the recommended tracks.',
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Please return to the recommendation page and try again.',
+    );
+    expect(screen.queryByRole('button', {
+      name: 'Create playlist',
+    })).not.toBeInTheDocument();
+  });
+
+  it('warns about missing tracks and creates from only loaded tracks', async () => {
+    mockSpotifyApi({
+      getMe: vi.fn().mockResolvedValue(userProfile()),
+      getTracks: vi.fn().mockResolvedValue({
+        tracks: [track('first'), null, track('second')],
+      }),
+    });
+
+    renderRoute(
+      '/projects/spotify/recommend/create-playlist?trackIds=first&trackIds=missing&trackIds=second',
+    );
+
+    expect(await screen.findByRole('heading', {
+      name: 'Create your Spotify playlist - 2 tracks',
+    })).toBeVisible();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Some recommended tracks are unavailable.',
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Your playlist will include the tracks shown below.',
+    );
+    expect(screen.getByRole('button', {
+      name: 'Create playlist',
+    })).toBeEnabled();
+    expect(screen.getByRole('heading', {
+      name: 'First Track',
+    })).toBeVisible();
+    expect(screen.getByRole('heading', {
+      name: 'Second Track',
+    })).toBeVisible();
   });
 
   it('keeps stale success from replacing tracks after the query changes', async () => {
@@ -432,7 +612,7 @@ describe('create-playlist route request lifecycle', () => {
     expect(document.body).not.toHaveTextContent('RAW STALE FAILURE');
   });
 
-  it('aborts pending work on unmount', async () => {
+  it('ignores SDK acquisition that resolves after unmount', async () => {
     const apiRequest = deferred<{
       getMe: ReturnType<typeof vi.fn>;
       getTracks: ReturnType<typeof vi.fn>;
@@ -529,7 +709,7 @@ function renderModal({
     } as never),
   };
 
-  return render(
+  const view = render(
     <ChakraProvider theme={theme}>
       <CreateSpotifyPlaylistModal
         createPlaylistDisclosure={disclosure}
@@ -539,6 +719,8 @@ function renderModal({
       />
     </ChakraProvider>,
   );
+
+  return { ...view, disclosure };
 }
 
 function submitPlaylist() {

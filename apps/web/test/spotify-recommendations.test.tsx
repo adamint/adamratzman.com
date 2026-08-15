@@ -20,6 +20,7 @@ import {
 } from '../src/routes/projects/spotify/recommend';
 import { SpotifyArtistGenreTrackSearchAutocompleteComponent } from '../src/components/projects/spotify/playlist_generator/SpotifyArtistGenreTrackSearchAutocompleteComponent';
 import { GetAndShowSpotifyTrackRecommendations } from '../src/components/projects/spotify/playlist_generator/GetAndShowSpotifyTrackRecommendations';
+import { parseRecommendedTrackIds } from '../src/routes/projects/spotify/recommend/create-playlist';
 import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
 
@@ -27,6 +28,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('Spotify autocomplete request lifecycle', () => {
@@ -124,6 +126,48 @@ describe('Spotify autocomplete request lifecycle', () => {
     expect(JSON.stringify(consoleWarn.mock.calls)).not.toMatch(/RAW GENRE|RAW TRACK/);
   });
 
+  it('preserves artist and track results when genre loading fails', async () => {
+    vi.stubGlobal('fetch', createSourceFailureFetch('genres'));
+    renderSearch();
+
+    searchFor('indie');
+
+    expect(await screen.findByText('Indie Track')).toBeVisible();
+    expect(screen.getByText('Indie Artist')).toBeVisible();
+    expect(screen.queryByText('indie', { selector: 'b' })).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'We were unable to search Spotify. Please try again.',
+    );
+  });
+
+  it('preserves genre and track results when artist search fails', async () => {
+    vi.stubGlobal('fetch', createSourceFailureFetch('artists'));
+    renderSearch();
+
+    searchFor('indie');
+
+    expect(await screen.findByText('Indie Track')).toBeVisible();
+    expect(screen.getByText('indie', { selector: 'b' })).toBeVisible();
+    expect(screen.queryByText('Indie Artist')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'We were unable to search Spotify. Please try again.',
+    );
+  });
+
+  it('preserves artist and genre results when track search fails', async () => {
+    vi.stubGlobal('fetch', createSourceFailureFetch('tracks'));
+    renderSearch();
+
+    searchFor('indie');
+
+    expect(await screen.findByText('Indie Artist')).toBeVisible();
+    expect(screen.getByText('indie', { selector: 'b' })).toBeVisible();
+    expect(screen.queryByText('Indie Track')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'We were unable to search Spotify. Please try again.',
+    );
+  });
+
   it('preserves selected tags while search generations change', async () => {
     const secondTracks = deferred<Response>();
     const secondArtists = deferred<Response>();
@@ -183,6 +227,90 @@ describe('Spotify recommendation request lifecycle', () => {
     expect(document.body).not.toHaveTextContent('RAW MALFORMED TRACK');
   });
 
+  it('renders recommendation text and links without album artwork', async () => {
+    const response = recommendationResponse(
+      'Recommendation Without Artwork',
+      'artworkless123',
+    );
+    response.tracks[0].album.images = [];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(response)));
+
+    renderRecommendations(selectedTrack('seed'));
+
+    expect(await screen.findByRole('heading', {
+      name: 'Recommendation Without Artwork',
+    })).toBeVisible();
+    expect(screen.getByRole('link', {
+      name: 'Recommendation Without Artwork',
+    })).toHaveAttribute(
+      'href',
+      '/projects/spotify/tracks/artworkless123',
+    );
+    expect(screen.getByText(/Recommendation Artist/u)).toBeVisible();
+    expect(screen.queryByRole('img', {
+      name: 'Spotify track preview image',
+    })).not.toBeInTheDocument();
+  });
+
+  it('coalesces rapid changes and retains visible recommendations until generation starts', async () => {
+    const fetchMock = vi.fn((
+      _input: RequestInfo | URL,
+      init: RequestInit = {},
+    ): Promise<Response> => {
+      const seed = recommendationSeed(init);
+      if (seed === 'initial') {
+        return Promise.resolve(Response.json(
+          recommendationResponse('Initial Recommendation', 'initialtrack'),
+        ));
+      }
+      if (seed === 'final') {
+        return Promise.resolve(Response.json(
+          recommendationResponse('Final Recommendation', 'finaltrack'),
+        ));
+      }
+
+      throw new Error(`Unexpected recommendation seed: ${seed}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const view = renderRecommendations(selectedTrack('initial'));
+
+    expect(await screen.findByRole('heading', {
+      name: 'Initial Recommendation',
+    })).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    vi.useFakeTimers();
+    view.rerender(recommendationTree(selectedTrack('middle')));
+    view.rerender(recommendationTree(selectedTrack('final')));
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole('heading', {
+      name: 'Initial Recommendation',
+    })).toBeVisible();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(349);
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole('heading', {
+      name: 'Initial Recommendation',
+    })).toBeVisible();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('heading', {
+      name: 'Final Recommendation',
+    })).toBeVisible();
+    expect(screen.queryByRole('heading', {
+      name: 'Initial Recommendation',
+    })).not.toBeInTheDocument();
+  });
+
   it('aborts and ignores an old recommendation response after seed changes', async () => {
     const oldRequest = deferred<Response>();
     let oldSignal: AbortSignal | undefined;
@@ -197,7 +325,7 @@ describe('Spotify recommendation request lifecycle', () => {
       }
 
       return Promise.resolve(Response.json(
-        recommendationResponse('New Recommendation', 'new-track'),
+        recommendationResponse('New Recommendation', 'newtrack'),
       ));
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -214,7 +342,7 @@ describe('Spotify recommendation request lifecycle', () => {
     expect(oldSignal?.aborted).toBe(true);
 
     oldRequest.resolve(Response.json(
-      recommendationResponse('Old Recommendation', 'old-track'),
+      recommendationResponse('Old Recommendation', 'oldtrack'),
     ));
     await act(async () => {
       await oldRequest.promise;
@@ -237,7 +365,7 @@ describe('Spotify recommendation request lifecycle', () => {
       recommendationSeed(init) === 'old-seed'
         ? oldRequest.promise
         : Promise.resolve(Response.json(
-          recommendationResponse('Current Recommendation', 'current-track'),
+          recommendationResponse('Current Recommendation', 'currenttrack'),
         ))
     ));
     vi.stubGlobal('fetch', fetchMock);
@@ -264,8 +392,8 @@ describe('Spotify recommendation request lifecycle', () => {
   });
 
   it('generates a safe repeated-parameter playlist link without window.open', async () => {
-    const firstId = 'track /?&';
-    const secondId = 'comma,id';
+    const firstId = 'trackOne123';
+    const secondId = 'trackTwo456';
     const response = {
       seeds: [{ id: 'seed' }],
       tracks: [
@@ -286,13 +414,51 @@ describe('Spotify recommendation request lifecycle', () => {
 
     expect(url.pathname).toBe('/projects/spotify/recommend/create-playlist');
     expect(url.searchParams.getAll('trackIds')).toEqual([firstId, secondId]);
-    expect(href).toContain('trackIds=track+%2F%3F%26');
-    expect(href).toContain('trackIds=comma%2Cid');
+    expect(parseRecommendedTrackIds(url.searchParams)).toEqual({
+      kind: 'valid',
+      trackIds: [firstId, secondId],
+    });
+    expect(href).toContain('trackIds=trackOne123');
+    expect(href).toContain('trackIds=trackTwo456');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
 
     fireEvent.click(link);
     expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  it('generates playlist query parameters without URLSearchParams.size', async () => {
+    const sizeDescriptor = Object.getOwnPropertyDescriptor(
+      URLSearchParams.prototype,
+      'size',
+    );
+    if (!sizeDescriptor) throw new Error('Expected URLSearchParams.size.');
+    Object.defineProperty(URLSearchParams.prototype, 'size', {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(
+        recommendationResponse('Compatible Recommendation', 'compatible123'),
+      )));
+      renderRecommendations(selectedTrack('seed'));
+
+      const link = await screen.findByRole('link', {
+        name: 'Create your playlist (requires Spotify login) →',
+      });
+      const href = link.getAttribute('href');
+      expect(href).not.toBeNull();
+      expect(new URL(href!, window.location.origin).searchParams.getAll(
+        'trackIds',
+      )).toEqual(['compatible123']);
+    } finally {
+      Object.defineProperty(
+        URLSearchParams.prototype,
+        'size',
+        sizeDescriptor,
+      );
+    }
   });
 });
 
@@ -300,6 +466,8 @@ type SearchDeferredResponses = Record<string, {
   artists: Promise<Response>;
   tracks: Promise<Response>;
 }>;
+
+type SearchSource = 'artists' | 'genres' | 'tracks';
 
 type RecordedFetchCall = {
   init: RequestInit;
@@ -324,6 +492,35 @@ function createSearchFetch(responses: SearchDeferredResponses) {
     }
 
     return url.endsWith('/searchTracks') ? response.tracks : response.artists;
+  });
+}
+
+function createSourceFailureFetch(failingSource: SearchSource) {
+  return vi.fn((
+    input: RequestInfo | URL,
+  ): Promise<Response> => {
+    const url = requestUrl(input);
+    if (url.endsWith('/getAvailableGenreSeeds')) {
+      return failingSource === 'genres'
+        ? Promise.reject(new Error('RAW GENRE FAILURE'))
+        : Promise.resolve(Response.json(['indie', 'rock']));
+    }
+    if (url.endsWith('/searchTracks')) {
+      return failingSource === 'tracks'
+        ? Promise.reject(new Error('RAW TRACK FAILURE'))
+        : Promise.resolve(Response.json({
+          items: [trackSearchResult('Indie Track', 'indietrack')],
+        }));
+    }
+
+    return failingSource === 'artists'
+      ? Promise.reject(new Error('RAW ARTIST FAILURE'))
+      : Promise.resolve(Response.json({
+        items: [{
+          name: 'Indie Artist',
+          uri: 'spotify:artist:indieartist',
+        }],
+      }));
   });
 }
 

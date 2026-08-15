@@ -237,8 +237,31 @@ describe('navigation primitives', () => {
       'target',
       '_blank',
     );
+    expect(screen.getByRole('link', { name: 'External destination' })).toHaveAttribute(
+      'rel',
+      'noopener noreferrer',
+    );
     expect(screen.getByRole('link', { name: 'External destination' })).not.toHaveAttribute(
       'data-discover',
+    );
+  });
+
+  it('merges and de-duplicates explicit external link rel tokens', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <ChakraRouterLink
+          href="https://example.com/path"
+          rel="nofollow noopener nofollow"
+          target="_blank"
+        >
+          External with rel
+        </ChakraRouterLink>
+      </ChakraProvider>,
+    );
+
+    expect(screen.getByRole('link', { name: 'External with rel' })).toHaveAttribute(
+      'rel',
+      'nofollow noopener noreferrer',
     );
   });
 

@@ -23,6 +23,7 @@ function SpotifyPlaylistViewRoute() {
 function SpotifyPlaylistContent({ playlist, playlistId }: SpotifyPlaylistContentProps) {
   const [limitPerPage, setLimitPerPage] = useState<number>(10);
   const [pageOffset, setPageOffset] = useState<number>(0);
+  const imageUrl = playlist.images.at(0)?.url;
 
   const colorModeColor = useColorModeColor();
 
@@ -52,9 +53,9 @@ function SpotifyPlaylistContent({ playlist, playlistId }: SpotifyPlaylistContent
   return <>
     <PageTitle title={`Spotify playlist ${playlist.name}`} />
     <ProjectPage projectTitle={<>Playlist <b><ChakraRouterLink href={playlist.external_urls.spotify}
-                                                               color={colorModeColor}>{playlist.name} <Image
-      src={playlist.images.at(0)?.url} display='inline' boxSize={50} alt="First playlist album image"
-      ml={2} /></ChakraRouterLink></b></>}
+                                                               color={colorModeColor}>{playlist.name} {imageUrl && <Image
+      src={imageUrl} display='inline' boxSize={50} alt="First playlist album image"
+      ml={2} />}</ChakraRouterLink></b></>}
                  marginBelowHeadingOverride={0}>
       <Box mb={6}>
         <Text><b>By: </b> <ChakraRouterLink

@@ -21,6 +21,10 @@ export function isSpotifyGenreList(value: unknown): value is string[] {
   ));
 }
 
+export function isSpotifyTrackId(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9]+$/u.test(value);
+}
+
 export function isSpotifyArtistSearchPage(
   value: unknown,
 ): value is SpotifySearchPage<SpotifyAutocompleteArtist> {
@@ -80,7 +84,7 @@ function isRecommendationTrack(value: unknown): value is SpotifyRecommendationTr
     || !Array.isArray(value['artists'])
     || !value['artists'].every(isRecommendationArtist)
     || !isFiniteNumber(value['duration_ms'])
-    || !isNonEmptyString(value['id'])
+    || !isSpotifyTrackId(value['id'])
     || !isNonEmptyString(value['name'])
     || !isFiniteNumber(value['popularity'])
     || !isOptionalNullableNonEmptyString(value['preview_url'])
@@ -96,7 +100,6 @@ function isRecommendationAlbum(
 ): value is SpotifyRecommendationTrack['album'] {
   return isRecord(value)
     && Array.isArray(value['images'])
-    && value['images'].length > 0
     && value['images'].every(isRecommendationImage);
 }
 

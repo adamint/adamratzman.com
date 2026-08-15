@@ -18,6 +18,8 @@ import {
 import { Field, FieldProps, Form, Formik } from 'formik';
 import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-utils/auth/SpotifyAuthUtils';
 import { UseDisclosureReturn } from '@chakra-ui/hooks';
+import { useState } from 'react';
+import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
 
 type PlaylistCreationOptions = {
   name: string;
@@ -62,13 +64,25 @@ export function CreateSpotifyPlaylistModal({
                                              recommendedTracks,
                                            }: CreateSpotifyPlaylistModalProps) {
   const toast = useToast();
+  const [submitting, setSubmitting] = useState(false);
+  const [createdPlaylist, setCreatedPlaylist] = useState<SpotifyApi.CreatePlaylistResponse | null>(null);
 
   function validatePlaylistName(value: string) {
     return (value.length === 0) ? 'Playlist name cannot be empty' : null;
   }
 
-  return <Modal blockScrollOnMount={false} isOpen={createPlaylistDisclosure.isOpen}
-                onClose={createPlaylistDisclosure.onClose}>
+  function closeModal() {
+    setCreatedPlaylist(null);
+    createPlaylistDisclosure.onClose();
+  }
+
+  return <Modal blockScrollOnMount={false}
+                closeOnEsc={!submitting}
+                closeOnOverlayClick={!submitting}
+                isOpen={createPlaylistDisclosure.isOpen}
+                onClose={() => {
+                  if (!submitting) closeModal();
+                }}>
     <ModalOverlay />
     <Formik
       initialValues={{
@@ -78,6 +92,7 @@ export function CreateSpotifyPlaylistModal({
         playlistDescription: '',
       }}
       onSubmit={async (values, actions) => {
+        setSubmitting(true);
         const playlistCreationOptions: PlaylistCreationOptions = {
           name: values.playlistName,
           public: values.playlistShouldBePublic,
@@ -87,23 +102,31 @@ export function CreateSpotifyPlaylistModal({
 
         try {
           const spotifyApi = await guardedSpotifyApi.getApi();
-          const createdPlaylist = await spotifyApi.createPlaylist(spotifyUserId, playlistCreationOptions);
-          await spotifyApi.addTracksToPlaylist(createdPlaylist.id, recommendedTracks.map(track => track.uri));
-          const spotifyUrlForPlaylist = getSafeSpotifyPlaylistUrl(createdPlaylist.external_urls.spotify);
-          createPlaylistDisclosure.onClose();
+          const playlist = createdPlaylist
+            ?? await spotifyApi.createPlaylist(spotifyUserId, playlistCreationOptions);
+          if (!createdPlaylist) setCreatedPlaylist(playlist);
+          await spotifyApi.addTracksToPlaylist(playlist.id, recommendedTracks.map(track => track.uri));
+          const spotifyUrlForPlaylist = getSafeSpotifyPlaylistUrl(playlist.external_urls.spotify);
+          if (spotifyUrlForPlaylist) {
+            window.open(
+              spotifyUrlForPlaylist,
+              '_blank',
+              'noopener,noreferrer',
+            );
+          }
+          closeModal();
           toast({
             status: 'success',
             title: 'Successfully created playlist.',
             description: spotifyUrlForPlaylist
-              ? 'Redirecting you now to Spotify...'
+              ? <>Your Spotify playlist is ready. <ChakraRouterLink
+                href={spotifyUrlForPlaylist}
+                target='_blank'
+              >
+                Open playlist on Spotify
+              </ChakraRouterLink></>
               : 'Your Spotify playlist is ready.',
           });
-
-          if (spotifyUrlForPlaylist) {
-            setTimeout(() => {
-              window.open(spotifyUrlForPlaylist, '_blank', 'noopener,noreferrer');
-            }, 2000);
-          }
 
         } catch {
           toast({
@@ -111,6 +134,7 @@ export function CreateSpotifyPlaylistModal({
             title: 'Failed to create playlist. Please reload the page and try again',
           });
         } finally {
+          setSubmitting(false);
           actions.setSubmitting(false);
         }
       }}
@@ -119,7 +143,7 @@ export function CreateSpotifyPlaylistModal({
         <Form>
           <ModalContent>
             <ModalHeader>Create your new Spotify playlist</ModalHeader>
-            <ModalCloseButton />
+            <ModalCloseButton isDisabled={submitting} />
             <ModalBody>
               <Field name='playlistName' validate={validatePlaylistName}>
                 {({ field, form }: FieldProps) => (
@@ -180,7 +204,8 @@ export function CreateSpotifyPlaylistModal({
               </Field>
             </ModalBody>
             <ModalFooter>
-              <Button variant='ghost' mr={3} onClick={createPlaylistDisclosure.onClose}>Close</Button>
+              <Button variant='ghost' mr={3} isDisabled={submitting}
+                      onClick={closeModal}>Close</Button>
               <Button colorScheme='blue' type='submit' isDisabled={props.isSubmitting}
                       isLoading={props.isSubmitting}>Create Playlist</Button>
             </ModalFooter>

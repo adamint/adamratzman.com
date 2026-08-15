@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   GetRecommendationsRequest,
   SpotifyRecommendationOptions,
@@ -52,9 +52,14 @@ export function GetAndShowSpotifyTrackRecommendations({
 
     return recommendationOptions;
   }, [selectedObjects, selectedTrackAttributes]);
+  const requestKey = JSON.stringify(options);
+  const debouncedOptions = useDebouncedRecommendationOptions(
+    options,
+    requestKey,
+  );
   const producer = useMemo(() => (
     async (signal: AbortSignal): Promise<SpotifyRecommendationsResponse> => {
-      const request: GetRecommendationsRequest = { options };
+      const request: GetRecommendationsRequest = { options: debouncedOptions };
       const response = await fetchJson<unknown>(
         '/api/spotify/getRecommendations',
         {
@@ -69,7 +74,7 @@ export function GetAndShowSpotifyTrackRecommendations({
       if (!isSpotifyRecommendationsResponse(response)) throw new Error();
       return response;
     }
-  ), [options]);
+  ), [debouncedOptions]);
   const { loading, data, error } = useLatestAsyncData(producer);
 
   if (loading || !shouldShow) return <Box>Loading recommendations... <Spinner size='sm' /></Box>;
@@ -83,7 +88,7 @@ export function GetAndShowSpotifyTrackRecommendations({
     const searchParams = new URLSearchParams();
     tracks.forEach(track => searchParams.append('trackIds', track.id));
     const playlistPath = '/projects/spotify/recommend/create-playlist';
-    const playlistUrl = searchParams.size > 0
+    const playlistUrl = tracks.length > 0
       ? `${playlistPath}?${searchParams.toString()}`
       : playlistPath;
 
@@ -109,4 +114,26 @@ export function GetAndShowSpotifyTrackRecommendations({
       </Box>
     </>;
   }
+}
+
+function useDebouncedRecommendationOptions(
+  options: SpotifyRecommendationOptions,
+  requestKey: string,
+) {
+  const [currentRequest, setCurrentRequest] = useState(() => ({
+    options,
+    requestKey,
+  }));
+
+  useEffect(() => {
+    if (currentRequest.requestKey === requestKey) return;
+
+    const timer = window.setTimeout(() => {
+      setCurrentRequest({ options, requestKey });
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [currentRequest.requestKey, options, requestKey]);
+
+  return currentRequest.options;
 }
