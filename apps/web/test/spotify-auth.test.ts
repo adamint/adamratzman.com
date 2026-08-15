@@ -58,9 +58,9 @@ type SpotifyAuthUtilsContract = {
 };
 
 function getSpotifyAuthUtils(): SpotifyAuthUtilsContract {
-  const authUtils = (spotifyAuthModule as Record<string, unknown>).SpotifyAuthUtils as SpotifyAuthUtilsContract | undefined;
+  const authUtils: SpotifyAuthUtilsContract = spotifyAuthModule.SpotifyAuthUtils;
   expect(authUtils).toBeDefined();
-  return authUtils!;
+  return authUtils;
 }
 
 function createStoredToken(overrides: Partial<StoredSpotifyToken> = {}): StoredSpotifyToken {
@@ -148,11 +148,10 @@ describe('Spotify PKCE browser compatibility', () => {
     expect(setSpotifyTokenInfo).toHaveBeenCalledWith(null);
   });
 
-  it('rejects malformed authorization token responses instead of inheriting stored fields', () => {
+  it('defers malformed initial authorization token validation until persisted-token reads', () => {
     const authUtils = getSpotifyAuthUtils();
-    const setSpotifyTokenInfo = vi.fn();
+    const setSpotifyTokenInfo = vi.fn<spotifyAuthModule.SetSpotifyTokenInfo>();
 
-    authUtils.storeToken(createStoredToken());
     localStorage.setItem('spotify_redirect_after_auth', '/projects/spotify');
 
     expect(saveTokenAndGetRedirectPath({
@@ -160,11 +159,21 @@ describe('Spotify PKCE browser compatibility', () => {
       token_type: 'Bearer',
       expires_in: 1800,
       scope: 'playlist-read-private user-top-read',
-    }, setSpotifyTokenInfo)).toBeNull();
+    }, setSpotifyTokenInfo)).toBe('/projects/spotify');
 
-    expect(setSpotifyTokenInfo).toHaveBeenCalledWith(null);
-    expect(localStorage.getItem(authUtils.spotifyStorageKey)).toBeNull();
     expect(localStorage.getItem('spotify_redirect_after_auth')).toBeNull();
+    expect(localStorage.getItem(authUtils.spotifyStorageKey)).not.toBeNull();
+    const savedTokenInfo = setSpotifyTokenInfo.mock.calls[0]?.[0];
+    expect(savedTokenInfo).not.toBeNull();
+    expect(savedTokenInfo?.expiry ?? 0).toBeGreaterThan(Date.now() - 1_000);
+    expect(savedTokenInfo?.token).toEqual({
+      access_token: 'new-access-token',
+      token_type: 'Bearer',
+      expires_in: 1800,
+      scope: 'playlist-read-private user-top-read',
+    });
+    expect(authUtils.getToken()).toBeNull();
+    expect(localStorage.getItem(authUtils.spotifyStorageKey)).toBeNull();
   });
 
   it('encodes authorization params structurally and stores the matching state transaction', async () => {
@@ -182,6 +191,8 @@ describe('Spotify PKCE browser compatibility', () => {
     expect(parsed.searchParams.get('client_id')).toBe('spotify-client-id');
     expect(parsed.searchParams.get('response_type')).toBe('code');
     expect(parsed.searchParams.get('redirect_uri')).toBe(redirectUri);
+    expect(parsed.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(parsed.searchParams.get('code_challenge')).toMatch(/^.+$/u);
     expect(parsed.searchParams.get('scope')).toBe(scopes.join(' '));
     expect(parsed.searchParams.get('state')).toBe(storedState);
     expect(storedState).toMatch(/^[A-Za-z0-9._~-]{32,}$/u);
@@ -257,6 +268,46 @@ describe('Spotify PKCE browser compatibility', () => {
     expect(requestBody.get('refresh_token')).toBe(existingToken.refresh_token);
     expect(requestBody.get('client_id')).toBe('spotify-client-id');
     expect(requestBody.get('redirect_uri')).toBe(authUtils.getRedirectUri());
+  });
+
+  it.each([
+    {
+      label: 'malformed JSON',
+      response: new Response('{', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    },
+    {
+      label: 'malformed token data',
+      response: new Response(JSON.stringify({
+        access_token: '',
+        token_type: 'Bearer',
+        expires_in: 'bad-data',
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    },
+  ])('clears stored auth data and returns null when refresh receives $label', async ({ response }) => {
+    vi.stubEnv('VITE_SPOTIFY_CLIENT_ID', 'spotify-client-id');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
+    const authUtils = getSpotifyAuthUtils();
+    const existingToken = createStoredToken();
+
+    authUtils.storeToken(existingToken);
+    authUtils.storeVerifier('spotify-verifier');
+    authUtils.storeState('spotify-state-value');
+    localStorage.setItem('spotify_redirect_after_auth', '/projects/spotify');
+    localStorage.setItem('spotify_pkce_callback_code', 'callback-code');
+
+    await expect(authUtils.refreshToken(existingToken)).resolves.toBeNull();
+
+    expect(localStorage.getItem(authUtils.spotifyStorageKey)).toBeNull();
+    expect(localStorage.getItem(authUtils.spotifyVerifierStorageKey)).toBeNull();
+    expect(localStorage.getItem(authUtils.spotifyStateStorageKey)).toBeNull();
+    expect(localStorage.getItem('spotify_redirect_after_auth')).toBeNull();
+    expect(localStorage.getItem('spotify_pkce_callback_code')).toBeNull();
   });
 
   it('clears stored auth data and returns null when refresh fails', async () => {

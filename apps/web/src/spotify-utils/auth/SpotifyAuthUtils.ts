@@ -46,6 +46,7 @@ const tokenInfoSchema = z.object({
   token: tokenSchema,
 });
 
+type PersistedSpotifyTokenInfo = z.infer<typeof tokenInfoSchema>;
 type SpotifyRefreshTokenResponse = z.infer<typeof refreshTokenResponseSchema>;
 
 export function buildSpotifyRedirectPath(location: {
@@ -95,14 +96,14 @@ function removeStoredTokenOnly() {
   localStorage.removeItem(spotifyStorageKey);
 }
 
-function getSpotifyTokenInfoFromToken(token: StoredSpotifyToken): SpotifyTokenInfo {
+function getSpotifyTokenInfoFromToken(token: StoredSpotifyToken): PersistedSpotifyTokenInfo {
   return {
     expiry: Date.now() + token.expires_in * 1000,
     token,
   };
 }
 
-function getStoredTokenInfo(): SpotifyTokenInfo | null {
+function getStoredTokenInfo(): PersistedSpotifyTokenInfo | null {
   const storedValue = localStorage.getItem(spotifyStorageKey);
   if (!storedValue) {
     return null;
@@ -112,7 +113,7 @@ function getStoredTokenInfo(): SpotifyTokenInfo | null {
     const parsedValue: unknown = JSON.parse(storedValue);
     const parsedTokenInfo = tokenInfoSchema.safeParse(parsedValue);
     if (parsedTokenInfo.success) {
-      return parsedTokenInfo.data as SpotifyTokenInfo;
+      return parsedTokenInfo.data;
     }
   } catch {
     removeStoredTokenOnly();
@@ -180,13 +181,6 @@ function mergeStoredToken(
   };
 
   const parsedToken = tokenSchema.safeParse(mergedToken);
-  return parsedToken.success
-    ? parsedToken.data as StoredSpotifyToken
-    : null;
-}
-
-function parseInitialStoredToken(token: SpotifyToken): StoredSpotifyToken | null {
-  const parsedToken = tokenSchema.safeParse(token);
   return parsedToken.success
     ? parsedToken.data as StoredSpotifyToken
     : null;
@@ -375,15 +369,12 @@ export function saveTokenAndGetRedirectPath(
   token: SpotifyToken,
   setSpotifyTokenInfo: SetSpotifyTokenInfo,
 ) {
-  const normalizedToken = parseInitialStoredToken(token);
-  if (!normalizedToken) {
-    setSpotifyTokenInfo(null);
-    SpotifyAuthUtils.clearToken();
-    return null;
-  }
+  const tokenInfo: SpotifyTokenInfo = {
+    expiry: Date.now() + token.expires_in * 1000,
+    token,
+  };
 
-  const tokenInfo = getSpotifyTokenInfoFromToken(normalizedToken);
-  SpotifyAuthUtils.storeToken(normalizedToken);
+  localStorage.setItem(spotifyStorageKey, JSON.stringify(tokenInfo));
   setSpotifyTokenInfo(tokenInfo);
 
   const pathToRedirectTo = localStorage.getItem(spotifyRedirectAfterAuthStorageKey);
@@ -393,7 +384,7 @@ export function saveTokenAndGetRedirectPath(
 
 export type SpotifyTokenInfo = {
   expiry: number;
-  token: StoredSpotifyToken
+  token: SpotifyToken
 }
 
 export type SpotifyToken = {
