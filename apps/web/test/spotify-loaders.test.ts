@@ -3,9 +3,9 @@ import type {
   SpotifyCategoryDetails,
   SpotifyUserDetails,
 } from '@adamratzman/contracts';
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import axios from 'axios';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { ApiClientError, fetchJson } from '../src/api/client';
 import {
   artistLoader,
@@ -171,7 +171,13 @@ afterEach(() => {
 });
 
 describe('fetchJson', () => {
-  it('returns parsed JSON and merges an application/json accept header', async () => {
+  it('accepts only relative strings or URLs', () => {
+    type FetchJsonInput = Parameters<typeof fetchJson>[0];
+
+    expectTypeOf<FetchJsonInput>().toEqualTypeOf<string | URL>();
+  });
+
+  it('returns parsed JSON, preserves caller headers, and requests JSON', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ value: 42 }));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -187,7 +193,7 @@ describe('fetchJson', () => {
     expect(headers.has('content-type')).toBe(false);
   });
 
-  it('sets content-type only when a request body exists', async () => {
+  it('does not infer content-type from an arbitrary request body', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ok: true }));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -197,7 +203,51 @@ describe('fetchJson', () => {
     });
 
     const [, init] = fetchMock.mock.calls[0];
-    expect(new Headers(init?.headers).get('content-type')).toBe('application/json');
+    expect(new Headers(init?.headers).has('content-type')).toBe(false);
+  });
+
+  it('preserves an explicit JSON content-type', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchJson('/api/example', {
+      body: JSON.stringify({ value: 42 }),
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      method: 'POST',
+    });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(new Headers(init?.headers).get('content-type')).toBe('application/json; charset=utf-8');
+  });
+
+  it('passes the caller abort signal to fetch', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchJson('/api/example', { signal: controller.signal });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/example', expect.objectContaining({
+      signal: controller.signal,
+    }));
+  });
+
+  it('rethrows an AbortError unchanged', async () => {
+    const abortError = new DOMException('raw abort text', 'AbortError');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
+
+    await expect(fetchJson('/api/example')).rejects.toBe(abortError);
+  });
+
+  it('rethrows the original rejection when the request signal is aborted', async () => {
+    const controller = new AbortController();
+    const abortReason = new Error('raw abort reason');
+    controller.abort(abortReason);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortReason));
+
+    await expect(fetchJson('/api/example', {
+      signal: controller.signal,
+    })).rejects.toBe(abortReason);
   });
 
   it('uses a reviewed API error message and preserves the status', async () => {
@@ -217,6 +267,13 @@ describe('fetchJson', () => {
   it.each([
     ['non-JSON', new Response('TOP SECRET upstream response', { status: 502 })],
     ['malformed', Response.json({ error: 'TOP SECRET upstream response' }, { status: 502 })],
+    ['nested', Response.json({
+      error: {
+        code: 'spotify_upstream_error',
+        error: { message: 'TOP SECRET nested response' },
+        message: 'Spotify could not complete the request.',
+      },
+    }, { status: 502 })],
   ])('uses a generic safe error for a %s non-2xx body', async (_label, response) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
 
@@ -252,48 +309,69 @@ describe('fetchJson', () => {
 });
 
 describe('Spotify API loaders', () => {
-  it('loads typed artist aggregate data from the encoded artist endpoint', async () => {
+  it('trims and encodes route IDs before requesting Spotify data', async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json(artistDetails));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(artistLoader({
-      params: { artistId: 'a' },
-    })).resolves.toEqual(artistDetails);
+    await expect(artistLoader(loaderArgs({
+      artistId: '  artist/with spaces  ',
+    }))).resolves.toEqual(artistDetails);
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/spotify/artists/a', expect.any(Object));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/spotify/artists/artist%2Fwith%20spaces',
+      expect.any(Object),
+    );
   });
 
   it('returns the categories wrapper consumed by the route', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json([category])));
 
-    await expect(categoriesLoader()).resolves.toEqual({ categories: [category] });
+    await expect(categoriesLoader(loaderArgs())).resolves.toEqual({ categories: [category] });
   });
 
   it('returns the genres wrapper consumed by the route', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(['indie', 'folk'])));
 
-    await expect(genresLoader()).resolves.toEqual({ genres: ['indie', 'folk'] });
+    await expect(genresLoader(loaderArgs())).resolves.toEqual({ genres: ['indie', 'folk'] });
   });
 
   it.each([
-    ['category', categoryLoader, { categoryId: 'party' }, categoryDetails, '/api/spotify/categories/party'],
-    ['track', trackLoader, { trackId: 't' }, { track }, '/api/spotify/tracks/t'],
-    ['playlist', playlistLoader, { playlistId: 'p' }, { playlist }, '/api/spotify/playlists/p'],
-    ['user', userLoader, { userId: 'u' }, userDetails, '/api/spotify/users/u'],
+    ['category', categoryLoader, { categoryId: 'party' }, categoryDetails, categoryDetails, '/api/spotify/categories/party'],
+    ['track', trackLoader, { trackId: 't' }, track, { track }, '/api/spotify/tracks/t'],
+    ['playlist', playlistLoader, { playlistId: 'p' }, playlist, { playlist, playlistId: 'p' }, '/api/spotify/playlists/p'],
+    ['user', userLoader, { userId: 'u' }, userDetails, { ...userDetails, userId: 'u' }, '/api/spotify/users/u'],
   ] as const)(
     'returns the exact %s shape consumed by its route',
-    async (_label, loader, params, responseBody, expectedUrl) => {
-      const fetchMock = vi.fn().mockResolvedValue(Response.json(
-        _label === 'track'
-          ? track
-          : _label === 'playlist'
-            ? playlist
-            : responseBody,
-      ));
+    async (_label, loader, params, responseBody, expectedResult, expectedUrl) => {
+      const fetchMock = vi.fn().mockResolvedValue(Response.json(responseBody));
       vi.stubGlobal('fetch', fetchMock);
 
-      await expect(loader({ params })).resolves.toEqual(responseBody);
+      await expect(loader(loaderArgs(params))).resolves.toEqual(expectedResult);
       expect(fetchMock).toHaveBeenCalledWith(expectedUrl, expect.any(Object));
+    },
+  );
+
+  it.each([
+    ['artist', artistLoader, { artistId: 'a' }, artistDetails],
+    ['categories', categoriesLoader, {}, [category]],
+    ['category', categoryLoader, { categoryId: 'party' }, categoryDetails],
+    ['genres', genresLoader, {}, ['indie', 'folk']],
+    ['playlist', playlistLoader, { playlistId: 'p' }, playlist],
+    ['track', trackLoader, { trackId: 't' }, track],
+    ['user', userLoader, { userId: 'u' }, userDetails],
+  ] as const)(
+    'passes the request signal through the %s loader',
+    async (_label, loader, params, responseBody) => {
+      const controller = new AbortController();
+      const fetchMock = vi.fn().mockResolvedValue(Response.json(responseBody));
+      vi.stubGlobal('fetch', fetchMock);
+      const args = loaderArgs(params, controller.signal);
+
+      await loader(args);
+
+      expect(fetchMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+        signal: args.request.signal,
+      }));
     },
   );
 
@@ -309,7 +387,7 @@ describe('Spotify API loaders', () => {
       const fetchMock = vi.fn();
       vi.stubGlobal('fetch', fetchMock);
 
-      const response = await captureRedirect(loader({ params }));
+      const response = await captureReplace(loader(loaderArgs(params)));
 
       expect(response.headers.get('location')).toBe(redirectPath);
       expect(fetchMock).not.toHaveBeenCalled();
@@ -318,15 +396,15 @@ describe('Spotify API loaders', () => {
 
   it.each([
     ['artist', artistLoader, { artistId: 'a' }, '/projects'],
-    ['categories', categoriesLoader, undefined, '/projects'],
-    ['category', categoryLoader, { categoryId: 'party' }, '/projects/spotify/categories'],
-    ['genres', genresLoader, undefined, '/projects'],
+    ['categories', categoriesLoader, {}, '/projects'],
+    ['category', categoryLoader, { categoryId: 'party' }, '/projects'],
+    ['genres', genresLoader, {}, '/projects'],
     ['playlist', playlistLoader, { playlistId: 'p' }, '/projects'],
     ['track', trackLoader, { trackId: 't' }, '/projects'],
     ['user', userLoader, { userId: 'u' }, '/projects'],
   ] as const)(
-    'redirects a failing %s API request safely',
-    async (_label, loader, params, redirectPath) => {
+    'replaces a failing %s 5xx request safely',
+    async (_label, loader, params, replacePath) => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
         error: {
           code: 'spotify_upstream_error',
@@ -334,13 +412,48 @@ describe('Spotify API loaders', () => {
         },
       }, { status: 502 })));
 
-      const response = await captureRedirect(
-        params === undefined ? loader() : loader({ params }),
-      );
+      const response = await captureReplace(loader(loaderArgs(params)));
 
-      expect(response.headers.get('location')).toBe(redirectPath);
+      expect(response.headers.get('location')).toBe(replacePath);
     },
   );
+
+  it.each([400, 404])(
+    'replaces a category %i response with the category list',
+    async (status) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
+        error: {
+          code: 'spotify_upstream_error',
+          message: 'Spotify could not complete the request.',
+        },
+      }, { status })));
+
+      const response = await captureReplace(categoryLoader(loaderArgs({
+        categoryId: 'party',
+      })));
+
+      expect(response.headers.get('location')).toBe('/projects/spotify/categories');
+    },
+  );
+
+  it('replaces a category network failure directly with projects', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('raw network text')));
+
+    const response = await captureReplace(categoryLoader(loaderArgs({
+      categoryId: 'party',
+    })));
+
+    expect(response.headers.get('location')).toBe('/projects');
+  });
+
+  it('does not replace an aborted loader request', async () => {
+    const abortError = new DOMException('raw abort text', 'AbortError');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
+
+    await expect(artistLoader(loaderArgs({
+      artistId: 'a',
+    }))).rejects.toBe(abortError);
+  });
 });
 
 describe('Spotify route integration', () => {
@@ -437,6 +550,437 @@ describe('Spotify route integration', () => {
       expect(screen.queryByText(/Sorry, this page could not be loaded/i)).not.toBeInTheDocument();
     },
   );
+
+  it('encodes genre category links from the artist route', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
+      ...artistDetails,
+      artist: {
+        ...artistDetails.artist,
+        genres: ['r&b / soul'],
+      },
+    })));
+
+    renderWithRouter(routes, {
+      initialEntries: ['/projects/spotify/artists/a'],
+    });
+
+    expect(await screen.findByRole('link', { name: 'r&b / soul' })).toHaveAttribute(
+      'href',
+      '/projects/spotify/categories/r%26b%20%2F%20soul',
+    );
+  });
+
+  it('encodes category links from the genre list route', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(['r&b / soul'])));
+
+    renderWithRouter(routes, {
+      initialEntries: ['/projects/spotify/genres/list'],
+    });
+
+    expect(await screen.findByRole('link', { name: 'r&b / soul' })).toHaveAttribute(
+      'href',
+      '/projects/spotify/categories/r%26b%20%2F%20soul',
+    );
+  });
+
+  it('replaces a failed loader route so Back does not re-enter it', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    }, { status: 502 })));
+
+    const { router } = renderWithRouter(routes, {
+      initialEntries: ['/contact', '/projects/spotify/artists/a'],
+      initialIndex: 1,
+    });
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects');
+    });
+    expect(router.state.historyAction).toBe('REPLACE');
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe('/contact');
+  });
+
+  it('replaces a category 5xx directly with projects without loading categories', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    }, { status: 502 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { router } = renderWithRouter(routes, {
+      initialEntries: ['/projects/spotify/categories/party'],
+    });
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects');
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('replaces a missing category with the category list without looping', async () => {
+    const fetchMock = vi.fn((input: string | URL): Promise<Response> => {
+      if (String(input) === '/api/spotify/categories/party') {
+        return Promise.resolve(Response.json({
+          error: {
+            code: 'not_found',
+            message: 'The category was not found.',
+          },
+        }, { status: 404 }));
+      }
+
+      if (String(input) === '/api/spotify/categories') {
+        return Promise.resolve(Response.json([category]));
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${String(input)}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { router } = renderWithRouter(routes, {
+      initialEntries: ['/contact', '/projects/spotify/categories/party'],
+      initialIndex: 1,
+    });
+
+    expect(await screen.findByRole('heading', {
+      name: 'Spotify Category List',
+    })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/projects/spotify/categories');
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe('/contact');
+  });
+
+  it.each([
+    [
+      'artist',
+      '/projects/spotify/artists/a',
+      '/api/spotify/artists/a',
+      {},
+      '/projects',
+      'Projects',
+    ],
+    [
+      'categories',
+      '/projects/spotify/categories',
+      '/api/spotify/categories',
+      null,
+      '/projects',
+      'Projects',
+    ],
+    [
+      'category',
+      '/projects/spotify/categories/party',
+      '/api/spotify/categories/party',
+      { categoryPlaylists: { items: [] } },
+      '/projects/spotify/categories',
+      'Spotify Category List',
+    ],
+    [
+      'genres',
+      '/projects/spotify/genres/list',
+      '/api/spotify/genres',
+      {},
+      '/projects',
+      'Projects',
+    ],
+    [
+      'playlist',
+      '/projects/spotify/playlists/p',
+      '/api/spotify/playlists/p',
+      null,
+      '/projects',
+      'Projects',
+    ],
+    [
+      'track',
+      '/projects/spotify/tracks/t',
+      '/api/spotify/tracks/t',
+      { artists: [] },
+      '/projects',
+      'Projects',
+    ],
+    [
+      'user',
+      '/projects/spotify/users/u',
+      '/api/spotify/users/u',
+      { totalPlaylists: 0 },
+      '/projects',
+      'Projects',
+    ],
+  ] as const)(
+    'contains malformed %s success data inside AppShell and replaces it safely',
+    async (_label, path, endpoint, malformedBody, fallbackPath, fallbackHeading) => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const fetchMock = vi.fn((input: string | URL): Promise<Response> => {
+        const requestPath = String(input);
+        if (requestPath === endpoint) {
+          return Promise.resolve(Response.json(malformedBody));
+        }
+
+        if (requestPath === '/api/spotify/categories') {
+          return Promise.resolve(Response.json([category]));
+        }
+
+        return Promise.reject(new Error(`Unexpected request: ${requestPath}`));
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { router } = renderWithRouter(routes, {
+        initialEntries: [path],
+      });
+
+      expect(await screen.findByRole('heading', {
+        name: fallbackHeading,
+      })).toBeVisible();
+      expect(router.state.location.pathname).toBe(fallbackPath);
+      expect(router.state.historyAction).toBe('REPLACE');
+      expect(document.querySelector('#main-content')).toBeInTheDocument();
+      expect(screen.queryByText(/Unexpected Application Error/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Sorry, this page could not be loaded/i)).not.toBeInTheDocument();
+    },
+  );
+
+  it('keeps an aborted superseded navigation out of the UI and console', async () => {
+    const abortError = new DOMException('raw abort text', 'AbortError');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let oldSignal: AbortSignal | undefined;
+    const fetchMock = vi.fn((
+      input: string | URL,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      if (String(input) === '/api/spotify/artists/old') {
+        oldSignal = init?.signal ?? undefined;
+        return new Promise((_resolve, reject) => {
+          oldSignal?.addEventListener('abort', () => reject(abortError), { once: true });
+        });
+      }
+
+      if (String(input) === '/api/spotify/artists/new') {
+        return Promise.resolve(Response.json({
+          ...artistDetails,
+          artist: {
+            ...artistDetails.artist,
+            id: 'new',
+            name: 'New Artist',
+          },
+        }));
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${String(input)}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { router } = renderWithRouter(routes, {
+      initialEntries: ['/projects'],
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Projects' })).toBeVisible();
+    let oldNavigation: Promise<void> | undefined;
+    act(() => {
+      oldNavigation = router.navigate('/projects/spotify/artists/old');
+    });
+    await waitFor(() => {
+      expect(oldSignal).toBeDefined();
+    });
+    await act(async () => {
+      await router.navigate('/projects/spotify/artists/new');
+    });
+    await oldNavigation;
+
+    expect(oldSignal?.aborted).toBe(true);
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/spotify/artists/new');
+    });
+    expect(router.state.errors).toBeNull();
+    expect(router.state.navigation.state).toBe('idle');
+    expect(await screen.findByRole('heading', {
+      name: /Artist New Artist/i,
+    })).toBeVisible();
+    expect(document.body).not.toHaveTextContent('raw abort text');
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain('raw abort text');
+    expect(JSON.stringify(consoleLog.mock.calls)).not.toContain('raw abort text');
+    expect(JSON.stringify(consoleWarn.mock.calls)).not.toContain('raw abort text');
+  });
+});
+
+describe('Spotify paginated route IDs', () => {
+  it.each([
+    {
+      idKey: 'playlistId',
+      label: 'playlist',
+      loaderEndpoint: (id: string) => `/api/spotify/playlists/${id}`,
+      pageHeading: (id: string) => `Playlist Playlist ${id}`,
+      pagePath: (id: string) => `/projects/spotify/playlists/${id}`,
+      paginatedEndpoint: '/api/spotify/getPlaylistTracks',
+      responseBody: (id: string) => ({
+        ...playlist,
+        id,
+        name: `Playlist ${id}`,
+      }),
+    },
+    {
+      idKey: 'userId',
+      label: 'user',
+      loaderEndpoint: (id: string) => `/api/spotify/users/${id}`,
+      pageHeading: (id: string) => `User User ${id}`,
+      pagePath: (id: string) => `/projects/spotify/users/${id}`,
+      paginatedEndpoint: '/api/spotify/getUserPlaylists',
+      responseBody: (id: string) => ({
+        ...userDetails,
+        user: {
+          ...userDetails.user,
+          display_name: `User ${id}`,
+          id,
+        },
+      }),
+    },
+  ])(
+    'uses normalized $label IDs and exact POST bodies across same-route navigation',
+    async ({
+      idKey,
+      loaderEndpoint,
+      pageHeading,
+      pagePath,
+      paginatedEndpoint,
+      responseBody,
+    }) => {
+      const postRecords: Array<{
+        body: Record<string, unknown>;
+        header: string;
+        signal: AbortSignal | undefined;
+        url: string;
+      }> = [];
+      vi.spyOn(axios, 'post').mockImplementation((url, body, config) => {
+        postRecords.push({
+          body: body as Record<string, unknown>,
+          header: document.querySelector('#main-content')?.textContent ?? '',
+          signal: config?.signal as AbortSignal | undefined,
+          url,
+        });
+        return Promise.resolve({
+          data: {
+            items: [],
+            total: 30,
+          },
+        }) as never;
+      });
+      vi.stubGlobal('fetch', vi.fn((input: string | URL): Promise<Response> => {
+        const requestPath = String(input);
+        if (requestPath === loaderEndpoint('u1')) {
+          return Promise.resolve(Response.json(responseBody('u1')));
+        }
+
+        if (requestPath === loaderEndpoint('u2')) {
+          return Promise.resolve(Response.json(responseBody('u2')));
+        }
+
+        return Promise.reject(new Error(`Unexpected request: ${requestPath}`));
+      }));
+
+      const { router } = renderWithRouter(routes, {
+        initialEntries: [pagePath('%20u1%20')],
+      });
+
+      await waitFor(() => {
+        expect(router.state.navigation.state).toBe('idle');
+      });
+      expect(router.state.location.pathname).toBe(pagePath('%20u1%20'));
+      expect(router.state.errors).toBeNull();
+      expect(await screen.findByRole('heading', {
+        name: new RegExp(pageHeading('u1'), 'i'),
+      })).toBeVisible();
+      await waitFor(() => {
+        expect(postRecords).toHaveLength(1);
+      });
+      fireEvent.click(screen.getByRole('button', { name: '2' }));
+      await waitFor(() => {
+        expect(postRecords).toHaveLength(2);
+      });
+
+      await act(async () => {
+        await router.navigate(pagePath('%20u2%20'));
+      });
+      expect(await screen.findByRole('heading', {
+        name: new RegExp(pageHeading('u2'), 'i'),
+      })).toBeVisible();
+      await waitFor(() => {
+        expect(postRecords).toHaveLength(3);
+      });
+      await act(async () => {
+        await new Promise(resolve => window.setTimeout(resolve, 20));
+      });
+
+      expect(postRecords).toHaveLength(3);
+      expect(postRecords.map(record => record.url)).toEqual([
+        paginatedEndpoint,
+        paginatedEndpoint,
+        paginatedEndpoint,
+      ]);
+      expect(postRecords.map(record => record.body)).toEqual([
+        { [idKey]: 'u1', limit: 10, offset: 0 },
+        { [idKey]: 'u1', limit: 10, offset: 1 },
+        { [idKey]: 'u2', limit: 10, offset: 0 },
+      ]);
+      expect(postRecords.every(record => record.signal instanceof AbortSignal)).toBe(true);
+      expect(postRecords[0]?.header).toContain(pageHeading('u1'));
+      expect(postRecords[1]?.header).toContain(pageHeading('u1'));
+      expect(postRecords[2]?.header).toContain(pageHeading('u2'));
+    },
+  );
+
+  it('posts a numeric limit from the actual page-size callback', async () => {
+    const postBodies: unknown[] = [];
+    vi.spyOn(axios, 'post').mockImplementation((_url, body) => {
+      postBodies.push(body);
+      return Promise.resolve({
+        data: {
+          items: [],
+          total: 30,
+        },
+      }) as never;
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(playlist)));
+
+    renderWithRouter(routes, {
+      initialEntries: ['/projects/spotify/playlists/p'],
+    });
+
+    expect(await screen.findByRole('heading', {
+      name: /Playlist Favorites/i,
+    })).toBeVisible();
+    await waitFor(() => {
+      expect(postBodies).toHaveLength(1);
+    });
+    fireEvent.click(screen.getByRole('button', { name: '10 / page' }));
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: '20 / page' }));
+    await waitFor(() => {
+      expect(postBodies).toHaveLength(2);
+    });
+
+    expect(postBodies[1]).toEqual({
+      limit: 20,
+      offset: 0,
+      playlistId: 'p',
+    });
+    expect(typeof (postBodies[1] as { limit: unknown }).limit).toBe('number');
+  });
 });
 
 async function captureApiClientError(promise: Promise<unknown>) {
@@ -450,15 +994,26 @@ async function captureApiClientError(promise: Promise<unknown>) {
   throw new Error('Expected an ApiClientError.');
 }
 
-async function captureRedirect(promise: Promise<unknown>) {
+function loaderArgs(
+  params: Record<string, string | undefined> = {},
+  signal?: AbortSignal,
+) {
+  return {
+    params,
+    request: new Request('http://localhost/spotify-loader', { signal }),
+  };
+}
+
+async function captureReplace(promise: Promise<unknown>) {
   try {
     await promise;
   } catch (error) {
     expect(error).toBeInstanceOf(Response);
     const response = error as Response;
     expect(response.status).toBe(302);
+    expect(response.headers.get('x-remix-replace')).toBe('true');
     return response;
   }
 
-  throw new Error('Expected a redirect response.');
+  throw new Error('Expected a replace response.');
 }

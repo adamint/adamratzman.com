@@ -1,5 +1,4 @@
-import { useData } from '../../../utils/useData';
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Box, Flex } from '@chakra-ui/react';
 import Pagination from '@choc-ui/paginator';
 import { TimeRange } from '../../../utils/SpotifyTypes';
@@ -7,7 +6,11 @@ import { SpotifyPagination } from '../../../utils/SpotifyApiPaginationHelper';
 import { useNavigate } from 'react-router-dom';
 
 type PaginatedSpotifyDisplayProps<DataType extends SpotifyPagination<ChildType>, ChildType> = {
-  dataProducer: (limitPerPage: number, pageOffset: number) => Promise<DataType>;
+  dataProducer: (
+    limitPerPage: number,
+    pageOffset: number,
+    signal: AbortSignal,
+  ) => Promise<DataType>;
   childDataMapper: (child: ChildType) => ReactNode;
   timeRange?: TimeRange | null;
   limitPerPage: number;
@@ -27,35 +30,82 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
                                                                                                     setPageOffset,
                                                                                                     filterNotNull,
                                                                                                   }: PaginatedSpotifyDisplayProps<DataType, ChildType>) {
-  const { data, loading, error, update } = useData<DataType, unknown>(async () => {
-    return await dataProducer(limitPerPage, pageOffset);
-  }, [timeRange], [limitPerPage, pageOffset], false);
-
   const navigate = useNavigate();
+  const generationRef = useRef(0);
+  const [{ data, loading, error }, setRequestState] = useState<{
+    data: DataType | null;
+    error: boolean;
+    loading: boolean;
+  }>({
+    data: null,
+    error: false,
+    loading: true,
+  });
 
   useEffect(() => {
-    void update(
-      async () => await dataProducer(limitPerPage, pageOffset),
-      true,
-      [],
-    );
-  }, [limitPerPage, pageOffset]);
+    const controller = new AbortController();
+    const generation = ++generationRef.current;
+    let active = true;
+    setRequestState({
+      data: null,
+      error: false,
+      loading: true,
+    });
 
-  useEffect(() => {
-    if (error) {
-      console.log(error);
-      void navigate('/projects/spotify', { replace: true });
-    }
-  }, [error, navigate]);
+    const requestTimer = window.setTimeout(() => {
+      if (!active || controller.signal.aborted || generation !== generationRef.current) {
+        return;
+      }
 
-  if (error) {
-    return null;
-  }
+      void dataProducer(limitPerPage, pageOffset, controller.signal).then(
+        nextData => {
+          if (!active || controller.signal.aborted || generation !== generationRef.current) {
+            return;
+          }
+
+          setRequestState({
+            data: nextData,
+            error: false,
+            loading: false,
+          });
+        },
+        requestError => {
+          if (!active || controller.signal.aborted || generation !== generationRef.current) {
+            return;
+          }
+
+          if (isAbortError(requestError)) {
+            setRequestState({
+              data: null,
+              error: false,
+              loading: false,
+            });
+            return;
+          }
+
+          setRequestState({
+            data: null,
+            error: true,
+            loading: false,
+          });
+          void navigate('/projects/spotify', { replace: true });
+        },
+      );
+    }, 0);
+
+    return () => {
+      active = false;
+      window.clearTimeout(requestTimer);
+      controller.abort();
+    };
+  }, [dataProducer, limitPerPage, navigate, pageOffset, timeRange]);
+
+  if (error) return null;
 
   if (loading || !data) return null;
 
   function handleOnShowSizeChange(currentPage: number | undefined, size: number | undefined) {
-    setLimitPerPage(size ?? 10);
+    setLimitPerPage(normalizePageSize(size));
     setPageOffset(0);
   }
 
@@ -86,4 +136,21 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
       </Flex>
     </Box>
   </>;
+}
+
+function isAbortError(error: unknown) {
+  return typeof error === 'object'
+    && error !== null
+    && Reflect.get(error, 'name') === 'AbortError';
+}
+
+export function normalizePageSize(value: unknown) {
+  if (typeof value !== 'number' && typeof value !== 'string') {
+    return 10;
+  }
+
+  const size = Number(value);
+  return Number.isFinite(size) && Number.isInteger(size) && size > 0
+    ? size
+    : 10;
 }

@@ -3,32 +3,44 @@ import type { GetUserPlaylistsRequest } from '@adamratzman/contracts';
 import { Box, Heading, Image, Text } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../../components/utils/ChakraRouterLink';
 import { useColorModeColor } from '../../../../components/utils/useColorModeColor';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { PaginatedSpotifyDisplay } from '../../../../components/projects/spotify/views/PaginatedSpotifyDisplay';
 import { SpotifyPlaylist } from '../../../../components/projects/spotify/views/SpotifyPlaylist';
 import { PageTitle } from '../../../../components/meta/PageTitle';
-import { useLoaderData, useParams } from 'react-router-dom';
+import { useLoaderData } from 'react-router-dom';
 import axios, { AxiosResponse } from 'axios';
 import { userLoader } from '../../../../api/spotifyLoaders';
 
-type SpotifyUserViewRouteParams = {
-  userId: string;
-}
+type SpotifyUserContentProps = ReturnType<typeof useLoaderData<typeof userLoader>>;
 
 function SpotifyUserViewRoute() {
-  const { totalPlaylists, user } = useLoaderData<typeof userLoader>();
-  const { userId = '' } = useParams<SpotifyUserViewRouteParams>();
+  const { totalPlaylists, user, userId } = useLoaderData<typeof userLoader>();
+
+  return <SpotifyUserContent
+    key={userId}
+    totalPlaylists={totalPlaylists}
+    user={user}
+    userId={userId}
+  />;
+}
+
+function SpotifyUserContent({ totalPlaylists, user, userId }: SpotifyUserContentProps) {
   const [limitPerPage, setLimitPerPage] = useState<number>(10);
   const [pageOffset, setPageOffset] = useState<number>(0);
 
   const colorModeColor = useColorModeColor();
 
-  async function getUserPlaylists(limitPerPage: number, pageOffset: number): Promise<SpotifyApi.ListOfUsersPlaylistsResponse> {
+  const getUserPlaylists = useCallback(async (
+    limit: number,
+    offset: number,
+    signal: AbortSignal,
+  ): Promise<SpotifyApi.ListOfUsersPlaylistsResponse> => {
     return (await axios.post<GetUserPlaylistsRequest, AxiosResponse<SpotifyApi.ListOfUsersPlaylistsResponse>>(
-        '/api/spotify/getUserPlaylists',
-        { limit: limitPerPage, offset: pageOffset, userId: userId })
-    ).data;
-  }
+      '/api/spotify/getUserPlaylists',
+      { limit, offset, userId },
+      { signal },
+    )).data;
+  }, [userId]);
 
   const childDataMapper = (playlist: SpotifyApi.PlaylistObjectSimplified) => <SpotifyPlaylist playlist={playlist}
                                                                                               key={playlist.id}

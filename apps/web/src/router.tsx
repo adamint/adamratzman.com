@@ -50,6 +50,14 @@ function createChildRoute({
   } as RouteObject;
 }
 
+export function SpotifyProjectRouteErrorBoundary() {
+  return <Navigate replace to="/projects" />;
+}
+
+export function SpotifyCategoryRouteErrorBoundary() {
+  return <Navigate replace to="/projects/spotify/categories" />;
+}
+
 const appRouteSpecs: AppRouteSpec[] = [
   { publicPath: '/', lazy: lazyPage(() => import('./routes/index')) },
   { publicPath: '/academics', lazy: lazyPage(() => import('./routes/academics')) },
@@ -65,29 +73,34 @@ const appRouteSpecs: AppRouteSpec[] = [
   { publicPath: '/projects/spotify', element: <Navigate replace to="/projects" /> },
   {
     publicPath: '/projects/spotify/artists/:artistId',
+    ErrorBoundary: SpotifyProjectRouteErrorBoundary,
     loader: artistLoader,
     lazy: lazyPage(() => import('./routes/projects/spotify/artists/[artistId]')),
   },
   { publicPath: '/projects/spotify/callback', lazy: lazyPage(() => import('./routes/projects/spotify/callback')) },
   {
     publicPath: '/projects/spotify/categories',
+    ErrorBoundary: SpotifyProjectRouteErrorBoundary,
     loader: categoriesLoader,
     lazy: lazyPage(() => import('./routes/projects/spotify/categories')),
   },
   {
     publicPath: '/projects/spotify/categories/:categoryId',
+    ErrorBoundary: SpotifyCategoryRouteErrorBoundary,
     loader: categoryLoader,
     lazy: lazyPage(() => import('./routes/projects/spotify/categories/[categoryId]')),
   },
   { publicPath: '/projects/spotify/generate-token', lazy: lazyPage(() => import('./routes/projects/spotify/generate-token')) },
   {
     publicPath: '/projects/spotify/genres/list',
+    ErrorBoundary: SpotifyProjectRouteErrorBoundary,
     loader: genresLoader,
     lazy: lazyPage(() => import('./routes/projects/spotify/genres/list')),
   },
   { publicPath: '/projects/spotify/mytop', lazy: lazyPage(() => import('./routes/projects/spotify/mytop')) },
   {
     publicPath: '/projects/spotify/playlists/:playlistId',
+    ErrorBoundary: SpotifyProjectRouteErrorBoundary,
     loader: playlistLoader,
     lazy: lazyPage(() => import('./routes/projects/spotify/playlists/[playlistId]')),
   },
@@ -98,11 +111,13 @@ const appRouteSpecs: AppRouteSpec[] = [
   },
   {
     publicPath: '/projects/spotify/tracks/:trackId',
+    ErrorBoundary: SpotifyProjectRouteErrorBoundary,
     loader: trackLoader,
     lazy: lazyPage(() => import('./routes/projects/spotify/tracks/[trackId]')),
   },
   {
     publicPath: '/projects/spotify/users/:userId',
+    ErrorBoundary: SpotifyProjectRouteErrorBoundary,
     loader: userLoader,
     lazy: lazyPage(() => import('./routes/projects/spotify/users/[userId]')),
   },

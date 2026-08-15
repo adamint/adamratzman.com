@@ -1,7 +1,7 @@
 import { ProjectPage } from '../../../components/projects/ProjectPage';
 import { SpotifyLogoutButton } from '../../../spotify-utils/auth/SpotifyLogoutButton';
 import { FormControl, FormLabel, Icon, Select, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { MdPlayCircleOutline } from 'react-icons/md';
 import { BsPeopleFill} from 'react-icons/bs'
 import { SpotifyTrack } from '../../../components/projects/spotify/views/SpotifyTrack';
@@ -112,16 +112,25 @@ function ShowTopTracks({
                          pageOffset,
                          setPageOffset,
                        }: ShowTopProps) {
-  async function getTopTrackData(limitPerPage: number, pageOffset: number) {
+  const guardedSpotifyApiRef = useRef(guardedSpotifyApi);
+  guardedSpotifyApiRef.current = guardedSpotifyApi;
+  const getTopTrackData = useCallback(async (
+    limit: number,
+    offset: number,
+    signal: AbortSignal,
+  ) => {
+    void signal;
     setPageLoading(true);
-    const data = await (await guardedSpotifyApi.getApi()).getMyTopTracks({
-      limit: limitPerPage,
-      offset: pageOffset * limitPerPage,
-      time_range: timeRange,
-    });
-    setPageLoading(false);
-    return data;
-  }
+    try {
+      return await (await guardedSpotifyApiRef.current.getApi()).getMyTopTracks({
+        limit,
+        offset: offset * limit,
+        time_range: timeRange,
+      });
+    } finally {
+      setPageLoading(false);
+    }
+  }, [setPageLoading, timeRange]);
 
   const childDataMapper = (track: SpotifyApi.TrackObjectFull) => <SpotifyTrack track={track} key={track.id} mb={5} />;
 
@@ -145,17 +154,25 @@ function ShowTopArtists({
                           pageOffset,
                           setPageOffset,
                         }: ShowTopProps) {
-
-  async function getTopArtistData(limitPerPage: number, pageOffset: number) {
+  const guardedSpotifyApiRef = useRef(guardedSpotifyApi);
+  guardedSpotifyApiRef.current = guardedSpotifyApi;
+  const getTopArtistData = useCallback(async (
+    limit: number,
+    offset: number,
+    signal: AbortSignal,
+  ) => {
+    void signal;
     setPageLoading(true);
-    const data = await (await guardedSpotifyApi.getApi()).getMyTopArtists({
-      limit: limitPerPage,
-      offset: pageOffset * limitPerPage,
-      time_range: timeRange,
-    });
-    setPageLoading(false);
-    return data;
-  }
+    try {
+      return await (await guardedSpotifyApiRef.current.getApi()).getMyTopArtists({
+        limit,
+        offset: offset * limit,
+        time_range: timeRange,
+      });
+    } finally {
+      setPageLoading(false);
+    }
+  }, [setPageLoading, timeRange]);
 
   const childDataMapper = (artist: SpotifyApi.ArtistObjectFull) => <SpotifyArtist artist={artist} key={artist.id}
                                                                                   mb={5} />;

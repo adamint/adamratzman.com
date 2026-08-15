@@ -5,6 +5,8 @@ import { AppShell } from '../src/AppShell';
 import {
   RootRouteErrorBoundary,
   RouterLoadingFallback,
+  SpotifyCategoryRouteErrorBoundary,
+  SpotifyProjectRouteErrorBoundary,
   routePaths,
   routes,
 } from '../src/router';
@@ -66,22 +68,26 @@ describe('route table', () => {
   });
 
   it.each([
-    ['/projects/spotify/artists/:artistId', artistLoader],
-    ['/projects/spotify/categories', categoriesLoader],
-    ['/projects/spotify/categories/:categoryId', categoryLoader],
-    ['/projects/spotify/genres/list', genresLoader],
-    ['/projects/spotify/playlists/:playlistId', playlistLoader],
-    ['/projects/spotify/tracks/:trackId', trackLoader],
-    ['/projects/spotify/users/:userId', userLoader],
-  ] as const)('wires %s to its API loader and lazy page', (publicPath, loader) => {
+    ['/projects/spotify/artists/:artistId', artistLoader, SpotifyProjectRouteErrorBoundary],
+    ['/projects/spotify/categories', categoriesLoader, SpotifyProjectRouteErrorBoundary],
+    ['/projects/spotify/categories/:categoryId', categoryLoader, SpotifyCategoryRouteErrorBoundary],
+    ['/projects/spotify/genres/list', genresLoader, SpotifyProjectRouteErrorBoundary],
+    ['/projects/spotify/playlists/:playlistId', playlistLoader, SpotifyProjectRouteErrorBoundary],
+    ['/projects/spotify/tracks/:trackId', trackLoader, SpotifyProjectRouteErrorBoundary],
+    ['/projects/spotify/users/:userId', userLoader, SpotifyProjectRouteErrorBoundary],
+  ] as const)(
+    'wires %s to its API loader, child boundary, and lazy page',
+    (publicPath, loader, ErrorBoundary) => {
     const childRoute = routes[0]?.children?.find(
       route => route.path === publicPath.slice(1),
     );
 
     expect(childRoute?.loader).toBe(loader);
+    expect(childRoute?.ErrorBoundary).toBe(ErrorBoundary);
     expect(childRoute?.lazy).toBeTypeOf('function');
     expect(childRoute?.element).toBeUndefined();
-  });
+    },
+  );
 });
 
 describe('memory router integration', () => {

@@ -3,90 +3,111 @@ import type {
   SpotifyCategoryDetails,
   SpotifyUserDetails,
 } from '@adamratzman/contracts';
-import { redirect, type LoaderFunctionArgs } from 'react-router-dom';
-import { fetchJson } from './client';
+import { replace, type LoaderFunctionArgs } from 'react-router-dom';
+import { ApiClientError, fetchJson } from './client';
 
-type SpotifyLoaderArgs = Pick<LoaderFunctionArgs, 'params'>;
+type SpotifyLoaderArgs = Pick<LoaderFunctionArgs, 'params' | 'request'>;
 
-export async function categoriesLoader() {
-  const categories = await loadOrRedirect<SpotifyApi.CategoryObject[]>(
+export async function categoriesLoader({ request }: SpotifyLoaderArgs) {
+  const categories = await loadOrReplace<SpotifyApi.CategoryObject[]>(
     '/api/spotify/categories',
+    request.signal,
     '/projects',
   );
 
   return { categories };
 }
 
-export async function categoryLoader({ params }: SpotifyLoaderArgs) {
+export async function categoryLoader({ params, request }: SpotifyLoaderArgs) {
   const categoryId = requireParam(params.categoryId, '/projects/spotify/categories');
-  return loadOrRedirect<SpotifyCategoryDetails>(
+  return loadOrReplace<SpotifyCategoryDetails>(
     `/api/spotify/categories/${encodeURIComponent(categoryId)}`,
-    '/projects/spotify/categories',
+    request.signal,
+    error => error.status === 0 || error.status >= 500
+      ? '/projects'
+      : '/projects/spotify/categories',
   );
 }
 
-export async function genresLoader() {
-  const genres = await loadOrRedirect<string[]>(
+export async function genresLoader({ request }: SpotifyLoaderArgs) {
+  const genres = await loadOrReplace<string[]>(
     '/api/spotify/genres',
+    request.signal,
     '/projects',
   );
 
   return { genres };
 }
 
-export async function artistLoader({ params }: SpotifyLoaderArgs) {
+export async function artistLoader({ params, request }: SpotifyLoaderArgs) {
   const artistId = requireParam(params.artistId, '/projects');
-  return loadOrRedirect<SpotifyArtistDetails>(
+  return loadOrReplace<SpotifyArtistDetails>(
     `/api/spotify/artists/${encodeURIComponent(artistId)}`,
+    request.signal,
     '/projects',
   );
 }
 
-export async function trackLoader({ params }: SpotifyLoaderArgs) {
+export async function trackLoader({ params, request }: SpotifyLoaderArgs) {
   const trackId = requireParam(params.trackId, '/projects');
-  const track = await loadOrRedirect<SpotifyApi.SingleTrackResponse>(
+  const track = await loadOrReplace<SpotifyApi.SingleTrackResponse>(
     `/api/spotify/tracks/${encodeURIComponent(trackId)}`,
+    request.signal,
     '/projects',
   );
 
   return { track };
 }
 
-export async function playlistLoader({ params }: SpotifyLoaderArgs) {
+export async function playlistLoader({ params, request }: SpotifyLoaderArgs) {
   const playlistId = requireParam(params.playlistId, '/projects');
-  const playlist = await loadOrRedirect<SpotifyApi.SinglePlaylistResponse>(
+  const playlist = await loadOrReplace<SpotifyApi.SinglePlaylistResponse>(
     `/api/spotify/playlists/${encodeURIComponent(playlistId)}`,
+    request.signal,
     '/projects',
   );
 
-  return { playlist };
+  return { playlist, playlistId };
 }
 
-export async function userLoader({ params }: SpotifyLoaderArgs) {
+export async function userLoader({ params, request }: SpotifyLoaderArgs) {
   const userId = requireParam(params.userId, '/projects');
-  return loadOrRedirect<SpotifyUserDetails>(
+  const userDetails = await loadOrReplace<SpotifyUserDetails>(
     `/api/spotify/users/${encodeURIComponent(userId)}`,
+    request.signal,
     '/projects',
   );
+
+  return { ...userDetails, userId };
 }
 
-function requireParam(value: string | undefined, redirectPath: string) {
+function requireParam(value: string | undefined, replacePath: string) {
   const normalizedValue = value?.trim();
   if (!normalizedValue) {
-    // React Router redirects are intentionally thrown responses.
-    // eslint-disable-next-line @typescript-eslint/only-throw-error
-    throw redirect(redirectPath);
+    replaceRoute(replacePath);
   }
 
   return normalizedValue;
 }
 
-async function loadOrRedirect<T>(path: string, redirectPath: string) {
+async function loadOrReplace<T>(
+  path: string,
+  signal: AbortSignal,
+  replacePath: string | ((error: ApiClientError) => string),
+) {
   try {
-    return await fetchJson<T>(path);
-  } catch {
-    // React Router redirects are intentionally thrown responses.
-    // eslint-disable-next-line @typescript-eslint/only-throw-error
-    throw redirect(redirectPath);
+    return await fetchJson<T>(path, { signal });
+  } catch (error) {
+    if (!(error instanceof ApiClientError)) {
+      throw error;
+    }
+
+    replaceRoute(typeof replacePath === 'function' ? replacePath(error) : replacePath);
   }
+}
+
+function replaceRoute(path: string): never {
+  // React Router replaces are intentionally thrown responses.
+  // eslint-disable-next-line @typescript-eslint/only-throw-error
+  throw replace(path);
 }

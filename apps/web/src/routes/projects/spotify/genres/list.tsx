@@ -14,7 +14,8 @@ function SpotifyGenreListRoute() {
         website.</Text>
       <UnorderedList>
         {genres.map(genre => <ListItem key={genre} fontSize={17} mb={0.3}>
-          <ChakraRouterLink href={`/projects/spotify/categories/${genre}`}>{genre}</ChakraRouterLink>
+          <ChakraRouterLink
+            href={`/projects/spotify/categories/${encodeURIComponent(genre)}`}>{genre}</ChakraRouterLink>
         </ListItem>)}
       </UnorderedList>
     </ProjectPage>

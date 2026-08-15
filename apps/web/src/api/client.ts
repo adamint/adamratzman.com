@@ -13,15 +13,11 @@ export class ApiClientError extends Error {
 }
 
 export async function fetchJson<T>(
-  input: RequestInfo | URL,
+  input: string | URL,
   init: RequestInit = {},
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('accept', 'application/json');
-
-  if (init.body != null && !headers.has('content-type')) {
-    headers.set('content-type', 'application/json');
-  }
 
   let response: Response;
   try {
@@ -29,7 +25,11 @@ export async function fetchJson<T>(
       ...init,
       headers,
     });
-  } catch {
+  } catch (error) {
+    if (init.signal?.aborted || isAbortError(error)) {
+      throw error;
+    }
+
     throw new ApiClientError(genericErrorMessage, 0);
   }
 
@@ -48,11 +48,7 @@ export async function fetchJson<T>(
     throw new ApiClientError(genericErrorMessage, response.status);
   }
 
-  try {
-    return await response.json() as T;
-  } catch {
-    throw new ApiClientError(genericErrorMessage, response.status);
-  }
+  return parseServerValidatedSuccessJson<T>(response);
 }
 
 function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
@@ -68,7 +64,22 @@ function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
   const code: unknown = Reflect.get(error, 'code');
   const message: unknown = Reflect.get(error, 'message');
 
-  return typeof error === 'object'
+  return Object.keys(value).length === 1
+    && Object.keys(error).length === 2
     && typeof code === 'string'
     && typeof message === 'string';
+}
+
+function isAbortError(error: unknown) {
+  return typeof error === 'object'
+    && error !== null
+    && Reflect.get(error, 'name') === 'AbortError';
+}
+
+async function parseServerValidatedSuccessJson<T>(response: Response) {
+  try {
+    return await response.json() as T;
+  } catch {
+    throw new ApiClientError(genericErrorMessage, response.status);
+  }
 }

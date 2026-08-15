@@ -3,33 +3,40 @@ import type { GetPlaylistTracksRequest } from '@adamratzman/contracts';
 import { Box, Heading, Image, Text } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../../components/utils/ChakraRouterLink';
 import { useColorModeColor } from '../../../../components/utils/useColorModeColor';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { PaginatedSpotifyDisplay } from '../../../../components/projects/spotify/views/PaginatedSpotifyDisplay';
 import { SpotifyTrack } from '../../../../components/projects/spotify/views/SpotifyTrack';
 import { SpotifyEpisode } from '../../../../components/projects/spotify/views/SpotifyEpisode';
 import { PageTitle } from '../../../../components/meta/PageTitle';
-import { useLoaderData, useParams } from 'react-router-dom';
+import { useLoaderData } from 'react-router-dom';
 import axios, { AxiosResponse } from 'axios';
 import { playlistLoader } from '../../../../api/spotifyLoaders';
 
-type SpotifyPlaylistViewRouteParams = {
-  playlistId: string;
-}
+type SpotifyPlaylistContentProps = ReturnType<typeof useLoaderData<typeof playlistLoader>>;
 
 function SpotifyPlaylistViewRoute() {
-  const { playlist } = useLoaderData<typeof playlistLoader>();
-  const { playlistId = '' } = useParams<SpotifyPlaylistViewRouteParams>();
+  const { playlist, playlistId } = useLoaderData<typeof playlistLoader>();
+
+  return <SpotifyPlaylistContent key={playlistId} playlist={playlist} playlistId={playlistId} />;
+}
+
+function SpotifyPlaylistContent({ playlist, playlistId }: SpotifyPlaylistContentProps) {
   const [limitPerPage, setLimitPerPage] = useState<number>(10);
   const [pageOffset, setPageOffset] = useState<number>(0);
 
   const colorModeColor = useColorModeColor();
 
-  async function getPlaylistTracks(limitPerPage: number, pageOffset: number): Promise<SpotifyApi.PlaylistTrackResponse> {
+  const getPlaylistTracks = useCallback(async (
+    limit: number,
+    offset: number,
+    signal: AbortSignal,
+  ): Promise<SpotifyApi.PlaylistTrackResponse> => {
     return (await axios.post<GetPlaylistTracksRequest, AxiosResponse<SpotifyApi.PlaylistTrackResponse>>(
-        '/api/spotify/getPlaylistTracks',
-        { limit: limitPerPage, offset: pageOffset, playlistId: playlistId })
-    ).data;
-  }
+      '/api/spotify/getPlaylistTracks',
+      { limit, offset, playlistId },
+      { signal },
+    )).data;
+  }, [playlistId]);
 
   function childDataMapper(playlistTrack: SpotifyApi.PlaylistTrackObject) {
     const trackObject = playlistTrack.track;
