@@ -960,6 +960,22 @@ describe('spotify routes', () => {
     expect(response.json()).toEqual(tracks);
   });
 
+  it('rejects unknown search options before creating a Spotify client', async () => {
+    const { app, spotifyFactory } = createSpotifyApp();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/spotify/searchTracks',
+      payload: { query: 'garden', options: { offset: 10 } },
+    });
+
+    expect(spotifyFactory).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'invalid_request', message: 'The request body is invalid.' },
+    });
+  });
+
   it('returns a JSON validation error for an empty artist search', async () => {
     const { app, spotifyFactory } = createSpotifyApp();
 
@@ -1096,13 +1112,50 @@ describe('spotify routes', () => {
     });
   });
 
+  it.each([
+    ['unknown options', { seed_tracks: ['track-1'], market: 'US' }],
+    ['zero seeds', { limit: 10 }],
+    [
+      'six total seeds',
+      {
+        seed_artists: ['artist-1', 'artist-2'],
+        seed_genres: ['rock', 'indie'],
+        seed_tracks: ['track-1', 'track-2'],
+      },
+    ],
+  ])('rejects recommendation requests with %s before creating a Spotify client', async (
+    _label,
+    options,
+  ) => {
+    const { app, spotifyFactory } = createSpotifyApp();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/spotify/getRecommendations',
+      payload: { options },
+    });
+
+    expect(spotifyFactory).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'invalid_request', message: 'The request body is invalid.' },
+    });
+  });
+
   it('returns Spotify recommendations', async () => {
     const { app, spotify } = createSpotifyApp();
     const recommendations = {
       tracks: [createTrackSummary({ id: 'track-3', name: 'Kyoto' })],
       seeds: [],
     };
-    const options = { seed_tracks: ['track-1'], limit: 5 };
+    const options = {
+      seed_artists: ['artist-1'],
+      seed_genres: ['indie'],
+      seed_tracks: ['track-1'],
+      limit: 5,
+      min_popularity: 20,
+      target_energy: 0.7,
+    };
     spotify.getRecommendations.mockResolvedValue(spotifyResponse<'getRecommendations'>(recommendations));
 
     const response = await app.inject({
@@ -1114,6 +1167,36 @@ describe('spotify routes', () => {
     expect(spotify.getRecommendations).toHaveBeenCalledWith(options);
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(recommendations);
+  });
+
+  it.each([
+    ['missing', undefined],
+    ['empty', ''],
+  ])('returns a safe 502 when a recommendation track has a %s URI', async (
+    _label,
+    uri,
+  ) => {
+    const { app, spotify } = createSpotifyApp();
+    spotify.getRecommendations.mockResolvedValue(
+      spotifyResponse<'getRecommendations'>({
+        tracks: [createTrackSummary({ uri })],
+        seeds: [],
+      }),
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/spotify/getRecommendations',
+      payload: { options: { seed_tracks: ['track-1'] } },
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
   });
 
   it('returns available genre seeds', async () => {

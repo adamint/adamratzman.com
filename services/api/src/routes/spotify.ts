@@ -43,6 +43,7 @@ type SpotifyTrackAutocompleteLike = {
 
 type SpotifyTrackCardLike = {
   id?: string | null | undefined;
+  uri?: string | null | undefined;
   name?: string | null | undefined;
   artists?: Array<{
     id?: string | null | undefined;
@@ -102,6 +103,18 @@ function requireString(value: string | null | undefined, description: string): s
   }
 
   return value;
+}
+
+function requireNonEmptyString(
+  value: string | null | undefined,
+  description: string,
+): string {
+  const result = requireString(value, description);
+  if (result.trim().length === 0) {
+    throw new Error(`Spotify response did not include ${description}.`);
+  }
+
+  return result;
 }
 
 function requireOptionalString(
@@ -259,6 +272,15 @@ function validateTrackCard(
   requireNumber(response.popularity, `${description} popularity`);
   requireNumber(response.duration_ms, `${description} duration_ms`);
   requireOptionalString(response.preview_url, `${description} preview_url`);
+  return response;
+}
+
+function validateRecommendationTrack(
+  track: SpotifyTrackCardLike | null | undefined,
+  description: string,
+) {
+  const response = validateTrackCard(track, description);
+  requireNonEmptyString(response.uri, `${description} uri`);
   return response;
 }
 
@@ -532,7 +554,7 @@ export function registerSpotifyRoutes(
       );
       const tracks = requireArray(recommendations.tracks, 'recommendation tracks');
       tracks.forEach((track, index) => {
-        validateTrackCard(track, `recommendation tracks[${index}]`);
+        validateRecommendationTrack(track, `recommendation tracks[${index}]`);
       });
       const seeds = requireArray(recommendations.seeds, 'recommendation seeds');
       seeds.forEach((seed, index) => {

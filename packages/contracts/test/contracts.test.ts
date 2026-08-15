@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   getPlaylistTracksRequestSchema,
   getRecommendationsRequestSchema,
   getUserPlaylistsRequestSchema,
   searchRequestSchema,
+  spotifyRecommendationAttributeIds,
+  type GetRecommendationsRequest,
+  type SearchRequest,
+  type SpotifyRecommendationOptions,
+  type SpotifyRecommendationTuningKey,
 } from '../src/index.js';
 
 describe('shared request contracts', () => {
@@ -27,11 +32,103 @@ describe('shared request contracts', () => {
     expect(() => searchRequestSchema.parse({ query: '   ' })).toThrow();
   });
 
-  it('accepts recommendation options as a JSON object', () => {
-    expect(getRecommendationsRequestSchema.parse({
-      options: { seed_genres: ['rock'], limit: 10 },
+  it('accepts a supported search limit', () => {
+    expect(searchRequestSchema.parse({
+      query: 'garden',
+      options: { limit: 50 },
     })).toEqual({
-      options: { seed_genres: ['rock'], limit: 10 },
+      query: 'garden',
+      options: { limit: 50 },
     });
+  });
+
+  it('rejects unknown search options', () => {
+    expect(() => searchRequestSchema.parse({
+      query: 'garden',
+      options: { offset: 10 },
+    })).toThrow();
+  });
+
+  it('accepts one recommendation seed', () => {
+    expect(getRecommendationsRequestSchema.parse({
+      options: { seed_genres: ['rock'] },
+    })).toEqual({
+      options: { seed_genres: ['rock'] },
+    });
+  });
+
+  it('rejects recommendations without seeds', () => {
+    expect(() => getRecommendationsRequestSchema.parse({
+      options: { limit: 10 },
+    })).toThrow();
+  });
+
+  it('rejects more than five total recommendation seeds', () => {
+    expect(() => getRecommendationsRequestSchema.parse({
+      options: {
+        seed_artists: ['artist-1', 'artist-2'],
+        seed_genres: ['rock', 'indie'],
+        seed_tracks: ['track-1', 'track-2'],
+      },
+    })).toThrow();
+  });
+
+  it('rejects unknown recommendation options', () => {
+    expect(() => getRecommendationsRequestSchema.parse({
+      options: {
+        seed_tracks: ['track-1'],
+        market: 'US',
+      },
+    })).toThrow();
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects non-finite recommendation tuning value %s',
+    (targetEnergy) => {
+      expect(() => getRecommendationsRequestSchema.parse({
+        options: {
+          seed_tracks: ['track-1'],
+          target_energy: targetEnergy,
+        },
+      })).toThrow();
+    },
+  );
+
+  it('rejects empty strings in recommendation seed arrays', () => {
+    expect(() => getRecommendationsRequestSchema.parse({
+      options: {
+        seed_artists: ['artist-1'],
+        seed_tracks: ['   '],
+      },
+    })).toThrow();
+  });
+
+  it('exports the exact recommendation attribute and option types', () => {
+    expect(spotifyRecommendationAttributeIds).toEqual([
+      'acousticness',
+      'danceability',
+      'duration_ms',
+      'energy',
+      'instrumentalness',
+      'key',
+      'liveness',
+      'loudness',
+      'mode',
+      'popularity',
+      'speechiness',
+      'tempo',
+      'time_signature',
+      'valence',
+    ]);
+    expectTypeOf<SearchRequest>().toEqualTypeOf<{
+      query: string;
+      options?: { limit?: number };
+    }>();
+    expectTypeOf<GetRecommendationsRequest['options']>()
+      .toEqualTypeOf<SpotifyRecommendationOptions>();
+    expectTypeOf<SpotifyRecommendationTuningKey>()
+      .toEqualTypeOf<
+        `${'min' | 'max' | 'target'}_${typeof spotifyRecommendationAttributeIds[number]}`
+      >();
   });
 });
