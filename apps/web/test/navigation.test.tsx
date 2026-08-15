@@ -25,6 +25,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Navbar } from '../src/components/nav/Navbar';
 import { ChakraRouterLink } from '../src/components/utils/ChakraRouterLink';
 import { SpotifyCallbackIngestionTokenProducerComponent } from '../src/spotify-utils/auth/SpotifyCallbackIngestionTokenProducerComponent';
+import { SpotifyLoginButton } from '../src/spotify-utils/auth/SpotifyLoginButton';
+import * as SpotifyRedirectModule from '../src/spotify-utils/auth/RedirectToSpotifyLogin';
 import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
 
@@ -46,6 +48,32 @@ function PersistentNavbarLayout() {
 }
 
 describe('navigation primitives', () => {
+  it('shows a generic error when Spotify login URL generation fails', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(SpotifyRedirectModule, 'redirectToSpotifyLogin').mockRejectedValue(
+      new Error('RAW_PRIVATE_AUTHORIZATION_ERROR'),
+    );
+
+    render(
+      <ChakraProvider theme={theme}>
+        <SpotifyLoginButton
+          scopes={['user-top-read']}
+          clientId="client-id"
+          redirectUri="https://example.com/projects/spotify/callback"
+          setCodeVerifier={vi.fn()}
+          redirectPathAfter="/projects/spotify/mytop"
+        />
+      </ChakraProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in is temporarily unavailable. Please try again.',
+    );
+    expect(document.body).not.toHaveTextContent('RAW_PRIVATE_AUTHORIZATION_ERROR');
+  });
+
   it('uses React Router navigation for internal Chakra links', async () => {
     const user = userEvent.setup();
 

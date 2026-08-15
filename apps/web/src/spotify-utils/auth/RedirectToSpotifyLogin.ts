@@ -4,10 +4,9 @@ import {
   isLocalAbsolutePath,
   type SetCodeVerifier,
   spotifyAuthStorageKeys,
+  spotifyOAuthStateMinimumLength,
   SpotifyAuthUtils,
 } from './SpotifyAuthUtils';
-
-const minimumSpotifyStateLength = 32;
 
 export async function prepareSpotifyLoginRedirect(
   codeVerifier: string,
@@ -18,7 +17,7 @@ export async function prepareSpotifyLoginRedirect(
   redirectUri: string,
   state?: string,
 ) {
-  const nextState = state || SpotifyAuthUtils.getRandomCode(minimumSpotifyStateLength);
+  const nextState = state || SpotifyAuthUtils.getRandomCode(spotifyOAuthStateMinimumLength);
   const safeRedirectPath = isLocalAbsolutePath(redirectPathAfter)
     ? redirectPathAfter
     : '/projects/spotify';

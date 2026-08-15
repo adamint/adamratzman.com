@@ -1,9 +1,12 @@
+import { ChakraProvider } from '@chakra-ui/react';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SpotifyRouteComponent } from '../src/components/projects/spotify/SpotifyRouteComponent';
+import SpotifyGenerateTokenRoute from '../src/routes/projects/spotify/generate-token';
 import SpotifyViewMyTopRoute from '../src/routes/projects/spotify/mytop';
 import { type SpotifyTokenInfo } from '../src/spotify-utils/auth/SpotifyAuthUtils';
 import * as SpotifyAuthUtils from '../src/spotify-utils/auth/SpotifyAuthUtils';
+import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
 
 const spotifyStoreState = vi.hoisted(() => ({
@@ -45,6 +48,42 @@ afterEach(() => {
 });
 
 describe('Spotify route authentication', () => {
+  it('shows a generic error when generated Spotify login URL creation fails', async () => {
+    const tokenInfo: SpotifyTokenInfo = {
+      expiry: Date.now() + 60_000,
+      token: {
+        access_token: 'access-token',
+        expires_in: 3600,
+        refresh_token: 'refresh-token',
+        scope: 'user-top-read',
+        token_type: 'Bearer',
+      },
+    };
+    spotifyStoreState.spotifyTokenInfo = tokenInfo;
+    localStorage.setItem('spotify_token', JSON.stringify(tokenInfo));
+    vi.spyOn(SpotifyAuthUtils, 'getPkceAuthUrlFull').mockRejectedValue(
+      new Error('RAW_PRIVATE_GENERATION_ERROR'),
+    );
+
+    renderWithRouter([
+      {
+        path: '/projects/spotify/generate-token',
+        Component: () => (
+          <ChakraProvider theme={theme}>
+            <SpotifyGenerateTokenRoute />
+          </ChakraProvider>
+        ),
+      },
+    ], {
+      initialEntries: ['/projects/spotify/generate-token'],
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in is temporarily unavailable. Please try again.',
+    );
+    expect(document.body).not.toHaveTextContent('RAW_PRIVATE_GENERATION_ERROR');
+  });
+
   it('preserves the fragment in the post-auth redirect', async () => {
     renderSpotifyRoute('/projects/spotify/mytop?range=short#artists');
 

@@ -5,6 +5,8 @@ import {
   Button,
   Checkbox,
   CheckboxGroup,
+  Alert,
+  AlertIcon,
   Heading,
   Link,
   SimpleGrid,
@@ -18,6 +20,7 @@ import useDeepCompareEffect from 'use-deep-compare-effect';
 import {
   createPkceCodeVerifier,
   getPkceAuthUrlFull,
+  spotifyOAuthStateMinimumLength,
   SpotifyAuthUtils,
 } from '../../../spotify-utils/auth/SpotifyAuthUtils';
 import { redirectToSpotifyLogin } from '../../../spotify-utils/auth/RedirectToSpotifyLogin';
@@ -60,26 +63,35 @@ function SpotifyGenerateTokenRoute() {
     state: string;
     url: string;
   }>();
+  const [authorizationFailed, setAuthorizationFailed] = useState(false);
   const toast = useToast();
 
   useDeepCompareEffect(() => {
     let isCurrent = true;
     void (async () => {
-      const codeVerifier = createPkceCodeVerifier();
-      const state = SpotifyAuthUtils.getRandomCode(32);
-      const url = await getPkceAuthUrlFull(
-        scopesToGenerate,
-        spotifyClientId,
-        spotifyRedirectUri(),
-        codeVerifier,
-        state,
-      );
-      if (isCurrent) {
-        setGeneratedLogin({
+      setAuthorizationFailed(false);
+      try {
+        const codeVerifier = createPkceCodeVerifier();
+        const state = SpotifyAuthUtils.getRandomCode(spotifyOAuthStateMinimumLength);
+        const url = await getPkceAuthUrlFull(
+          scopesToGenerate,
+          spotifyClientId,
+          spotifyRedirectUri(),
           codeVerifier,
           state,
-          url,
-        });
+        );
+        if (isCurrent) {
+          setGeneratedLogin({
+            codeVerifier,
+            state,
+            url,
+          });
+        }
+      } catch {
+        if (isCurrent) {
+          setGeneratedLogin(undefined);
+          setAuthorizationFailed(true);
+        }
       }
     })();
 
@@ -98,15 +110,20 @@ function SpotifyGenerateTokenRoute() {
 
   async function handleRedirectToSpotifyLinkClicked() {
     if (generatedLogin) {
-      await redirectToSpotifyLogin(
-        generatedLogin.codeVerifier,
-        '/projects/spotify/generate-token',
-        setCodeVerifier,
-        scopesToGenerate,
-        spotifyClientId,
-        spotifyRedirectUri(),
-        generatedLogin.state,
-      );
+      setAuthorizationFailed(false);
+      try {
+        await redirectToSpotifyLogin(
+          generatedLogin.codeVerifier,
+          '/projects/spotify/generate-token',
+          setCodeVerifier,
+          scopesToGenerate,
+          spotifyClientId,
+          spotifyRedirectUri(),
+          generatedLogin.state,
+        );
+      } catch {
+        setAuthorizationFailed(true);
+      }
     }
   }
 
@@ -150,6 +167,10 @@ function SpotifyGenerateTokenRoute() {
             event.preventDefault();
             void handleRedirectToSpotifyLinkClicked();
           }}>{generatedLogin?.url}</Link></Text>
+        {authorizationFailed && <Alert status='error' mt={4}>
+          <AlertIcon />
+          Spotify sign-in is temporarily unavailable. Please try again.
+        </Alert>}
         {<Text>The redirect uri used to generate this link was: <u>https://adamratzman.com/projects/spotify/callback</u></Text>}
       </Box>
     </ProjectPage>

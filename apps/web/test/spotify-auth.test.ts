@@ -17,6 +17,7 @@ const {
   isLocalAbsolutePath,
   logoutOfSpotify,
   saveTokenAndGetRedirectPath,
+  spotifyOAuthStateMinimumLength,
 } = spotifyAuthModule;
 
 const deterministicCrypto = {
@@ -217,7 +218,8 @@ describe('Spotify PKCE browser compatibility', () => {
     expect(parsed.searchParams.get('code_challenge')).toMatch(/^.+$/u);
     expect(parsed.searchParams.get('scope')).toBe(scopes.join(' '));
     expect(parsed.searchParams.get('state')).toBe(storedState);
-    expect(storedState).toMatch(/^[A-Za-z0-9._~-]{32,}$/u);
+    expect(storedState).toHaveLength(spotifyOAuthStateMinimumLength);
+    expect(storedState).toMatch(/^[A-Za-z0-9._~-]+$/u);
   });
 
   it('persists a fresh random state for each authorization transaction', async () => {
@@ -304,6 +306,55 @@ describe('Spotify PKCE browser compatibility', () => {
 
   it.each([
     {
+      label: 'refresh token',
+      responseFields: {
+        refresh_token: null,
+        scope: 'user-read-email',
+      },
+      expectedFields: {
+        refresh_token: 'refresh-token',
+        scope: 'user-read-email',
+      },
+    },
+    {
+      label: 'scope',
+      responseFields: {
+        refresh_token: 'new-refresh-token',
+        scope: null,
+      },
+      expectedFields: {
+        refresh_token: 'new-refresh-token',
+        scope: 'playlist-read-private user-top-read',
+      },
+    },
+  ])('retains the validated $label when Spotify returns null', async ({
+    responseFields,
+    expectedFields,
+  }) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      access_token: 'new-access-token',
+      token_type: 'Bearer',
+      expires_in: 1800,
+      ...responseFields,
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    const authUtils = getSpotifyAuthUtils();
+    const existingToken = createStoredToken();
+
+    authUtils.storeToken(existingToken);
+
+    await expect(authUtils.refreshToken(existingToken)).resolves.toEqual({
+      ...existingToken,
+      access_token: 'new-access-token',
+      expires_in: 1800,
+      ...expectedFields,
+    });
+  });
+
+  it.each([
+    {
       label: 'malformed JSON',
       response: new Response('{', {
         status: 200,
@@ -316,6 +367,39 @@ describe('Spotify PKCE browser compatibility', () => {
         access_token: '',
         token_type: 'Bearer',
         expires_in: 'bad-data',
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    },
+    {
+      label: 'a null access token',
+      response: new Response(JSON.stringify({
+        access_token: null,
+        token_type: 'Bearer',
+        expires_in: 1800,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    },
+    {
+      label: 'a null token type',
+      response: new Response(JSON.stringify({
+        access_token: 'new-access-token',
+        token_type: null,
+        expires_in: 1800,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    },
+    {
+      label: 'a null expiry',
+      response: new Response(JSON.stringify({
+        access_token: 'new-access-token',
+        token_type: 'Bearer',
+        expires_in: null,
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

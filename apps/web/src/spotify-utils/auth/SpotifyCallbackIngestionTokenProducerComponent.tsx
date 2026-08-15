@@ -126,9 +126,7 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
 }
 
 function clearCallbackTransaction(setCodeVerifier: SetCodeVerifier) {
-  localStorage.removeItem(spotifyAuthStorageKeys.verifier);
-  localStorage.removeItem(spotifyAuthStorageKeys.state);
-  localStorage.removeItem(spotifyAuthStorageKeys.redirectAfterAuth);
+  SpotifyAuthUtils.clearAuthorizationTransaction();
   setCodeVerifier(null);
 }
 

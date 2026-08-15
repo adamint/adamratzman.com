@@ -15,7 +15,7 @@ export const spotifyAuthStorageKeys = {
   redirectAfterAuth: 'spotify_redirect_after_auth',
   consumedCallbackCode: 'spotify_pkce_callback_code',
 } as const;
-const minimumSpotifyStateLength = 32;
+export const spotifyOAuthStateMinimumLength = 32;
 
 export type StoredSpotifyToken = {
   access_token: string;
@@ -38,8 +38,8 @@ const refreshTokenResponseSchema = z.object({
   access_token: z.string().min(1),
   token_type: z.string().min(1),
   expires_in: z.number().finite().nonnegative(),
-  refresh_token: z.string().min(1).optional(),
-  scope: z.string().optional(),
+  refresh_token: z.string().min(1).nullish(),
+  scope: z.string().nullish(),
 }).catchall(z.unknown());
 
 const tokenInfoSchema = z.object({
@@ -290,7 +290,7 @@ export const SpotifyAuthUtils = {
   },
   async getAuthorizationUrl(scopes: readonly string[], clientId: string, redirectUri: string) {
     const verifier = createPkceCodeVerifier();
-    const state = SpotifyAuthUtils.getRandomCode(minimumSpotifyStateLength);
+    const state = SpotifyAuthUtils.getRandomCode(spotifyOAuthStateMinimumLength);
     SpotifyAuthUtils.storeVerifier(verifier);
     SpotifyAuthUtils.storeState(state);
     return buildAuthorizationUrl(scopes, clientId, redirectUri, verifier, state);

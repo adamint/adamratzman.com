@@ -1,6 +1,13 @@
-import { Box, Button, Heading, Text } from '@chakra-ui/react';
+import {
+  Alert,
+  AlertIcon,
+  Box,
+  Button,
+  Heading,
+  Text,
+} from '@chakra-ui/react';
 import { FaSpotify } from 'react-icons/fa';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   createPkceCodeVerifier,
   type SetCodeVerifier,
@@ -27,16 +34,23 @@ export function SpotifyLoginButton({
                                      buttonText = null,
                                      title,
                                    }: SpotifyLoginButtonProps) {
+  const [authorizationFailed, setAuthorizationFailed] = useState(false);
+
   async function handleClickLoginButton() {
-    const newCodeVerifier = createPkceCodeVerifier();
-    await redirectToSpotifyLogin(
-      newCodeVerifier,
-      redirectPathAfter,
-      setCodeVerifier,
-      scopes,
-      clientId,
-      redirectUri,
-    );
+    setAuthorizationFailed(false);
+    try {
+      const newCodeVerifier = createPkceCodeVerifier();
+      await redirectToSpotifyLogin(
+        newCodeVerifier,
+        redirectPathAfter,
+        setCodeVerifier,
+        scopes,
+        clientId,
+        redirectUri,
+      );
+    } catch {
+      setAuthorizationFailed(true);
+    }
   }
 
   return <>
@@ -49,5 +63,9 @@ export function SpotifyLoginButton({
     }}>
       {buttonText ? buttonText : <>Log in with Spotify</>}
     </Button>
+    {authorizationFailed && <Alert status='error' mt={4}>
+      <AlertIcon />
+      Spotify sign-in is temporarily unavailable. Please try again.
+    </Alert>}
   </>;
 }
