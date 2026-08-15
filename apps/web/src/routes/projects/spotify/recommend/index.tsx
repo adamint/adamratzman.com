@@ -4,7 +4,7 @@ import { SpotifyArtistGenreTrackSearchAutocompleteComponent } from '../../../../
 import { Heading, Text } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../../components/utils/ChakraRouterLink';
 import { SpotifyTrackAttributeSelectorComponent } from '../../../../components/projects/spotify/playlist_generator/SpotifyTrackAttributeSelectorComponent';
-import { TrackAttribute } from '../../../../components/projects/spotify/TrackAttribute';
+import type { TrackAttribute } from '../../../../components/projects/spotify/TrackAttribute';
 import { SpotifyGenerateAndShowPlaylistRecommendationsComponent } from '../../../../components/projects/spotify/playlist_generator/SpotifyGenerateAndShowPlaylistRecommendationsComponent';
 import { PageTitle } from '../../../../components/meta/PageTitle';
 
@@ -26,7 +26,7 @@ export type AutocompleteOption = {
 export type SelectedTrackAttributeType = 'target' | 'min' | 'max'
 
 export type SelectedTrackAttribute = {
-  id: string;
+  id: TrackAttribute['id'];
   value: number;
   trackAttribute: TrackAttribute;
   type: SelectedTrackAttributeType

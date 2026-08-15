@@ -280,6 +280,12 @@ function validateRecommendationTrack(
   description: string,
 ) {
   const response = validateTrackCard(track, description);
+  const album = requireObject(response.album, `${description} album`);
+  const images = requireArray(album.images, `${description} album images`);
+  images.forEach((image, index) => {
+    const imageObject = requireObject(image, `${description} album images[${index}]`);
+    requireNonEmptyString(imageObject.url, `${description} album images[${index}].url`);
+  });
   requireNonEmptyString(response.uri, `${description} uri`);
   return response;
 }
@@ -466,7 +472,7 @@ function validateRecommendationSeed(
   description: string,
 ) {
   const response = requireObject(seed, description);
-  requireString(response.id, `${description} id`);
+  requireNonEmptyString(response.id, `${description} id`);
   return response;
 }
 

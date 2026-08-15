@@ -52,9 +52,9 @@ export type SpotifyRecommendationOptions = {
   seed_tracks?: string[];
 } & Partial<Record<SpotifyRecommendationTuningKey, number>>;
 
-const recommendationSeedSchema = z.string().refine(
-  value => value.trim().length > 0,
-  { message: 'Recommendation seeds must be non-empty.' },
+const recommendationSeedSchema = z.string().trim().min(
+  1,
+  'Recommendation seeds must be non-empty.',
 );
 const recommendationSeedArraySchema = z.array(recommendationSeedSchema);
 const recommendationTuningSchema = z.number().finite();

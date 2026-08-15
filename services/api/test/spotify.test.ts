@@ -1115,6 +1115,9 @@ describe('spotify routes', () => {
   it.each([
     ['unknown options', { seed_tracks: ['track-1'], market: 'US' }],
     ['zero seeds', { limit: 10 }],
+    ['whitespace-only artist seed', { seed_artists: ['   '] }],
+    ['whitespace-only genre seed', { seed_genres: ['   '] }],
+    ['whitespace-only track seed', { seed_tracks: ['   '] }],
     [
       'six total seeds',
       {
@@ -1148,25 +1151,86 @@ describe('spotify routes', () => {
       tracks: [createTrackSummary({ id: 'track-3', name: 'Kyoto' })],
       seeds: [],
     };
-    const options = {
-      seed_artists: ['artist-1'],
-      seed_genres: ['indie'],
-      seed_tracks: ['track-1'],
+    const requestOptions = {
+      seed_artists: [' artist-1 '],
+      seed_genres: [' indie '],
+      seed_tracks: [' track-1 '],
       limit: 5,
       min_popularity: 20,
       target_energy: 0.7,
+    };
+    const expectedOptions = {
+      ...requestOptions,
+      seed_artists: ['artist-1'],
+      seed_genres: ['indie'],
+      seed_tracks: ['track-1'],
     };
     spotify.getRecommendations.mockResolvedValue(spotifyResponse<'getRecommendations'>(recommendations));
 
     const response = await app.inject({
       method: 'POST',
       url: '/api/spotify/getRecommendations',
-      payload: { options },
+      payload: { options: requestOptions },
     });
 
-    expect(spotify.getRecommendations).toHaveBeenCalledWith(options);
+    expect(spotify.getRecommendations).toHaveBeenCalledWith(expectedOptions);
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(recommendations);
+  });
+
+  it.each([
+    [
+      'a malformed later image',
+      {
+        tracks: [createTrackSummary({
+          album: {
+            images: [
+              createImage('https://images.example/track.png'),
+              { url: 42 },
+            ],
+          },
+        })],
+        seeds: [],
+      },
+    ],
+    [
+      'an empty image URL',
+      {
+        tracks: [createTrackSummary({
+          album: { images: [createImage('')] },
+        })],
+        seeds: [],
+      },
+    ],
+    [
+      'an empty seed ID',
+      {
+        tracks: [createTrackSummary()],
+        seeds: [{ id: '' }],
+      },
+    ],
+  ])('returns a safe 502 when recommendations contain %s', async (
+    _label,
+    recommendations,
+  ) => {
+    const { app, spotify } = createSpotifyApp();
+    spotify.getRecommendations.mockResolvedValue(
+      spotifyResponse<'getRecommendations'>(recommendations),
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/spotify/getRecommendations',
+      payload: { options: { seed_tracks: ['track-1'] } },
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
   });
 
   it.each([

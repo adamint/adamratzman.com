@@ -83,7 +83,7 @@ function isRecommendationTrack(value: unknown): value is SpotifyRecommendationTr
     || !isNonEmptyString(value['id'])
     || !isNonEmptyString(value['name'])
     || !isFiniteNumber(value['popularity'])
-    || !isOptionalNullableString(value['preview_url'])
+    || !isOptionalNullableNonEmptyString(value['preview_url'])
     || !isNonEmptyString(value['uri'])) {
     return false;
   }
@@ -120,10 +120,10 @@ function isRecommendationSeed(
   return isRecord(value) && isNonEmptyString(value['id']);
 }
 
-function isOptionalNullableString(
+function isOptionalNullableNonEmptyString(
   value: unknown,
 ): value is string | null | undefined {
-  return value == null || typeof value === 'string';
+  return value == null || isNonEmptyString(value);
 }
 
 function isFiniteNumber(value: unknown): value is number {

@@ -32,14 +32,21 @@ describe('shared request contracts', () => {
     expect(() => searchRequestSchema.parse({ query: '   ' })).toThrow();
   });
 
-  it('accepts a supported search limit', () => {
+  it.each([1, 50])('accepts search limit boundary %s', (limit) => {
     expect(searchRequestSchema.parse({
       query: 'garden',
-      options: { limit: 50 },
+      options: { limit },
     })).toEqual({
       query: 'garden',
-      options: { limit: 50 },
+      options: { limit },
     });
+  });
+
+  it.each([0, 51, 1.5])('rejects unsupported search limit %s', (limit) => {
+    expect(() => searchRequestSchema.parse({
+      query: 'garden',
+      options: { limit },
+    })).toThrow();
   });
 
   it('rejects unknown search options', () => {
@@ -55,6 +62,29 @@ describe('shared request contracts', () => {
     })).toEqual({
       options: { seed_genres: ['rock'] },
     });
+  });
+
+  it.each([1, 100])('accepts recommendation limit boundary %s', (limit) => {
+    expect(getRecommendationsRequestSchema.parse({
+      options: {
+        limit,
+        seed_genres: ['rock'],
+      },
+    })).toEqual({
+      options: {
+        limit,
+        seed_genres: ['rock'],
+      },
+    });
+  });
+
+  it.each([0, 101, 1.5])('rejects unsupported recommendation limit %s', (limit) => {
+    expect(() => getRecommendationsRequestSchema.parse({
+      options: {
+        limit,
+        seed_genres: ['rock'],
+      },
+    })).toThrow();
   });
 
   it('rejects recommendations without seeds', () => {
@@ -94,13 +124,29 @@ describe('shared request contracts', () => {
     },
   );
 
-  it('rejects empty strings in recommendation seed arrays', () => {
+  it('rejects whitespace-only recommendation seeds', () => {
     expect(() => getRecommendationsRequestSchema.parse({
       options: {
         seed_artists: ['artist-1'],
         seed_tracks: ['   '],
       },
     })).toThrow();
+  });
+
+  it('trims every recommendation seed', () => {
+    expect(getRecommendationsRequestSchema.parse({
+      options: {
+        seed_artists: [' artist-1 '],
+        seed_genres: [' indie '],
+        seed_tracks: [' track-1 '],
+      },
+    })).toEqual({
+      options: {
+        seed_artists: ['artist-1'],
+        seed_genres: ['indie'],
+        seed_tracks: ['track-1'],
+      },
+    });
   });
 
   it('exports the exact recommendation attribute and option types', () => {

@@ -1,6 +1,8 @@
+import type { SpotifyRecommendationAttribute } from '@adamratzman/contracts';
+
 export interface TrackAttribute {
   name: string;
-  id: string;
+  id: SpotifyRecommendationAttribute;
   description: string;
   type: TrackAttributeType;
   min?: number;

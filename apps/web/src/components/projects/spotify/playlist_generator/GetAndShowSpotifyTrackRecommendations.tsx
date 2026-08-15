@@ -1,13 +1,12 @@
 import useDeepCompareEffect from 'use-deep-compare-effect';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { useState } from 'react';
-import {
-  spotifyRecommendationAttributeIds,
-  type GetRecommendationsRequest,
-  type SpotifyRecommendationAttribute,
-} from '@adamratzman/contracts';
+import type { GetRecommendationsRequest } from '@adamratzman/contracts';
 import { useData } from '../../../utils/useData';
-import { SelectedObjects, SelectedTrackAttribute } from '../../../../routes/projects/spotify/recommend';
+import type {
+  SelectedObjects,
+  SelectedTrackAttribute,
+} from '../../../../routes/projects/spotify/recommend';
 import axios, { AxiosResponse } from 'axios';
 import { useNoShowBeforeRender } from '../../../utils/useNoShowBeforeRender';
 import {
@@ -30,15 +29,6 @@ interface RecommendationReturn {
 }
 
 type RecommendationOptions = GetRecommendationsRequest['options'];
-type RecommendationTrackAttribute = SelectedTrackAttribute & {
-  id: SpotifyRecommendationAttribute;
-};
-
-function isRecommendationTrackAttribute(
-  attribute: SelectedTrackAttribute,
-): attribute is RecommendationTrackAttribute {
-  return spotifyRecommendationAttributeIds.some(id => id === attribute.id);
-}
 
 async function getRecommendations(
   options: RecommendationOptions | null,
@@ -90,11 +80,9 @@ export function GetAndShowSpotifyTrackRecommendations({
       seed_tracks: selectedObjectKeys.filter(uri => uri.startsWith('spotify:track:')).map(uri => uri.replace('spotify:track:', '')),
       limit: 50,
     };
-    selectedTrackAttributes
-      .filter(isRecommendationTrackAttribute)
-      .forEach(selectedTrackAttribute => {
-        recommendationOptions[`${selectedTrackAttribute.type}_${selectedTrackAttribute.id}`] = !selectedTrackAttribute.trackAttribute.valueMapper ? selectedTrackAttribute.value : selectedTrackAttribute.trackAttribute.valueMapper(selectedTrackAttribute.value);
-      });
+    selectedTrackAttributes.forEach(selectedTrackAttribute => {
+      recommendationOptions[`${selectedTrackAttribute.type}_${selectedTrackAttribute.id}`] = !selectedTrackAttribute.trackAttribute.valueMapper ? selectedTrackAttribute.value : selectedTrackAttribute.trackAttribute.valueMapper(selectedTrackAttribute.value);
+    });
     setOptions(recommendationOptions);
   }, [selectedObjects, selectedTrackAttributes]);
 

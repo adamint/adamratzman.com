@@ -1,11 +1,13 @@
 import type {
   SpotifyAutocompleteArtist,
   SpotifyAutocompleteTrack,
+  SpotifyRecommendationAttribute,
   SpotifyRecommendationTrack,
   SpotifyRecommendationsResponse,
   SpotifySearchPage,
 } from '@adamratzman/contracts';
 import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { TrackAttribute } from '../src/components/projects/spotify/TrackAttribute';
 import {
   isSpotifyArtistSearchPage,
   isSpotifyGenreList,
@@ -131,7 +133,7 @@ describe('Spotify browser response guards', () => {
     })).toBe(false);
   });
 
-  it('allows absent, null, or string recommendation preview URLs', () => {
+  it('allows absent, null, or non-empty recommendation preview URLs', () => {
     const withoutPreviewUrl: SpotifyRecommendationTrack = { ...recommendationTrack };
     delete withoutPreviewUrl.preview_url;
     expect(isSpotifyRecommendationsResponse({
@@ -149,6 +151,10 @@ describe('Spotify browser response guards', () => {
         preview_url: 'https://audio.example/track.mp3',
       }],
     })).toBe(true);
+    expect(isSpotifyRecommendationsResponse({
+      ...recommendations,
+      tracks: [{ ...recommendationTrack, preview_url: '' }],
+    })).toBe(false);
     expect(isSpotifyRecommendationsResponse({
       ...recommendations,
       tracks: [{ ...recommendationTrack, preview_url: 42 }],
@@ -183,5 +189,7 @@ describe('Spotify browser response guards', () => {
       .guards.toEqualTypeOf<SpotifySearchPage<SpotifyAutocompleteTrack>>();
     expectTypeOf(isSpotifyRecommendationsResponse)
       .guards.toEqualTypeOf<SpotifyRecommendationsResponse>();
+    expectTypeOf<TrackAttribute['id']>()
+      .toEqualTypeOf<SpotifyRecommendationAttribute>();
   });
 });
