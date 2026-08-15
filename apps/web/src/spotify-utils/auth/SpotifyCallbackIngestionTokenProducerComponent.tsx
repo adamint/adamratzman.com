@@ -1,21 +1,25 @@
 import axios, { AxiosResponse } from 'axios';
-import { useEffect, useRef } from 'react';
+import { Alert, AlertIcon } from '@chakra-ui/react';
+import { useEffect, useRef, useState } from 'react';
 import {
   doSpotifyPkceRefresh,
   isLocalAbsolutePath,
-  logoutOfSpotify,
   saveTokenAndGetRedirectPath,
+  type SetCodeVerifier,
   type SetSpotifyTokenInfo,
+  SpotifyAuthUtils,
   SpotifyToken,
-  SpotifyTokenInfo,
 } from './SpotifyAuthUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useLocalStorage } from '../../components/utils/useLocalStorage';
+
+const spotifyRedirectAfterAuthStorageKey = 'spotify_redirect_after_auth';
+const spotifyPkceCallbackCodeStorageKey = 'spotify_pkce_callback_code';
 
 type SpotifyCallbackIngestionTokenProducerComponentProps = {
   clientId: string;
   redirectUri: string;
   codeVerifier?: string;
+  setCodeVerifier: SetCodeVerifier;
   setSpotifyTokenInfo: SetSpotifyTokenInfo;
 }
 
@@ -23,60 +27,127 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
                                                                  clientId,
                                                                  redirectUri,
                                                                  codeVerifier,
+                                                                 setCodeVerifier,
                                                                  setSpotifyTokenInfo,
                                                                }: SpotifyCallbackIngestionTokenProducerComponentProps) {
-  const [spotifyTokenInfoStringLocalStorage, , deleteSpotifyTokenInfoFromLocalStorage] = useLocalStorage<SpotifyTokenInfo | null>('spotify_token');
-  const [spotifyPkceCallbackCodeLocalStorage, setSpotifyPkceCallbackCodeLocalStorage] = useLocalStorage<string | null>('spotify_pkce_callback_code');
-  const requestStartedRef = useRef<boolean>(false);
+  const [callbackFailed, setCallbackFailed] = useState(false);
+  const ownedCallbackRef = useRef<string | null>(null);
 
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
     void (async () => {
-        if (!codeVerifier || requestStartedRef.current) {
+        const query = new URLSearchParams(search);
+        const authCode = query.get('code');
+        const callbackState = query.get('state');
+        const providerError = query.get('error');
+        const hasCallbackResponse = query.has('code')
+          || query.has('state')
+          || query.has('error');
+
+        if (!hasCallbackResponse) {
+          const existingTokenInfo = SpotifyAuthUtils.getTokenInfo();
+          if (!existingTokenInfo) {
+            setSpotifyTokenInfo(null);
+          } else if (existingTokenInfo.expiry < Date.now()) {
+            await doSpotifyPkceRefresh(
+              clientId,
+              existingTokenInfo.token.refresh_token ?? '',
+              setSpotifyTokenInfo,
+            );
+          } else {
+            setSpotifyTokenInfo(existingTokenInfo);
+          }
           return;
         }
 
-        const authCode = new URLSearchParams(search).get('code');
-        const existingTokenInfo: SpotifyTokenInfo | null = spotifyTokenInfoStringLocalStorage ? spotifyTokenInfoStringLocalStorage : null;
-        if (spotifyPkceCallbackCodeLocalStorage !== authCode && codeVerifier && authCode) {
-          setSpotifyPkceCallbackCodeLocalStorage(authCode);
+        if (ownedCallbackRef.current === search) {
+          return;
+        }
+        ownedCallbackRef.current = search;
+        setCallbackFailed(false);
 
-          const params = new URLSearchParams();
-          params.append('grant_type', 'authorization_code');
-          params.append('code', authCode);
-          params.append('redirect_uri', redirectUri);
-          params.append('client_id', clientId);
-          params.append('code_verifier', codeVerifier);
+        if (authCode && getConsumedCallbackCode() === authCode) {
+          return;
+        }
+        if (authCode) {
+          consumeCallbackCode(authCode);
+        }
 
-          try {
-            requestStartedRef.current = true;
-            const pkceResponse = await axios.post<URLSearchParams, AxiosResponse<SpotifyToken>>('https://accounts.spotify.com/api/token', params);
-            const pathToRedirectTo = saveTokenAndGetRedirectPath(pkceResponse.data, setSpotifyTokenInfo);
-            const destination = isLocalAbsolutePath(pathToRedirectTo)
-              ? pathToRedirectTo
-              : '/projects/spotify';
-            await navigate(destination, { replace: true });
-          } catch (e) {
-            console.log(e);
-            logoutOfSpotify();
-            setSpotifyPkceCallbackCodeLocalStorage(authCode);
-            requestStartedRef.current = false;
-          }
-        } else if (!existingTokenInfo || existingTokenInfo.expiry < Date.now()) {
-          if (!existingTokenInfo || !existingTokenInfo.token?.refresh_token) {
-            deleteSpotifyTokenInfoFromLocalStorage();
-            setSpotifyTokenInfo(null);
-          } else {
-            // let's refresh the token so we don't have to re-authorize the user
-            await doSpotifyPkceRefresh(clientId, existingTokenInfo.token.refresh_token, setSpotifyTokenInfo);
-          }
-        } else setSpotifyTokenInfo(existingTokenInfo);
+        const resolvedCodeVerifier = codeVerifier || SpotifyAuthUtils.getVerifier();
+        const storedState = SpotifyAuthUtils.getState();
+        if (
+          providerError
+          || !authCode
+          || !callbackState
+          || !storedState
+          || callbackState !== storedState
+          || !resolvedCodeVerifier
+        ) {
+          clearCallbackTransaction(setCodeVerifier);
+          setCallbackFailed(true);
+          return;
+        }
+
+        const params = new URLSearchParams();
+        params.append('grant_type', 'authorization_code');
+        params.append('code', authCode);
+        params.append('redirect_uri', redirectUri);
+        params.append('client_id', clientId);
+        params.append('code_verifier', resolvedCodeVerifier);
+
+        try {
+          const pkceResponse = await axios.post<URLSearchParams, AxiosResponse<SpotifyToken>>('https://accounts.spotify.com/api/token', params);
+          const pathToRedirectTo = saveTokenAndGetRedirectPath(pkceResponse.data, setSpotifyTokenInfo);
+          clearCallbackTransaction(setCodeVerifier);
+          const destination = isLocalAbsolutePath(pathToRedirectTo)
+            ? pathToRedirectTo
+            : '/projects/spotify';
+          await navigate(destination, { replace: true });
+        } catch {
+          clearCallbackTransaction(setCodeVerifier);
+          setCallbackFailed(true);
+        }
       }
     )();
-  }, [spotifyPkceCallbackCodeLocalStorage, codeVerifier, pathname, search]);
+  }, [
+    clientId,
+    codeVerifier,
+    navigate,
+    pathname,
+    redirectUri,
+    search,
+    setCodeVerifier,
+    setSpotifyTokenInfo,
+  ]);
 
+  return callbackFailed
+    ? <Alert status="error"><AlertIcon />Spotify sign-in could not be completed</Alert>
+    : null;
+}
 
-  return null;
+function clearCallbackTransaction(setCodeVerifier: SetCodeVerifier) {
+  localStorage.removeItem(SpotifyAuthUtils.spotifyVerifierStorageKey);
+  localStorage.removeItem(SpotifyAuthUtils.spotifyStateStorageKey);
+  localStorage.removeItem(spotifyRedirectAfterAuthStorageKey);
+  setCodeVerifier(null);
+}
+
+function consumeCallbackCode(authCode: string) {
+  localStorage.setItem(spotifyPkceCallbackCodeStorageKey, JSON.stringify(authCode));
+}
+
+function getConsumedCallbackCode() {
+  const storedCode = localStorage.getItem(spotifyPkceCallbackCodeStorageKey);
+  if (!storedCode) {
+    return null;
+  }
+
+  try {
+    const parsedCode: unknown = JSON.parse(storedCode);
+    return typeof parsedCode === 'string' ? parsedCode : null;
+  } catch {
+    return storedCode;
+  }
 }

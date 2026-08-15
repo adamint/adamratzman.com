@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getSpotifyClientId } from '../src/components/utils/useSpotifyStore';
+import { prepareSpotifyLoginRedirect } from '../src/spotify-utils/auth/RedirectToSpotifyLogin';
 import * as spotifyAuthModule from '../src/spotify-utils/auth/SpotifyAuthUtils';
 
 afterEach(() => {
@@ -353,6 +354,55 @@ describe('Spotify PKCE browser compatibility', () => {
 });
 
 describe('Spotify redirect validation', () => {
+  it('prepares a fresh login transaction with matching state and PKCE challenge', async () => {
+    const codeVerifier = 'a'.repeat(43);
+    const setCodeVerifier = vi.fn();
+    localStorage.setItem('spotify_pkce_callback_code', JSON.stringify('old-code'));
+
+    const authorizationUrl = await prepareSpotifyLoginRedirect(
+      codeVerifier,
+      '/projects/spotify/mytop?tab=artists#top',
+      setCodeVerifier,
+      ['user-top-read'],
+      'spotify-client-id',
+      'https://example.com/projects/spotify/callback',
+      'deterministic-state',
+    );
+
+    const parsedUrl = new URL(authorizationUrl);
+    expect(localStorage.getItem('spotify_code_verifier')).toBe(codeVerifier);
+    expect(localStorage.getItem('spotify-state')).toBe('deterministic-state');
+    expect(localStorage.getItem('spotify_redirect_after_auth')).toBe(
+      '/projects/spotify/mytop?tab=artists#top',
+    );
+    expect(localStorage.getItem('spotify_pkce_callback_code')).toBeNull();
+    expect(setCodeVerifier).toHaveBeenCalledWith(codeVerifier);
+    expect(parsedUrl.searchParams.get('state')).toBe('deterministic-state');
+    expect(parsedUrl.searchParams.get('code_challenge')).toBe(
+      await spotifyAuthModule.getCodeChallengeForCodeVerifier(codeVerifier),
+    );
+  });
+
+  it.each([
+    '//evil.example/steal',
+    'https://evil.example/steal',
+    'projects/spotify',
+  ])('falls back from unsafe login redirect %s', async (redirectPathAfter) => {
+    await prepareSpotifyLoginRedirect(
+      'b'.repeat(43),
+      redirectPathAfter,
+      vi.fn(),
+      [],
+      'spotify-client-id',
+      'https://example.com/projects/spotify/callback',
+      'deterministic-state',
+    );
+
+    expect(localStorage.getItem('spotify_redirect_after_auth')).toBe(
+      '/projects/spotify',
+    );
+  });
+
   it.each([
     { path: '/', accepted: true },
     { path: '/projects/spotify/mytop?tab=artists#top', accepted: true },

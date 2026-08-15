@@ -46,7 +46,8 @@ export function SpotifyRouteComponent({ title, children }: SpotifyRouteComponent
     <SpotifyCallbackIngestionTokenProducerComponent setSpotifyTokenInfo={setSpotifyTokenInfo}
                                                     clientId={spotifyClientId}
                                                     redirectUri={spotifyRedirectUri()}
-                                                    codeVerifier={codeVerifier} />
+                                                    codeVerifier={codeVerifier}
+                                                    setCodeVerifier={setCodeVerifier} />
 
     {spotifyTokenInfo ? <>
       {children}
@@ -55,7 +56,6 @@ export function SpotifyRouteComponent({ title, children }: SpotifyRouteComponent
         scopes={buildSpotifyScopes(['user-library-read', 'user-top-read', 'user-read-recently-played', 'user-read-playback-position'])}
         clientId={spotifyClientId}
         redirectUri={spotifyRedirectUri()}
-        codeVerifier={codeVerifier}
         setCodeVerifier={setCodeVerifier}
         redirectPathAfter={buildSpotifyRedirectPath(location)}
         buttonText='Log in with Spotify to view this page'

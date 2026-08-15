@@ -1,20 +1,18 @@
 import { Box, Button, Heading, Text } from '@chakra-ui/react';
 import { FaSpotify } from 'react-icons/fa';
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   createPkceCodeVerifier,
-  redirectToSpotifyLogin,
   type SetCodeVerifier,
 } from './SpotifyAuthUtils';
+import { redirectToSpotifyLogin } from './RedirectToSpotifyLogin';
 import { ChakraRouterLink } from '../../components/utils/ChakraRouterLink';
 
 type SpotifyLoginButtonProps = {
   scopes: string[];
   clientId: string;
   redirectUri: string;
-  codeVerifier?: string;
   setCodeVerifier: SetCodeVerifier;
-  state?: string | null;
   redirectPathAfter: string;
   buttonText?: string | null;
   title?: string;
@@ -24,22 +22,21 @@ export function SpotifyLoginButton({
                                      scopes,
                                      clientId,
                                      redirectUri,
-                                     codeVerifier,
                                      setCodeVerifier,
-                                     state = null,
                                      redirectPathAfter,
                                      buttonText = null,
                                      title,
                                    }: SpotifyLoginButtonProps) {
-  useEffect(() => {
-    const savedCodeVerifier = localStorage.getItem('spotify_code_verifier');
-    if (codeVerifier !== savedCodeVerifier) setCodeVerifier(savedCodeVerifier);
-  }, []);
-
-
   async function handleClickLoginButton() {
     const newCodeVerifier = createPkceCodeVerifier();
-    await redirectToSpotifyLogin(newCodeVerifier, redirectPathAfter, setCodeVerifier, scopes, clientId, redirectUri, state);
+    await redirectToSpotifyLogin(
+      newCodeVerifier,
+      redirectPathAfter,
+      setCodeVerifier,
+      scopes,
+      clientId,
+      redirectUri,
+    );
   }
 
   return <>

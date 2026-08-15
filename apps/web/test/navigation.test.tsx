@@ -377,7 +377,7 @@ describe('navigation primitives', () => {
     const { router } = renderSpotifyCallback({
       initialEntries: [
         '/before',
-        '/projects/spotify/callback?code=callback-code',
+        '/projects/spotify/callback?code=callback-code&state=callback-state',
       ],
       initialIndex: 1,
     });
@@ -390,6 +390,9 @@ describe('navigation primitives', () => {
     });
     expect(router.state.historyAction).toBe('REPLACE');
     expect(postSpy).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('spotify_code_verifier')).toBeNull();
+    expect(localStorage.getItem('spotify-state')).toBeNull();
+    expect(localStorage.getItem('spotify_redirect_after_auth')).toBeNull();
 
     await act(async () => {
       await router.navigate(-1);
@@ -406,7 +409,7 @@ describe('navigation primitives', () => {
     const postSpy = mockSpotifyTokenExchange();
     const { router } = renderSpotifyCallback({
       initialEntries: [
-        '/projects/spotify/callback?code=previous-code',
+        '/projects/spotify/callback?code=previous-code&state=callback-state',
       ],
     });
 
@@ -415,7 +418,7 @@ describe('navigation primitives', () => {
     });
 
     await act(async () => {
-      await router.navigate('/projects/spotify/callback?code=new-code');
+      await router.navigate('/projects/spotify/callback?code=new-code&state=callback-state');
     });
 
     expect(await screen.findByRole('heading', {
@@ -430,7 +433,7 @@ describe('navigation primitives', () => {
     const postSpy = mockSpotifyTokenExchange();
     const firstRender = renderSpotifyCallback({
       initialEntries: [
-        '/projects/spotify/callback?code=callback-code',
+        '/projects/spotify/callback?code=callback-code&state=callback-state',
       ],
     });
 
@@ -442,8 +445,9 @@ describe('navigation primitives', () => {
     firstRender.unmount();
     const replayRender = renderSpotifyCallback({
       initialEntries: [
-        '/projects/spotify/callback?code=callback-code',
+        '/projects/spotify/callback?code=callback-code&state=callback-state',
       ],
+      seedTransaction: false,
     });
 
     await act(async () => {
@@ -457,7 +461,7 @@ describe('navigation primitives', () => {
     replayRender.unmount();
     renderSpotifyCallback({
       initialEntries: [
-        '/projects/spotify/callback?code=new-code',
+        '/projects/spotify/callback?code=new-code&state=callback-state',
       ],
     });
 
@@ -485,7 +489,7 @@ describe('navigation primitives', () => {
     });
     const { router } = renderSpotifyCallback({
       initialEntries: [
-        '/projects/spotify/callback?code=callback-code',
+        '/projects/spotify/callback?code=callback-code&state=callback-state',
       ],
       spotifyProjectLoader: () => pendingNavigation,
     });
@@ -509,17 +513,19 @@ describe('navigation primitives', () => {
     })).toBeVisible();
   });
 
-  it('persists a failed callback request code across remounts', async () => {
-    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  it('keeps a failed callback code consumed and clears the transaction', async () => {
     const postSpy = vi.spyOn(axios, 'post').mockRejectedValue(
       new Error('invalid one-time code'),
     );
     const firstRender = renderSpotifyCallback({
       initialEntries: [
-        '/projects/spotify/callback?code=callback-code',
+        '/projects/spotify/callback?code=callback-code&state=callback-state',
       ],
     });
 
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in could not be completed',
+    );
     await waitFor(() => {
       expect(postSpy).toHaveBeenCalledTimes(1);
     });
@@ -528,18 +534,73 @@ describe('navigation primitives', () => {
         JSON.stringify('callback-code'),
       );
     });
+    expect(localStorage.getItem('spotify_code_verifier')).toBeNull();
+    expect(localStorage.getItem('spotify-state')).toBeNull();
+    expect(localStorage.getItem('spotify_redirect_after_auth')).toBeNull();
 
     firstRender.unmount();
     renderSpotifyCallback({
       initialEntries: [
-        '/projects/spotify/callback?code=callback-code',
+        '/projects/spotify/callback?code=callback-code&state=callback-state',
       ],
+      seedTransaction: false,
     });
 
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 150));
     });
     expect(postSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a mismatched callback state without exchanging the code', async () => {
+    const postSpy = vi.spyOn(axios, 'post');
+    const { setCodeVerifier } = renderSpotifyCallback({
+      initialEntries: [
+        '/projects/spotify/callback?code=callback-code&state=wrong-state',
+      ],
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in could not be completed',
+    );
+    expect(postSpy).not.toHaveBeenCalled();
+    expect(localStorage.getItem('spotify_code_verifier')).toBeNull();
+    expect(localStorage.getItem('spotify-state')).toBeNull();
+    expect(setCodeVerifier).toHaveBeenCalledWith(null);
+  });
+
+  it('rejects a callback without state without exchanging the code', async () => {
+    const postSpy = vi.spyOn(axios, 'post');
+    const { setCodeVerifier } = renderSpotifyCallback({
+      initialEntries: [
+        '/projects/spotify/callback?code=callback-code',
+      ],
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in could not be completed',
+    );
+    expect(postSpy).not.toHaveBeenCalled();
+    expect(localStorage.getItem('spotify_code_verifier')).toBeNull();
+    expect(localStorage.getItem('spotify-state')).toBeNull();
+    expect(setCodeVerifier).toHaveBeenCalledWith(null);
+  });
+
+  it('does not expose provider denial details', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    renderSpotifyCallback({
+      initialEntries: [
+        '/projects/spotify/callback?error=access_denied&error_description=RAW_PRIVATE_PROVIDER_TEXT&state=callback-state',
+      ],
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in could not be completed',
+    );
+    expect(document.body).not.toHaveTextContent('RAW_PRIVATE_PROVIDER_TEXT');
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -551,7 +612,7 @@ describe('navigation primitives', () => {
     mockSpotifyTokenExchange();
     const { router } = renderSpotifyCallback({
       initialEntries: [
-        '/projects/spotify/callback?code=callback-code',
+        '/projects/spotify/callback?code=callback-code&state=callback-state',
       ],
     });
 
@@ -631,12 +692,19 @@ function renderSpotifyCallback({
   initialEntries,
   initialIndex = 0,
   spotifyProjectLoader,
+  seedTransaction = true,
 }: {
   initialEntries: string[];
   initialIndex?: number;
   spotifyProjectLoader?: RouteObject['loader'];
+  seedTransaction?: boolean;
 }) {
   const setSpotifyTokenInfo = vi.fn();
+  const setCodeVerifier = vi.fn();
+  if (seedTransaction) {
+    localStorage.setItem('spotify_code_verifier', 'code-verifier');
+    localStorage.setItem('spotify-state', 'callback-state');
+  }
   const routes: RouteObject[] = [
     { path: '/before', Component: () => <h1>Before callback</h1> },
     {
@@ -646,6 +714,7 @@ function renderSpotifyCallback({
           clientId="client-id"
           codeVerifier="code-verifier"
           redirectUri="https://example.com/projects/spotify/callback"
+          setCodeVerifier={setCodeVerifier}
           setSpotifyTokenInfo={setSpotifyTokenInfo}
         />
       ),
@@ -658,8 +727,12 @@ function renderSpotifyCallback({
     },
   ];
 
-  return renderWithRouter(routes, {
-    initialEntries,
-    initialIndex,
-  });
+  return {
+    ...renderWithRouter(routes, {
+      initialEntries,
+      initialIndex,
+    }),
+    setCodeVerifier,
+    setSpotifyTokenInfo,
+  };
 }

@@ -15,7 +15,12 @@ import {
 import moment from 'moment';
 import { useState } from 'react';
 import useDeepCompareEffect from 'use-deep-compare-effect';
-import { getPkceAuthUrlFull, redirectToSpotifyLogin } from '../../../spotify-utils/auth/SpotifyAuthUtils';
+import {
+  createPkceCodeVerifier,
+  getPkceAuthUrlFull,
+  SpotifyAuthUtils,
+} from '../../../spotify-utils/auth/SpotifyAuthUtils';
+import { redirectToSpotifyLogin } from '../../../spotify-utils/auth/RedirectToSpotifyLogin';
 import { SpotifyRouteComponent } from '../../../components/projects/spotify/SpotifyRouteComponent';
 import { useSpotifyStore } from '../../../components/utils/useSpotifyStore';
 import shallow from 'zustand/shallow';
@@ -46,20 +51,42 @@ const spotifyScopes = [
 function SpotifyGenerateTokenRoute() {
   const [spotifyClientId, spotifyRedirectUri] = useSpotifyStore(state => [state.spotifyClientId, state.spotifyRedirectUri], shallow);
   const [spotifyTokenInfo, setSpotifyTokenInfo] = useSpotifyStore(state => [state.spotifyTokenInfo, state.setSpotifyTokenInfo], shallow);
-  const [codeVerifier, setCodeVerifier] = useSpotifyStore(state => [state.codeVerifier, state.setCodeVerifier], shallow);
+  const setCodeVerifier = useSpotifyStore(state => state.setCodeVerifier);
 
   const { hasCopied, onCopy } = useClipboard(spotifyTokenInfo?.token['access_token'] ?? '');
   const [scopesToGenerate, setScopesToGenerate] = useState<string[]>([]);
-  const [generatedOAuthRedirectUrl, setGeneratedOAuthRedirectUrl] = useState<string>();
+  const [generatedLogin, setGeneratedLogin] = useState<{
+    codeVerifier: string;
+    state: string;
+    url: string;
+  }>();
   const toast = useToast();
 
   useDeepCompareEffect(() => {
+    let isCurrent = true;
     void (async () => {
-      if (codeVerifier) {
-        setGeneratedOAuthRedirectUrl(await getPkceAuthUrlFull(scopesToGenerate, spotifyClientId, spotifyRedirectUri(), codeVerifier, null));
+      const codeVerifier = createPkceCodeVerifier();
+      const state = SpotifyAuthUtils.getRandomCode(32);
+      const url = await getPkceAuthUrlFull(
+        scopesToGenerate,
+        spotifyClientId,
+        spotifyRedirectUri(),
+        codeVerifier,
+        state,
+      );
+      if (isCurrent) {
+        setGeneratedLogin({
+          codeVerifier,
+          state,
+          url,
+        });
       }
     })();
-  }, [codeVerifier, scopesToGenerate]);
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [scopesToGenerate, spotifyClientId, spotifyRedirectUri]);
 
   function handleCopyTokenButtonClicked() {
     onCopy();
@@ -70,8 +97,16 @@ function SpotifyGenerateTokenRoute() {
   }
 
   async function handleRedirectToSpotifyLinkClicked() {
-    if (codeVerifier) {
-      await redirectToSpotifyLogin(codeVerifier, '/projects/spotify/generate-token', setCodeVerifier, scopesToGenerate, spotifyClientId, spotifyRedirectUri());
+    if (generatedLogin) {
+      await redirectToSpotifyLogin(
+        generatedLogin.codeVerifier,
+        '/projects/spotify/generate-token',
+        setCodeVerifier,
+        scopesToGenerate,
+        spotifyClientId,
+        spotifyRedirectUri(),
+        generatedLogin.state,
+      );
     }
   }
 
@@ -110,9 +145,11 @@ function SpotifyGenerateTokenRoute() {
           </SimpleGrid>
         </CheckboxGroup>
         <Text fontSize='lg'><b>Your generated url is:</b> <Link
-          onClick={() => {
+          href={generatedLogin?.url}
+          onClick={(event) => {
+            event.preventDefault();
             void handleRedirectToSpotifyLinkClicked();
-          }}>{generatedOAuthRedirectUrl}</Link></Text>
+          }}>{generatedLogin?.url}</Link></Text>
         {<Text>The redirect uri used to generate this link was: <u>https://adamratzman.com/projects/spotify/callback</u></Text>}
       </Box>
     </ProjectPage>

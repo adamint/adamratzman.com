@@ -1,6 +1,11 @@
 import { Box, Heading, Text } from '@chakra-ui/react';
 import { SpotifyLoginButton } from './SpotifyLoginButton';
-import { type SetCodeVerifier, SpotifyToken, SpotifyTokenInfo } from './SpotifyAuthUtils';
+import {
+  type SetCodeVerifier,
+  SpotifyAuthUtils,
+  SpotifyToken,
+  type SpotifyTokenInfo,
+} from './SpotifyAuthUtils';
 import React, { useEffect, useState } from 'react';
 
 type RequireSpotifyScopesOrElseShowLoginProps = {
@@ -19,7 +24,6 @@ type RequireSpotifyScopesOrElseShowLoginProps = {
 export function RequireSpotifyScopesOrElseShowLogin({
                                                       clientId,
                                                       redirectUri,
-                                                      codeVerifier,
                                                       setCodeVerifier,
                                                       redirectPathAfter,
                                                       requiredScopes,
@@ -27,16 +31,11 @@ export function RequireSpotifyScopesOrElseShowLogin({
                                                       children,
                                                       title,
                                                     }: RequireSpotifyScopesOrElseShowLoginProps) {
-  const [spotifyTokenInfoStringLocalStorage, setSpotifyTokenInfoStringLocalStorage] = useState<SpotifyTokenInfo | null | undefined>(undefined);
+  const [storedSpotifyTokenInfo, setStoredSpotifyTokenInfo] = useState<SpotifyTokenInfo | null | undefined>(undefined);
   const [shouldRender, setShouldRender] = useState<boolean>(false);
 
-  function getStoredTokenInfo() {
-    const storedToken = localStorage.getItem('spotify_token');
-    return storedToken ? JSON.parse(storedToken) as SpotifyTokenInfo : null;
-  }
-
   useEffect(() => {
-    const updateTokenInfo = () => setSpotifyTokenInfoStringLocalStorage(getStoredTokenInfo());
+    const updateTokenInfo = () => setStoredSpotifyTokenInfo(SpotifyAuthUtils.getTokenInfo());
 
     updateTokenInfo();
     const refreshId = setInterval(updateTokenInfo, 100);
@@ -46,10 +45,8 @@ export function RequireSpotifyScopesOrElseShowLogin({
 
   const hasScopes = spotifyToken.scope?.split(' ') ?? [];
 
-  if (spotifyTokenInfoStringLocalStorage === undefined || !shouldRender) return null;
-  if (spotifyTokenInfoStringLocalStorage && spotifyTokenInfoStringLocalStorage.expiry < Date.now()) {
-    return null;
-  }
+  if (storedSpotifyTokenInfo === undefined || !shouldRender || storedSpotifyTokenInfo === null) return null;
+  if (storedSpotifyTokenInfo.expiry < Date.now()) return null;
   if (requiredScopes.some(requiredScope => !hasScopes.includes(requiredScope))) {
     const doesntHaveScopes = requiredScopes.filter(requiredScope => !hasScopes.includes(requiredScope));
     const scopesToAuthorizeWith = hasScopes.concat(doesntHaveScopes);
@@ -64,7 +61,6 @@ export function RequireSpotifyScopesOrElseShowLogin({
         scopes={scopesToAuthorizeWith}
         clientId={clientId}
         redirectUri={redirectUri}
-        codeVerifier={codeVerifier}
         setCodeVerifier={setCodeVerifier}
         redirectPathAfter={redirectPathAfter}
         title={title} />

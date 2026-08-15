@@ -83,6 +83,43 @@ describe('Spotify route authentication', () => {
     );
   });
 
+  it('clears malformed persisted token data while checking required scopes', async () => {
+    spotifyStoreState.spotifyTokenInfo = {
+      expiry: Date.now() + 60_000,
+      token: {
+        access_token: 'access-token',
+        expires_in: 3600,
+        refresh_token: 'refresh-token',
+        scope: 'user-library-read',
+        token_type: 'Bearer',
+      },
+    };
+    localStorage.setItem('spotify_token', '{"badJson":');
+
+    renderWithRouter([
+      {
+        path: '/projects/spotify/mytop',
+        Component: SpotifyViewMyTopRoute,
+      },
+    ], {
+      initialEntries: ['/projects/spotify/mytop'],
+    });
+
+    await waitFor(() => {
+      expect(localStorage.getItem('spotify_token')).toBeNull();
+    });
+    expect(screen.queryByText('Unexpected Application Error!')).not.toBeInTheDocument();
+  });
+
+  it('clears malformed persisted token data during unauthenticated initialization', async () => {
+    localStorage.setItem('spotify_token', '{"badJson":');
+
+    renderSpotifyRoute('/projects/spotify');
+
+    expect(await screen.findByTestId('spotify-login')).toBeVisible();
+    expect(localStorage.getItem('spotify_token')).toBeNull();
+  });
+
   it.each([
     '/projects/spotify/recommend/create-playlist',
     '/projects/spotify/recommend/create-playlist/',

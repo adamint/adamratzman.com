@@ -256,6 +256,20 @@ export const SpotifyAuthUtils = {
   getToken() {
     return getStoredTokenInfo()?.token ?? null;
   },
+  getTokenInfo() {
+    const token = SpotifyAuthUtils.getToken();
+    if (!token) {
+      return null;
+    }
+
+    const tokenInfo = getStoredTokenInfo();
+    return tokenInfo
+      ? {
+        expiry: tokenInfo.expiry,
+        token,
+      }
+      : null;
+  },
   clearToken() {
     removeStoredTokenOnly();
     SpotifyAuthUtils.clearAuthorizationTransaction();
@@ -329,24 +343,6 @@ export async function getCodeChallengeForCodeVerifier(codeVerifier: string): Pro
 
 export function logoutOfSpotify() {
   SpotifyAuthUtils.clearToken();
-}
-
-export async function redirectToSpotifyLogin(
-  codeVerifier: string,
-  redirectPathAfter: string,
-  setCodeVerifier: SetCodeVerifier,
-  scopes: string[],
-  clientId: string,
-  redirectUri: string,
-  state: string | null = null,
-) {
-  const nextState = state ?? SpotifyAuthUtils.getRandomCode(minimumSpotifyStateLength);
-  SpotifyAuthUtils.storeVerifier(codeVerifier);
-  SpotifyAuthUtils.storeState(nextState);
-  localStorage.setItem(spotifyRedirectAfterAuthStorageKey, redirectPathAfter);
-  setCodeVerifier(codeVerifier);
-  const pkceUrl = await getPkceAuthUrlFull(scopes, clientId, redirectUri, codeVerifier, nextState);
-  window.location.href = pkceUrl;
 }
 
 export async function doSpotifyPkceRefresh(
