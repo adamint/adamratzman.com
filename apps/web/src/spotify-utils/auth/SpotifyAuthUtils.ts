@@ -1,6 +1,6 @@
 import { Sha256 } from '@aws-crypto/sha256-browser';
-import axios, { AxiosResponse } from 'axios';
 import SpotifyWebApi from 'spotify-web-api-js';
+import { z } from 'zod';
 
 export interface PkceGuardedSpotifyWebApiJs {
   getApi: () => Promise<SpotifyWebApi.SpotifyWebApiJs>;
@@ -8,6 +8,45 @@ export interface PkceGuardedSpotifyWebApiJs {
 
 export type SetCodeVerifier = (newVerifier: string | null | undefined) => void;
 export type SetSpotifyTokenInfo = (newSpotifyTokenInfo: SpotifyTokenInfo | null) => void;
+export const spotifyStorageKey = 'spotify_token';
+export const spotifyVerifierStorageKey = 'spotify_code_verifier';
+export const spotifyStateStorageKey = 'spotify-state';
+
+const spotifyRedirectAfterAuthStorageKey = 'spotify_redirect_after_auth';
+const spotifyPkceCallbackCodeStorageKey = 'spotify_pkce_callback_code';
+const minimumSpotifyStateLength = 32;
+
+export type StoredSpotifyToken = {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token: string;
+  scope: string;
+  [key: string]: unknown;
+};
+
+const tokenSchema = z.object({
+  access_token: z.string().min(1),
+  token_type: z.string().min(1),
+  expires_in: z.number().finite().nonnegative(),
+  refresh_token: z.string().min(1),
+  scope: z.string(),
+}).catchall(z.unknown());
+
+const refreshTokenResponseSchema = z.object({
+  access_token: z.string().min(1),
+  token_type: z.string().min(1),
+  expires_in: z.number().finite().nonnegative(),
+  refresh_token: z.string().min(1).optional(),
+  scope: z.string().optional(),
+}).catchall(z.unknown());
+
+const tokenInfoSchema = z.object({
+  expiry: z.number().finite(),
+  token: tokenSchema,
+});
+
+type SpotifyRefreshTokenResponse = z.infer<typeof refreshTokenResponseSchema>;
 
 export function buildSpotifyRedirectPath(location: {
   pathname: string;
@@ -41,6 +80,216 @@ export function createPkceCodeVerifier(
   return Array.from(randomValues, value => pkceCharacters[value % pkceCharacters.length]).join('');
 }
 
+function getSpotifyClientIdFromEnv() {
+  const env = import.meta.env as {
+    NEXT_PUBLIC_SPOTIFY_CLIENT_ID?: string;
+    VITE_SPOTIFY_CLIENT_ID?: string;
+  };
+
+  return env.VITE_SPOTIFY_CLIENT_ID
+    ?? env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID
+    ?? '';
+}
+
+function removeStoredTokenOnly() {
+  localStorage.removeItem(spotifyStorageKey);
+}
+
+function getSpotifyTokenInfoFromToken(token: StoredSpotifyToken): SpotifyTokenInfo {
+  return {
+    expiry: Date.now() + token.expires_in * 1000,
+    token,
+  };
+}
+
+function getStoredTokenInfo(): SpotifyTokenInfo | null {
+  const storedValue = localStorage.getItem(spotifyStorageKey);
+  if (!storedValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue: unknown = JSON.parse(storedValue);
+    const parsedTokenInfo = tokenInfoSchema.safeParse(parsedValue);
+    if (parsedTokenInfo.success) {
+      return parsedTokenInfo.data as SpotifyTokenInfo;
+    }
+  } catch {
+    removeStoredTokenOnly();
+    return null;
+  }
+
+  removeStoredTokenOnly();
+  return null;
+}
+
+function buildAuthorizationUrl(
+  scopes: readonly string[],
+  clientId: string,
+  redirectUri: string,
+  codeVerifier: string,
+  state: string | null,
+) {
+  return getCodeChallengeForCodeVerifier(codeVerifier).then(codeChallenge => {
+    const url = new URL('https://accounts.spotify.com/authorize');
+    url.searchParams.set('client_id', clientId);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('redirect_uri', redirectUri);
+    url.searchParams.set('code_challenge_method', 'S256');
+    url.searchParams.set('code_challenge', codeChallenge);
+
+    if (state) {
+      url.searchParams.set('state', state);
+    }
+
+    if (scopes.length > 0) {
+      url.searchParams.set('scope', scopes.join(' '));
+    }
+
+    return url.toString();
+  });
+}
+
+function getRefreshSeedToken(refreshToken: string): StoredSpotifyToken {
+  const existingToken = getStoredTokenInfo()?.token;
+  return {
+    ...existingToken,
+    access_token: existingToken?.access_token ?? 'refresh-seed-token',
+    token_type: existingToken?.token_type ?? 'Bearer',
+    expires_in: existingToken?.expires_in ?? 0,
+    refresh_token: refreshToken,
+    scope: existingToken?.scope ?? '',
+  };
+}
+
+function mergeStoredToken(
+  responseBody: unknown,
+  currentToken: StoredSpotifyToken,
+): StoredSpotifyToken | null {
+  const parsedResponse = refreshTokenResponseSchema.safeParse(responseBody);
+  if (!parsedResponse.success) {
+    return null;
+  }
+
+  const responseToken: SpotifyRefreshTokenResponse = parsedResponse.data;
+  const mergedToken = {
+    ...currentToken,
+    ...responseToken,
+    refresh_token: responseToken.refresh_token ?? currentToken.refresh_token,
+    scope: responseToken.scope ?? currentToken.scope,
+  };
+
+  const parsedToken = tokenSchema.safeParse(mergedToken);
+  return parsedToken.success
+    ? parsedToken.data as StoredSpotifyToken
+    : null;
+}
+
+function parseInitialStoredToken(token: SpotifyToken): StoredSpotifyToken | null {
+  const parsedToken = tokenSchema.safeParse(token);
+  return parsedToken.success
+    ? parsedToken.data as StoredSpotifyToken
+    : null;
+}
+
+async function requestSpotifyTokenRefresh(
+  currentToken: StoredSpotifyToken,
+  clientId: string,
+  redirectUri: string,
+): Promise<StoredSpotifyToken | null> {
+  const params = new URLSearchParams();
+  params.set('grant_type', 'refresh_token');
+  params.set('refresh_token', currentToken.refresh_token);
+  params.set('client_id', clientId);
+  params.set('redirect_uri', redirectUri);
+
+  try {
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params,
+    });
+
+    if (!response.ok) {
+      SpotifyAuthUtils.clearToken();
+      return null;
+    }
+
+    const responseBody: unknown = await response.json().catch(() => null);
+    const mergedToken = mergeStoredToken(responseBody, currentToken);
+
+    if (!mergedToken) {
+      SpotifyAuthUtils.clearToken();
+      return null;
+    }
+
+    SpotifyAuthUtils.storeToken(mergedToken);
+    return mergedToken;
+  } catch {
+    SpotifyAuthUtils.clearToken();
+    return null;
+  }
+}
+
+export const SpotifyAuthUtils = {
+  spotifyStorageKey,
+  spotifyVerifierStorageKey,
+  spotifyStateStorageKey,
+
+  storeVerifier(verifier: string) {
+    localStorage.setItem(spotifyVerifierStorageKey, verifier);
+  },
+  getVerifier() {
+    return localStorage.getItem(spotifyVerifierStorageKey) ?? '';
+  },
+  storeState(state: string) {
+    localStorage.setItem(spotifyStateStorageKey, state);
+  },
+  getState() {
+    return localStorage.getItem(spotifyStateStorageKey) ?? '';
+  },
+  clearAuthorizationTransaction() {
+    localStorage.removeItem(spotifyVerifierStorageKey);
+    localStorage.removeItem(spotifyStateStorageKey);
+    localStorage.removeItem(spotifyRedirectAfterAuthStorageKey);
+    localStorage.removeItem(spotifyPkceCallbackCodeStorageKey);
+  },
+  storeToken(token: StoredSpotifyToken) {
+    localStorage.setItem(spotifyStorageKey, JSON.stringify(getSpotifyTokenInfoFromToken(token)));
+  },
+  getToken() {
+    return getStoredTokenInfo()?.token ?? null;
+  },
+  clearToken() {
+    removeStoredTokenOnly();
+    SpotifyAuthUtils.clearAuthorizationTransaction();
+  },
+  getRandomCode(length: number) {
+    if (!globalThis.crypto?.getRandomValues) {
+      throw new Error('The Web Crypto API is unavailable.');
+    }
+
+    const randomValues = new Uint8Array(length);
+    globalThis.crypto.getRandomValues(randomValues);
+    return Array.from(randomValues, value => pkceCharacters[value % pkceCharacters.length]).join('');
+  },
+  getRedirectUri() {
+    return `${window.location.protocol}//${window.location.host}/projects/spotify/callback`;
+  },
+  async getAuthorizationUrl(scopes: readonly string[], clientId: string, redirectUri: string) {
+    const verifier = createPkceCodeVerifier();
+    const state = SpotifyAuthUtils.getRandomCode(minimumSpotifyStateLength);
+    SpotifyAuthUtils.storeVerifier(verifier);
+    SpotifyAuthUtils.storeState(state);
+    return buildAuthorizationUrl(scopes, clientId, redirectUri, verifier, state);
+  },
+  async refreshToken(token: StoredSpotifyToken) {
+    return requestSpotifyTokenRefresh(token, getSpotifyClientIdFromEnv(), SpotifyAuthUtils.getRedirectUri());
+  },
+};
+
 export function useSpotifyWebApiGuardValidPkceToken(
   clientId: string,
   spotifyTokenInfo: SpotifyTokenInfo | null,
@@ -71,16 +320,7 @@ export function useSpotifyWebApiGuardValidPkceToken(
 
 export async function getPkceAuthUrlFull(scopes: string[], clientId: string, redirectUri: string, codeVerifier: string, state: string | null): Promise<string> {
   if (codeVerifier.length < 43 || codeVerifier.length > 128) throw new Error('Code verifier must be between 43..128 characters long');
-  const codeChallenge = await getCodeChallengeForCodeVerifier(codeVerifier);
-  let url = `https://accounts.spotify.com/authorize/?client_id=${clientId}`
-    + `&response_type=code`
-    + `&redirect_uri=${redirectUri}`
-    + `&code_challenge_method=S256`
-    + `&code_challenge=${codeChallenge}`;
-
-  if (state) url += `&state=${state}`;
-  if (scopes.length > 0) url += `&scope=${scopes.join('%20')}`;
-  return url;
+  return buildAuthorizationUrl(scopes, clientId, redirectUri, codeVerifier, state);
 }
 
 export async function getCodeChallengeForCodeVerifier(codeVerifier: string): Promise<string> {
@@ -94,9 +334,7 @@ export async function getCodeChallengeForCodeVerifier(codeVerifier: string): Pro
 }
 
 export function logoutOfSpotify() {
-  localStorage.removeItem('spotify_pkce_callback_code');
-  localStorage.removeItem('spotify_redirect_after_auth');
-  localStorage.removeItem('spotify_token');
+  SpotifyAuthUtils.clearToken();
 }
 
 export async function redirectToSpotifyLogin(
@@ -108,11 +346,12 @@ export async function redirectToSpotifyLogin(
   redirectUri: string,
   state: string | null = null,
 ) {
-  localStorage.setItem('spotify_code_verifier', codeVerifier);
-  localStorage.setItem('spotify_redirect_after_auth', redirectPathAfter);
+  const nextState = state ?? SpotifyAuthUtils.getRandomCode(minimumSpotifyStateLength);
+  SpotifyAuthUtils.storeVerifier(codeVerifier);
+  SpotifyAuthUtils.storeState(nextState);
+  localStorage.setItem(spotifyRedirectAfterAuthStorageKey, redirectPathAfter);
   setCodeVerifier(codeVerifier);
-  // noinspection UnnecessaryLocalVariableJS
-  const pkceUrl = await getPkceAuthUrlFull(scopes, clientId, redirectUri, codeVerifier, state);
+  const pkceUrl = await getPkceAuthUrlFull(scopes, clientId, redirectUri, codeVerifier, nextState);
   window.location.href = pkceUrl;
 }
 
@@ -121,49 +360,47 @@ export async function doSpotifyPkceRefresh(
   refreshToken: string,
   setSpotifyTokenInfo: SetSpotifyTokenInfo,
 ): Promise<SpotifyToken | null> {
-  const params = new URLSearchParams();
-  params.append('grant_type', 'refresh_token');
-  params.append('refresh_token', refreshToken);
-  params.append('client_id', clientId);
+  const refreshedToken = await requestSpotifyTokenRefresh(getRefreshSeedToken(refreshToken), clientId, SpotifyAuthUtils.getRedirectUri());
 
-  try {
-    const pkceResponse = await axios.post<URLSearchParams, AxiosResponse<SpotifyToken>>('https://accounts.spotify.com/api/token', params);
-    const token = pkceResponse.data;
-    saveTokenAndGetRedirectPath(token, setSpotifyTokenInfo);
-    return token;
-  } catch {
+  if (!refreshedToken) {
     setSpotifyTokenInfo(null);
-    logoutOfSpotify();
     return null;
   }
+
+  setSpotifyTokenInfo(getSpotifyTokenInfoFromToken(refreshedToken));
+  return refreshedToken;
 }
 
 export function saveTokenAndGetRedirectPath(
   token: SpotifyToken,
   setSpotifyTokenInfo: SetSpotifyTokenInfo,
 ) {
-  const tokenInfo = {
-    expiry: Date.now() + token.expires_in * 1000,
-    token: token,
-  };
+  const normalizedToken = parseInitialStoredToken(token);
+  if (!normalizedToken) {
+    setSpotifyTokenInfo(null);
+    SpotifyAuthUtils.clearToken();
+    return null;
+  }
 
-  localStorage.setItem('spotify_token', JSON.stringify(tokenInfo));
+  const tokenInfo = getSpotifyTokenInfoFromToken(normalizedToken);
+  SpotifyAuthUtils.storeToken(normalizedToken);
   setSpotifyTokenInfo(tokenInfo);
 
-  const pathToRedirectTo = localStorage.getItem('spotify_redirect_after_auth');
-  localStorage.removeItem('spotify_redirect_after_auth');
+  const pathToRedirectTo = localStorage.getItem(spotifyRedirectAfterAuthStorageKey);
+  localStorage.removeItem(spotifyRedirectAfterAuthStorageKey);
   return pathToRedirectTo;
 }
 
 export type SpotifyTokenInfo = {
   expiry: number;
-  token: SpotifyToken
+  token: StoredSpotifyToken
 }
 
 export type SpotifyToken = {
   access_token: string;
   token_type: string;
   expires_in: number;
-  refresh_token: string | null;
-  scope: string | null
+  refresh_token?: string | null;
+  scope?: string | null;
+  [key: string]: unknown;
 }
