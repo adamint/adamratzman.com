@@ -150,7 +150,6 @@ export function saveTokenAndGetRedirectPath(
   localStorage.setItem('spotify_token', JSON.stringify(tokenInfo));
   setSpotifyTokenInfo(tokenInfo);
 
-  localStorage.removeItem('spotify_pkce_callback_code');
   const pathToRedirectTo = localStorage.getItem('spotify_redirect_after_auth');
   localStorage.removeItem('spotify_redirect_after_auth');
   return pathToRedirectTo;

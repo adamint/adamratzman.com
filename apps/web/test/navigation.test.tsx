@@ -426,6 +426,49 @@ describe('navigation primitives', () => {
     expect(requestParams.get('code')).toBe('new-code');
   });
 
+  it('does not replay a successfully consumed callback code after remounting', async () => {
+    const postSpy = mockSpotifyTokenExchange();
+    const firstRender = renderSpotifyCallback({
+      initialEntries: [
+        '/projects/spotify/callback?code=callback-code',
+      ],
+    });
+
+    expect(await screen.findByRole('heading', {
+      name: 'Spotify projects',
+    })).toBeVisible();
+    expect(postSpy).toHaveBeenCalledTimes(1);
+
+    firstRender.unmount();
+    const replayRender = renderSpotifyCallback({
+      initialEntries: [
+        '/projects/spotify/callback?code=callback-code',
+      ],
+    });
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 150));
+    });
+    expect(postSpy).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('spotify_pkce_callback_code')).toBe(
+      JSON.stringify('callback-code'),
+    );
+
+    replayRender.unmount();
+    renderSpotifyCallback({
+      initialEntries: [
+        '/projects/spotify/callback?code=new-code',
+      ],
+    });
+
+    expect(await screen.findByRole('heading', {
+      name: 'Spotify projects',
+    })).toBeVisible();
+    expect(postSpy).toHaveBeenCalledTimes(2);
+    const requestParams = postSpy.mock.calls[1]?.[1] as URLSearchParams;
+    expect(requestParams.get('code')).toBe('new-code');
+  });
+
   it('keeps the callback request guard active while navigation is pending', async () => {
     localStorage.setItem(
       'spotify_pkce_callback_code',
