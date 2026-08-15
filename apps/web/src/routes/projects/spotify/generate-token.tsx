@@ -147,11 +147,12 @@ function SpotifyGenerateTokenRoute() {
     } else setScopesToGenerate([...newValues]);
   }
 
-  return <SpotifyRouteComponent>
+  return <>
     <PageTitle title="Generate a Spotify OAuth Token" />
-    <ProjectPage
-      projectTitle='Generate a Spotify OAuth Token'
-      topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}>
+    <SpotifyRouteComponent title="Generate a Spotify OAuth Token">
+      <ProjectPage
+        projectTitle='Generate a Spotify OAuth Token'
+        topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}>
       {spotifyTokenInfo && <Box mb={5}>
         <Heading size='lg' mb={2}>Your current API access token</Heading>
         <Text>This API token contains the following
@@ -181,8 +182,9 @@ function SpotifyGenerateTokenRoute() {
         </Alert>}
         {<Text>The redirect uri used to generate this link was: <u>https://adamratzman.com/projects/spotify/callback</u></Text>}
       </Box>
-    </ProjectPage>
-  </SpotifyRouteComponent>;
+      </ProjectPage>
+    </SpotifyRouteComponent>
+  </>;
 }
 
 export default SpotifyGenerateTokenRoute;

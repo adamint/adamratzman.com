@@ -19,7 +19,6 @@ export const ChakraRouterLink = forwardRef<HTMLAnchorElement, ChakraRouterLinkPr
       return (
         <ChakraLink
           as={RouterLink}
-          color="#149dcc"
           ref={ref}
           rel={safeRel}
           target={target}
@@ -30,7 +29,6 @@ export const ChakraRouterLink = forwardRef<HTMLAnchorElement, ChakraRouterLinkPr
     }
 
     return <ChakraLink
-      color="#149dcc"
       href={href}
       ref={ref}
       rel={safeRel}

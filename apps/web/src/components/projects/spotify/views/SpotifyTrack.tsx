@@ -18,8 +18,10 @@ export function SpotifyTrack({ track, openInNewTab = false, ...rest }: SpotifyTr
     href={`/projects/spotify/artists/${artist.id}`} key={artist.id}
     target={openInNewTab ? '_blank' : '_self'}>{artist.name}</ChakraRouterLink>), ', ');
 
-  function TrackLink({ children }: { children: React.ReactNode }) {
-    return <ChakraRouterLink href={`/projects/spotify/tracks/${track.id}`} target={openInNewTab ? '_blank' : '_self'}>
+  function TrackLink({ children, variant }: { children: React.ReactNode; variant?: 'media' }) {
+    return <ChakraRouterLink href={`/projects/spotify/tracks/${track.id}`}
+                             target={openInNewTab ? '_blank' : '_self'}
+                             variant={variant}>
       {children}
     </ChakraRouterLink>;
   }
@@ -32,7 +34,7 @@ export function SpotifyTrack({ track, openInNewTab = false, ...rest }: SpotifyTr
 
   return <Box {...rest}>
     <Flex maxW={{ base: '100%', md: '95%' }}>
-      {imageUrl && <TrackLink>
+      {imageUrl && <TrackLink variant='media'>
         <Image boxSize={75} mr={2.5} src={imageUrl} alt='Spotify track preview image' />
       </TrackLink>}
       <Box flex='1' my='auto'>

@@ -1,5 +1,5 @@
-import { ChakraProvider } from '@chakra-ui/react';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { ChakraProvider, useColorMode } from '@chakra-ui/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ArizonaWildcatIcon } from '../src/components/icons/ArizonaWildcatIcon';
@@ -9,13 +9,38 @@ import { JavaIcon } from '../src/components/icons/JavaIcon';
 import { KotlinIcon } from '../src/components/icons/KotlinIcon';
 import { MicrosoftIcon } from '../src/components/icons/MicrosoftIcon';
 import { ReactIcon } from '../src/components/icons/ReactIcon';
+import { SpotifyArtist } from '../src/components/projects/spotify/views/SpotifyArtist';
+import { SpotifyEpisode } from '../src/components/projects/spotify/views/SpotifyEpisode';
+import { SpotifyPlaylist } from '../src/components/projects/spotify/views/SpotifyPlaylist';
+import { SpotifyTrack } from '../src/components/projects/spotify/views/SpotifyTrack';
 import { routes } from '../src/router';
 import { theme } from '../src/theme';
 import { expectNoAxeViolations } from './a11y';
 import { renderWithRouter } from './render';
 
+type TestTheme = {
+  colors: Record<string, string | Record<string, string>>;
+  components: {
+    Link: {
+      variants?: unknown;
+    };
+  };
+  config?: unknown;
+  semanticTokens?: {
+    colors?: Record<string, unknown>;
+  };
+  styles?: {
+    global?: unknown;
+  };
+};
+
+const testTheme = theme as unknown as TestTheme;
+
 afterEach(() => {
   cleanup();
+  localStorage.clear();
+  document.title = '';
+  window.history.replaceState({}, '', '/');
   vi.restoreAllMocks();
 });
 
@@ -51,11 +76,43 @@ describe('site shell accessibility', () => {
     expect(skipLink).toHaveFocus();
     expect(skipLink).toHaveAttribute('href', '#main-content');
 
+    const historyLength = window.history.length;
     await user.keyboard('{Enter}');
 
     await waitFor(() => {
       expect(screen.getByRole('main')).toHaveFocus();
     });
+    expect(window.history.length).toBe(historyLength);
+    expect(window.location.hash).toBe('');
+  });
+
+  it.each([
+    ['alt-click', { altKey: true, button: 0 }],
+    ['control-click', { button: 0, ctrlKey: true }],
+    ['command-click', { button: 0, metaKey: true }],
+    ['shift-click', { button: 0, shiftKey: true }],
+    ['non-primary click', { button: 1 }],
+  ])('does not cancel or focus main for %s on the skip link', async (_name, clickInit) => {
+    renderWithRouter(routes, { initialEntries: ['/contact'] });
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /you'd like to contact me/i,
+    });
+    const skipLink = screen.getByRole('link', {
+      name: 'Skip to main content',
+    });
+
+    let defaultPreventedBySkipLink: boolean | undefined;
+    document.addEventListener('click', (event) => {
+      defaultPreventedBySkipLink = event.defaultPrevented;
+      event.preventDefault();
+    }, { once: true });
+
+    fireEvent.click(skipLink, clickInit);
+
+    expect(defaultPreventedBySkipLink).toBe(false);
+    expect(screen.getByRole('main')).not.toHaveFocus();
   });
 
   it.each([
@@ -167,6 +224,18 @@ describe('site shell accessibility', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
+  it.each([
+    ['/projects/conversion/base-converter', 'Base Conversion Tool | Adam Ratzman'],
+    ['/projects/spotify/callback', 'Completing Spotify sign-in | Adam Ratzman'],
+  ])('sets accurate route metadata at %s', async (path, expectedTitle) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    renderWithRouter(routes, { initialEntries: [path] });
+
+    await waitFor(() => {
+      expect(document.title).toBe(expectedTitle);
+    });
+  });
+
   it('names the Spotify callback loading h1', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     renderWithRouter(routes, {
@@ -199,6 +268,100 @@ describe('site shell accessibility', () => {
     expect(screen.queryAllByRole('img')).toHaveLength(0);
   });
 
+  it('does not add a link underline to the dashed puppy trigger', async () => {
+    renderWithRouter(routes, { initialEntries: ['/'] });
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /Hi\. I'm Adam Ratzman, a software engineer at Microsoft\./i,
+    });
+    const puppyTrigger = screen.getByText('puppy');
+
+    expect(getComputedStyle(puppyTrigger).textDecoration).toBe('none');
+  });
+
+  it('removes decoration from Spotify artwork links but not text links', () => {
+    renderWithRouter([{
+      path: '/',
+      Component: () => (
+        <ChakraProvider theme={theme}>
+          <SpotifyTrack track={{
+            album: {
+              images: [{ url: 'https://example.com/track.jpg' }],
+            },
+            artists: [{
+              id: 'artist',
+              name: 'Track Artist',
+            }],
+            duration_ms: 120_000,
+            id: 'track',
+            name: 'Track Name',
+            popularity: 50,
+            preview_url: null,
+          }} />
+          <SpotifyPlaylist playlist={{
+            description: null,
+            id: 'playlist',
+            images: [{ url: 'https://example.com/playlist.jpg' }],
+            name: 'Playlist Name',
+            owner: {
+              display_name: 'Playlist Owner',
+              id: 'owner',
+            },
+            tracks: {
+              total: 10,
+            },
+          }} />
+          <SpotifyArtist artist={{
+            followers: {
+              total: 1234,
+            },
+            genres: ['indie'],
+            id: 'artist',
+            images: [{ url: 'https://example.com/artist.jpg' }],
+            name: 'Artist Name',
+            popularity: 42,
+          } as unknown as SpotifyApi.ArtistObjectFull} />
+          <SpotifyEpisode episode={{
+            description: 'Episode description',
+            duration_ms: 120_000,
+            external_urls: {
+              spotify: 'https://open.spotify.com/episode/episode',
+            },
+            id: 'episode',
+            images: [{ url: 'https://example.com/episode.jpg' }],
+            name: 'Episode Name',
+            release_date: '2026-08-15',
+            show: {
+              external_urls: {
+                spotify: 'https://open.spotify.com/show/show',
+              },
+              name: 'Example Show',
+            },
+          } as unknown as SpotifyApi.EpisodeObjectFull} />
+        </ChakraProvider>
+      ),
+    }]);
+
+    for (const accessibleName of [
+      'Spotify track preview image',
+      'Spotify playlist preview image',
+      'Spotify artist preview image',
+      'Spotify episode preview image',
+    ]) {
+      const artworkLink = screen.getByRole('img', {
+        name: accessibleName,
+      }).closest('a');
+
+      expect(artworkLink).not.toBeNull();
+      expect(getComputedStyle(artworkLink as HTMLAnchorElement).textDecoration).toBe('none');
+    }
+
+    expect(getComputedStyle(screen.getByRole('link', {
+      name: 'Track Name',
+    })).textDecoration).toBe('underline');
+  });
+
   it('has no axe violations in the representative shell', async () => {
     const { container } = renderWithRouter(routes, {
       initialEntries: ['/contact'],
@@ -229,6 +392,80 @@ describe('site shell accessibility', () => {
     expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(7);
   });
 
+  it('keeps the focus ring above 3:1 contrast in light and dark modes', () => {
+    const focusRing = testTheme.semanticTokens?.colors?.focusRing;
+    const hasModeColors = isSemanticColorPair(focusRing);
+
+    expect(hasModeColors).toBe(true);
+    if (!hasModeColors) return;
+
+    expect(contrastRatio(
+      resolveThemeColor(focusRing.default),
+      resolveThemeColor('white'),
+    )).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(
+      resolveThemeColor(focusRing._dark),
+      resolveThemeColor('gray.800'),
+    )).toBeGreaterThanOrEqual(3);
+  });
+
+  it('keeps inline link text above 4.5:1 contrast in light and dark modes', () => {
+    const link = testTheme.semanticTokens?.colors?.link;
+    const hasModeColors = isSemanticColorPair(link);
+
+    expect(hasModeColors).toBe(true);
+    if (!hasModeColors) return;
+
+    expect(contrastRatio(
+      resolveThemeColor(link.default),
+      resolveThemeColor('white'),
+    )).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(
+      resolveThemeColor(link._dark),
+      resolveThemeColor('gray.800'),
+    )).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('defines focused navigation and media link variants without a global override', () => {
+    const serializedGlobalStyles = JSON.stringify(testTheme.styles?.global ?? {});
+
+    expect(serializedGlobalStyles).not.toContain('.chakra-link[href]');
+    expect(serializedGlobalStyles).not.toContain('!important');
+    expect(testTheme.components.Link.variants).toMatchObject({
+      media: {
+        textDecoration: 'none',
+        _hover: {
+          textDecoration: 'none',
+        },
+      },
+      navigation: {
+        textDecoration: 'none',
+        _hover: {
+          textDecoration: 'none',
+        },
+      },
+    });
+  });
+
+  it('uses system color mode unless the user has stored an override', () => {
+    expect(testTheme.config).toMatchObject({
+      initialColorMode: 'system',
+      useSystemColorMode: true,
+    });
+  });
+
+  it('honors an explicit stored color mode override', async () => {
+    localStorage.setItem('chakra-ui-color-mode', 'dark');
+
+    render(
+      <ChakraProvider theme={theme}>
+        <ColorModeProbe />
+      </ChakraProvider>,
+    );
+
+    expect(await screen.findByTestId('color-mode')).toHaveTextContent('dark');
+  });
+
   it('defines accessible semantic link styles', () => {
     expect(theme).toMatchObject({
       semanticTokens: {
@@ -246,6 +483,7 @@ describe('site shell accessibility', () => {
             textDecoration: 'underline',
             _focusVisible: {
               outline: '2px solid',
+              outlineColor: 'focusRing',
             },
           },
         },
@@ -253,3 +491,65 @@ describe('site shell accessibility', () => {
     });
   });
 });
+
+type SemanticColorPair = {
+  default: string;
+  _dark: string;
+};
+
+function ColorModeProbe() {
+  const { colorMode } = useColorMode();
+
+  return <span data-testid="color-mode">{colorMode}</span>;
+}
+
+function isSemanticColorPair(value: unknown): value is SemanticColorPair {
+  if (!value || typeof value !== 'object') return false;
+
+  const candidate = value as Partial<SemanticColorPair>;
+  return typeof candidate.default === 'string' && typeof candidate._dark === 'string';
+}
+
+function resolveThemeColor(token: string) {
+  if (token.startsWith('#')) return token;
+
+  const [palette, shade] = token.split('.');
+  const paletteColor = testTheme.colors[palette ?? token];
+  const color = shade && paletteColor && typeof paletteColor !== 'string'
+    ? paletteColor[shade]
+    : paletteColor;
+
+  if (typeof color !== 'string') {
+    throw new Error(`Unknown theme color: ${token}`);
+  }
+
+  return color;
+}
+
+function contrastRatio(foreground: string, background: string) {
+  const foregroundLuminance = relativeLuminance(foreground);
+  const backgroundLuminance = relativeLuminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance(hexColor: string) {
+  const channels = hexColor
+    .slice(1)
+    .match(/.{2}/gu)
+    ?.map(channel => Number.parseInt(channel, 16) / 255);
+
+  if (!channels || channels.length !== 3) {
+    throw new Error(`Expected a six-digit hex color, received: ${hexColor}`);
+  }
+
+  const [red, green, blue] = channels.map(channel => (
+    channel <= 0.04045
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4
+  ));
+
+  return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue);
+}

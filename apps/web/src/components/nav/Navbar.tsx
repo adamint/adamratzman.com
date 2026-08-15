@@ -127,8 +127,16 @@ function Logo() {
   const colorModeColor = useColorModeColor();
 
   return <Center>
-    <Link as={NavLink} color={colorModeColor} data-navigation-link textDecoration="none" to="/">
-      <Box as="span" fontSize="sm" fontWeight={700} fontFamily="'Rubik', sans-serif">Adam Ratzman</Box>
+    <Link as={NavLink} color={colorModeColor} variant="navigation" to="/">
+      <Box
+        as="span"
+        fontFamily="'Rubik', sans-serif"
+        fontSize="md"
+        fontWeight={700}
+        lineHeight={1.2}
+      >
+        Adam Ratzman
+      </Box>
     </Link>
   </Center>;
 }
@@ -138,7 +146,13 @@ function NavbarLinks() {
 
   const innerLinkContent = (link: NavbarLink) => <HStack>
     {link.icon && <Box mx={1}>{link.icon}</Box>}
-    <Box as="span" fontSize="sm" fontWeight={500} fontFamily="'Rubik', sans-serif">
+    <Box
+      as="span"
+      fontFamily="'Rubik', sans-serif"
+      fontSize="md"
+      fontWeight={500}
+      lineHeight={1.2}
+    >
       {link.title}
     </Box>
   </HStack>;
@@ -150,17 +164,16 @@ function NavbarLinks() {
           ? (
               <Link
                 color={colorModeColor}
-                data-navigation-link
                 href={link.path}
                 rel="noopener noreferrer"
                 target="_blank"
-                textDecoration="none"
+                variant="navigation"
               >
                 {innerLinkContent(link)}
               </Link>
             )
           : (
-              <Link as={NavLink} color={colorModeColor} data-navigation-link end textDecoration="none" to={link.path}>
+              <Link as={NavLink} color={colorModeColor} end variant="navigation" to={link.path}>
                 {innerLinkContent(link)}
               </Link>
             )}

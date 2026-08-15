@@ -10,14 +10,16 @@ type SpotifyArtistProps = {
 export function SpotifyArtist({ artist, openInNewTab = false, ...rest }: SpotifyArtistProps & FlexProps) {
   const imageUrl = artist.images.at(0)?.url;
 
-  function ArtistLink({ children }: { children: React.ReactNode }) {
-    return <ChakraRouterLink href={`/projects/spotify/artists/${artist.id}`} target={openInNewTab ? '_blank' : '_self'}>
+  function ArtistLink({ children, variant }: { children: React.ReactNode; variant?: 'media' }) {
+    return <ChakraRouterLink href={`/projects/spotify/artists/${artist.id}`}
+                             target={openInNewTab ? '_blank' : '_self'}
+                             variant={variant}>
       {children}
     </ChakraRouterLink>;
   }
 
   return <Flex {...rest} maxW={{ base: '100%', md: '75%' }}>
-    {imageUrl && <ArtistLink>
+    {imageUrl && <ArtistLink variant='media'>
       <Image boxSize={75} mr={2.5} src={imageUrl} alt="Spotify artist preview image" />
     </ArtistLink>}
     <Box flex='1' my='auto'>

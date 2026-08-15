@@ -31,15 +31,20 @@ vi.mock('../src/spotify-utils/auth/SpotifyLoginButton', () => ({
   SpotifyLoginButton: ({
     redirectPathAfter,
     scopes,
+    title,
   }: {
     redirectPathAfter: string;
     scopes: string[];
+    title?: string;
   }) => (
-    <div
-      data-redirect-path={redirectPathAfter}
-      data-scopes={scopes.join(' ')}
-      data-testid="spotify-login"
-    />
+    <>
+      {title && <h1>{title}</h1>}
+      <div
+        data-redirect-path={redirectPathAfter}
+        data-scopes={scopes.join(' ')}
+        data-testid="spotify-login"
+      />
+    </>
   ),
 }));
 
@@ -53,6 +58,72 @@ afterEach(() => {
 });
 
 describe('Spotify route authentication', () => {
+  it.each([
+    {
+      Component: SpotifyGenerateTokenRoute,
+      documentTitle: 'Generate a Spotify OAuth Token | Adam Ratzman',
+      heading: 'Generate a Spotify OAuth Token',
+      path: '/projects/spotify/generate-token',
+    },
+    {
+      Component: SpotifyViewMyTopRoute,
+      documentTitle: 'Your top Spotify tracks and artists | Adam Ratzman',
+      heading: 'View your Spotify top tracks and artists',
+      path: '/projects/spotify/mytop',
+    },
+  ])('keeps route identity visible before Spotify authentication at $path', async ({
+    Component,
+    documentTitle,
+    heading,
+    path,
+  }) => {
+    renderWithRouter([{ path, Component }], {
+      initialEntries: [path],
+    });
+
+    expect(await screen.findByRole('heading', {
+      level: 1,
+      name: heading,
+    })).toBeVisible();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    await waitFor(() => {
+      expect(document.title).toBe(documentTitle);
+    });
+  });
+
+  it.each([
+    {
+      Component: SpotifyGenerateTokenRoute,
+      heading: 'Generate a Spotify OAuth Token',
+      path: '/projects/spotify/generate-token',
+    },
+    {
+      Component: SpotifyViewMyTopRoute,
+      heading: 'Your top tracks and artists',
+      path: '/projects/spotify/mytop',
+    },
+  ])('renders one h1 after Spotify authentication at $path', async ({
+    Component,
+    heading,
+    path,
+  }) => {
+    authorizeMyTop();
+    mockMyTopApi(
+      vi.fn().mockResolvedValue(emptyTopPage()),
+      vi.fn().mockResolvedValue(emptyTopPage()),
+    );
+
+    renderWithRouter([{ path, Component }], {
+      initialEntries: [path],
+    });
+
+    expect(await screen.findByRole('heading', {
+      level: 1,
+      name: heading,
+    })).toBeVisible();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
   it('shows a generic error when generated Spotify login URL creation fails', async () => {
     const tokenInfo: SpotifyTokenInfo = {
       expiry: Date.now() + 60_000,

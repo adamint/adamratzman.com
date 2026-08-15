@@ -60,7 +60,7 @@ export function SpotifyLoginButton({
 
   return <>
     {title && <Box mb={8}>
-      <Heading size="lg" mb={1}>{title}</Heading>
+      <Heading as="h1" size="lg" mb={1}>{title}</Heading>
       <Text>Or go back to the <ChakraRouterLink href='/projects'>projects page →</ChakraRouterLink></Text>
     </Box>}
     <Button backgroundColor='#1DB954' rightIcon={<FaSpotify />} onClick={() => {

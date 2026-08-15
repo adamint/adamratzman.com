@@ -3,6 +3,16 @@ import { type MouseEvent } from 'react';
 
 export function SkipToContentLink() {
   function focusMainContent(event: MouseEvent<HTMLAnchorElement>) {
+    if (
+      event.button !== 0
+      || event.altKey
+      || event.ctrlKey
+      || event.metaKey
+      || event.shiftKey
+    ) {
+      return;
+    }
+
     event.preventDefault();
     requestAnimationFrame(() => {
       document.querySelector<HTMLElement>('#main-content')?.focus();
@@ -28,7 +38,7 @@ export function SkipToContentLink() {
       _focusVisible={{
         boxShadow: 'outline',
         outline: '3px solid',
-        outlineColor: 'orange.300',
+        outlineColor: 'focusRing',
         outlineOffset: '2px',
         transform: 'translateY(0)',
       }}

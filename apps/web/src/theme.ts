@@ -2,18 +2,19 @@ import { extendTheme } from '@chakra-ui/react';
 import { StepsTheme } from 'chakra-ui-steps';
 
 export const theme = extendTheme({
+  config: {
+    initialColorMode: 'system',
+    useSystemColorMode: true,
+  },
   semanticTokens: {
     colors: {
       link: {
         default: 'blue.700',
         _dark: 'blue.200',
       },
-    },
-  },
-  styles: {
-    global: {
-      '.chakra-link[href]:not([data-navigation-link]):not([data-skip-link])': {
-        color: 'link !important',
+      focusRing: {
+        default: 'orange.600',
+        _dark: 'orange.300',
       },
     },
   },
@@ -84,8 +85,24 @@ export const theme = extendTheme({
           borderRadius: 'sm',
           boxShadow: 'outline',
           outline: '2px solid',
-          outlineColor: 'orange.400',
+          outlineColor: 'focusRing',
           outlineOffset: '2px',
+        },
+      },
+      variants: {
+        navigation: {
+          textDecoration: 'none',
+          _hover: {
+            textDecoration: 'none',
+          },
+        },
+        media: {
+          display: 'inline-block',
+          lineHeight: 0,
+          textDecoration: 'none',
+          _hover: {
+            textDecoration: 'none',
+          },
         },
       },
     },

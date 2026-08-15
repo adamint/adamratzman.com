@@ -36,8 +36,10 @@ function SpotifyViewMyTopRoute() {
     setPageOffset(0);
   }
 
-  return <SpotifyRouteComponent title='View your Spotify top tracks and artists'>
-    {spotifyTokenInfo && <RequireSpotifyScopesOrElseShowLogin requiredScopes={['user-top-read']}
+  return <>
+    <PageTitle title="Your top Spotify tracks and artists" />
+    <SpotifyRouteComponent title='View your Spotify top tracks and artists'>
+      {spotifyTokenInfo && <RequireSpotifyScopesOrElseShowLogin requiredScopes={['user-top-read']}
                                                               clientId={spotifyClientId}
                                                               redirectUri={spotifyRedirectUri()}
                                                               codeVerifier={codeVerifier}
@@ -45,9 +47,7 @@ function SpotifyViewMyTopRoute() {
                                                               redirectPathAfter={buildSpotifyRedirectPath(location)}
                                                               spotifyToken={spotifyTokenInfo.token}
                                                               title='View your Spotify top tracks and artists'>
-      <PageTitle title="Your top Spotify tracks and artists" />
-
-      <ProjectPage projectTitle='Your top tracks and artists'
+        <ProjectPage projectTitle='Your top tracks and artists'
                    topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}>
         <FormControl mb={5}>
           <FormLabel>Time Range</FormLabel>
@@ -89,9 +89,10 @@ function SpotifyViewMyTopRoute() {
             </TabPanel>
           </TabPanels>
         </Tabs>
-      </ProjectPage>
-    </RequireSpotifyScopesOrElseShowLogin>}
-  </SpotifyRouteComponent>;
+        </ProjectPage>
+      </RequireSpotifyScopesOrElseShowLogin>}
+    </SpotifyRouteComponent>
+  </>;
 }
 
 type ShowTopProps = {
