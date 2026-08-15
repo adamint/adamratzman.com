@@ -24,6 +24,7 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Navbar } from '../src/components/nav/Navbar';
 import { ChakraRouterLink } from '../src/components/utils/ChakraRouterLink';
+import { spotifyAuthStorageKeys } from '../src/spotify-utils/auth/SpotifyAuthUtils';
 import { SpotifyCallbackIngestionTokenProducerComponent } from '../src/spotify-utils/auth/SpotifyCallbackIngestionTokenProducerComponent';
 import { SpotifyLoginButton } from '../src/spotify-utils/auth/SpotifyLoginButton';
 import * as SpotifyRedirectModule from '../src/spotify-utils/auth/RedirectToSpotifyLogin';
@@ -50,8 +51,17 @@ function PersistentNavbarLayout() {
 describe('navigation primitives', () => {
   it('shows a generic error when Spotify login URL generation fails', async () => {
     const user = userEvent.setup();
-    vi.spyOn(SpotifyRedirectModule, 'redirectToSpotifyLogin').mockRejectedValue(
-      new Error('RAW_PRIVATE_AUTHORIZATION_ERROR'),
+    const setCodeVerifier = vi.fn();
+    localStorage.setItem(spotifyAuthStorageKeys.consumedCallbackCode, JSON.stringify('callback-code'));
+    vi.spyOn(SpotifyRedirectModule, 'redirectToSpotifyLogin').mockImplementation(
+      (codeVerifier, redirectPathAfter, setVerifier) => {
+        localStorage.removeItem(spotifyAuthStorageKeys.consumedCallbackCode);
+        localStorage.setItem(spotifyAuthStorageKeys.verifier, codeVerifier);
+        localStorage.setItem(spotifyAuthStorageKeys.state, 'generated-state');
+        localStorage.setItem(spotifyAuthStorageKeys.redirectAfterAuth, redirectPathAfter);
+        setVerifier(codeVerifier);
+        return Promise.reject(new Error('RAW_PRIVATE_AUTHORIZATION_ERROR'));
+      },
     );
 
     render(
@@ -60,7 +70,7 @@ describe('navigation primitives', () => {
           scopes={['user-top-read']}
           clientId="client-id"
           redirectUri="https://example.com/projects/spotify/callback"
-          setCodeVerifier={vi.fn()}
+          setCodeVerifier={setCodeVerifier}
           redirectPathAfter="/projects/spotify/mytop"
         />
       </ChakraProvider>,
@@ -72,6 +82,51 @@ describe('navigation primitives', () => {
       'Spotify sign-in is temporarily unavailable. Please try again.',
     );
     expect(document.body).not.toHaveTextContent('RAW_PRIVATE_AUTHORIZATION_ERROR');
+    expect(localStorage.getItem(spotifyAuthStorageKeys.verifier)).toBeNull();
+    expect(localStorage.getItem(spotifyAuthStorageKeys.state)).toBeNull();
+    expect(localStorage.getItem(spotifyAuthStorageKeys.redirectAfterAuth)).toBeNull();
+    expect(localStorage.getItem(spotifyAuthStorageKeys.consumedCallbackCode)).toBe(
+      JSON.stringify('callback-code'),
+    );
+    expect(setCodeVerifier).toHaveBeenNthCalledWith(1, expect.any(String));
+    expect(setCodeVerifier).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it('shows a generic error when callback marker storage lookup throws during Spotify login', async () => {
+    const user = userEvent.setup();
+    const setCodeVerifier = vi.fn();
+    const redirectSpy = vi.spyOn(SpotifyRedirectModule, 'redirectToSpotifyLogin');
+    const originalGetItem = Object.getOwnPropertyDescriptor(Storage.prototype, 'getItem')?.value as (
+      this: Storage,
+      key: string,
+    ) => string | null;
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key: string) {
+      if (key === spotifyAuthStorageKeys.consumedCallbackCode) {
+        throw new DOMException('blocked', 'SecurityError');
+      }
+
+      return Reflect.apply(originalGetItem, this, [key]);
+    });
+
+    render(
+      <ChakraProvider theme={theme}>
+        <SpotifyLoginButton
+          scopes={['user-top-read']}
+          clientId="client-id"
+          redirectUri="https://example.com/projects/spotify/callback"
+          setCodeVerifier={setCodeVerifier}
+          redirectPathAfter="/projects/spotify/mytop"
+        />
+      </ChakraProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in is temporarily unavailable. Please try again.',
+    );
+    expect(redirectSpy).not.toHaveBeenCalled();
+    expect(setCodeVerifier).toHaveBeenLastCalledWith(undefined);
   });
 
   it('uses React Router navigation for internal Chakra links', async () => {

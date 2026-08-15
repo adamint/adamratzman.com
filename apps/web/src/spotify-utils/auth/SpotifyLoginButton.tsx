@@ -10,7 +10,9 @@ import { FaSpotify } from 'react-icons/fa';
 import React, { useState } from 'react';
 import {
   createPkceCodeVerifier,
+  spotifyAuthStorageKeys,
   type SetCodeVerifier,
+  SpotifyAuthUtils,
 } from './SpotifyAuthUtils';
 import { redirectToSpotifyLogin } from './RedirectToSpotifyLogin';
 import { ChakraRouterLink } from '../../components/utils/ChakraRouterLink';
@@ -38,7 +40,9 @@ export function SpotifyLoginButton({
 
   async function handleClickLoginButton() {
     setAuthorizationFailed(false);
+    let consumedCallbackCode: string | null = null;
     try {
+      consumedCallbackCode = localStorage.getItem(spotifyAuthStorageKeys.consumedCallbackCode);
       const newCodeVerifier = createPkceCodeVerifier();
       await redirectToSpotifyLogin(
         newCodeVerifier,
@@ -49,6 +53,7 @@ export function SpotifyLoginButton({
         redirectUri,
       );
     } catch {
+      clearFailedAuthorizationAttempt(setCodeVerifier, consumedCallbackCode);
       setAuthorizationFailed(true);
     }
   }
@@ -68,4 +73,19 @@ export function SpotifyLoginButton({
       Spotify sign-in is temporarily unavailable. Please try again.
     </Alert>}
   </>;
+}
+
+function clearFailedAuthorizationAttempt(
+  setCodeVerifier: SetCodeVerifier,
+  consumedCallbackCode: string | null,
+) {
+  try {
+    SpotifyAuthUtils.clearAuthorizationTransaction();
+    if (consumedCallbackCode !== null) {
+      localStorage.setItem(spotifyAuthStorageKeys.consumedCallbackCode, consumedCallbackCode);
+    }
+  } catch {
+    // Best-effort cleanup: still surface the generic error and clear in-memory verifier state.
+  }
+  setCodeVerifier(undefined);
 }

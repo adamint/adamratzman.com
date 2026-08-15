@@ -10,8 +10,10 @@ import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
 
 const spotifyStoreState = vi.hoisted(() => ({
-  codeVerifier: undefined,
-  setCodeVerifier: () => undefined,
+  codeVerifier: undefined as string | undefined,
+  setCodeVerifier: vi.fn((newVerifier: string | null | undefined) => {
+    spotifyStoreState.codeVerifier = newVerifier ?? undefined;
+  }),
   spotifyTokenInfo: null as SpotifyTokenInfo | null,
   setSpotifyTokenInfo: () => undefined,
   spotifyClientId: 'client-id',
@@ -43,7 +45,9 @@ vi.mock('../src/spotify-utils/auth/SpotifyLoginButton', () => ({
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  spotifyStoreState.codeVerifier = undefined;
   spotifyStoreState.spotifyTokenInfo = null;
+  spotifyStoreState.setCodeVerifier.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -61,6 +65,10 @@ describe('Spotify route authentication', () => {
     };
     spotifyStoreState.spotifyTokenInfo = tokenInfo;
     localStorage.setItem('spotify_token', JSON.stringify(tokenInfo));
+    localStorage.setItem(SpotifyAuthUtils.spotifyAuthStorageKeys.verifier, 'seeded-verifier');
+    localStorage.setItem(SpotifyAuthUtils.spotifyAuthStorageKeys.state, 'seeded-state');
+    localStorage.setItem(SpotifyAuthUtils.spotifyAuthStorageKeys.redirectAfterAuth, '/projects/spotify/mytop');
+    localStorage.setItem(SpotifyAuthUtils.spotifyAuthStorageKeys.consumedCallbackCode, JSON.stringify('callback-code'));
     vi.spyOn(SpotifyAuthUtils, 'getPkceAuthUrlFull').mockRejectedValue(
       new Error('RAW_PRIVATE_GENERATION_ERROR'),
     );
@@ -82,6 +90,61 @@ describe('Spotify route authentication', () => {
       'Spotify sign-in is temporarily unavailable. Please try again.',
     );
     expect(document.body).not.toHaveTextContent('RAW_PRIVATE_GENERATION_ERROR');
+    expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.verifier)).toBeNull();
+    expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.state)).toBeNull();
+    expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.redirectAfterAuth)).toBeNull();
+    expect(localStorage.getItem(SpotifyAuthUtils.spotifyAuthStorageKeys.consumedCallbackCode)).toBe(
+      JSON.stringify('callback-code'),
+    );
+    expect(spotifyStoreState.setCodeVerifier).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it('shows a generic error when auth transaction cleanup storage throws during generated login failure', async () => {
+    const tokenInfo: SpotifyTokenInfo = {
+      expiry: Date.now() + 60_000,
+      token: {
+        access_token: 'access-token',
+        expires_in: 3600,
+        refresh_token: 'refresh-token',
+        scope: 'user-top-read',
+        token_type: 'Bearer',
+      },
+    };
+    spotifyStoreState.spotifyTokenInfo = tokenInfo;
+    localStorage.setItem('spotify_token', JSON.stringify(tokenInfo));
+    vi.spyOn(SpotifyAuthUtils, 'getPkceAuthUrlFull').mockRejectedValue(
+      new Error('RAW_PRIVATE_GENERATION_ERROR'),
+    );
+    const originalRemoveItem = Object.getOwnPropertyDescriptor(Storage.prototype, 'removeItem')?.value as (
+      this: Storage,
+      key: string,
+    ) => void;
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
+      if (key === SpotifyAuthUtils.spotifyAuthStorageKeys.verifier) {
+        throw new DOMException('blocked', 'SecurityError');
+      }
+
+      return Reflect.apply(originalRemoveItem, this, [key]);
+    });
+
+    renderWithRouter([
+      {
+        path: '/projects/spotify/generate-token',
+        Component: () => (
+          <ChakraProvider theme={theme}>
+            <SpotifyGenerateTokenRoute />
+          </ChakraProvider>
+        ),
+      },
+    ], {
+      initialEntries: ['/projects/spotify/generate-token'],
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in is temporarily unavailable. Please try again.',
+    );
+    expect(document.body).not.toHaveTextContent('RAW_PRIVATE_GENERATION_ERROR');
+    expect(spotifyStoreState.setCodeVerifier).toHaveBeenLastCalledWith(undefined);
   });
 
   it('preserves the fragment in the post-auth redirect', async () => {

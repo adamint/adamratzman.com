@@ -20,7 +20,9 @@ import useDeepCompareEffect from 'use-deep-compare-effect';
 import {
   createPkceCodeVerifier,
   getPkceAuthUrlFull,
+  spotifyAuthStorageKeys,
   spotifyOAuthStateMinimumLength,
+  type SetCodeVerifier,
   SpotifyAuthUtils,
 } from '../../../spotify-utils/auth/SpotifyAuthUtils';
 import { redirectToSpotifyLogin } from '../../../spotify-utils/auth/RedirectToSpotifyLogin';
@@ -70,7 +72,9 @@ function SpotifyGenerateTokenRoute() {
     let isCurrent = true;
     void (async () => {
       setAuthorizationFailed(false);
+      let consumedCallbackCode: string | null = null;
       try {
+        consumedCallbackCode = localStorage.getItem(spotifyAuthStorageKeys.consumedCallbackCode);
         const codeVerifier = createPkceCodeVerifier();
         const state = SpotifyAuthUtils.getRandomCode(spotifyOAuthStateMinimumLength);
         const url = await getPkceAuthUrlFull(
@@ -89,6 +93,7 @@ function SpotifyGenerateTokenRoute() {
         }
       } catch {
         if (isCurrent) {
+          clearFailedAuthorizationAttempt(setCodeVerifier, consumedCallbackCode);
           setGeneratedLogin(undefined);
           setAuthorizationFailed(true);
         }
@@ -111,7 +116,9 @@ function SpotifyGenerateTokenRoute() {
   async function handleRedirectToSpotifyLinkClicked() {
     if (generatedLogin) {
       setAuthorizationFailed(false);
+      let consumedCallbackCode: string | null = null;
       try {
+        consumedCallbackCode = localStorage.getItem(spotifyAuthStorageKeys.consumedCallbackCode);
         await redirectToSpotifyLogin(
           generatedLogin.codeVerifier,
           '/projects/spotify/generate-token',
@@ -122,6 +129,7 @@ function SpotifyGenerateTokenRoute() {
           generatedLogin.state,
         );
       } catch {
+        clearFailedAuthorizationAttempt(setCodeVerifier, consumedCallbackCode);
         setAuthorizationFailed(true);
       }
     }
@@ -178,3 +186,18 @@ function SpotifyGenerateTokenRoute() {
 }
 
 export default SpotifyGenerateTokenRoute;
+
+function clearFailedAuthorizationAttempt(
+  setCodeVerifier: SetCodeVerifier,
+  consumedCallbackCode: string | null,
+) {
+  try {
+    SpotifyAuthUtils.clearAuthorizationTransaction();
+    if (consumedCallbackCode !== null) {
+      localStorage.setItem(spotifyAuthStorageKeys.consumedCallbackCode, consumedCallbackCode);
+    }
+  } catch {
+    // Best-effort cleanup: still surface the generic error and clear in-memory verifier state.
+  }
+  setCodeVerifier(undefined);
+}
