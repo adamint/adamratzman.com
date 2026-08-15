@@ -19,6 +19,16 @@ describe('API foundation', () => {
     expect(response.json()).toEqual({ status: 'ok' });
   });
 
+  it('keeps HEAD support for the health route', async () => {
+    const app = buildApp();
+    apps.push(app);
+
+    const response = await app.inject({ method: 'HEAD', url: '/api/health' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe('');
+  });
+
   it('serializes unknown route errors without leaking internals', async () => {
     const app = buildApp();
     apps.push(app);

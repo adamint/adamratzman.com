@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { InjectOptions } from 'light-my-request';
 import { buildApp } from '../src/app.js';
 import type { SpotifyClient } from '../src/spotify/client.js';
-import { createFakeSpotifyClient } from './helpers.js';
+import { createFakeSpotifyClient, type FakeSpotifyClient } from './helpers.js';
 
 async function loadPaginationModule() {
   return import('../src/spotify/pagination.js');
@@ -9,6 +10,11 @@ async function loadPaginationModule() {
 
 describe('spotify routes', () => {
   const apps: Array<ReturnType<typeof buildApp>> = [];
+  type SpotifyValidationCase = {
+    label: string;
+    request: InjectOptions;
+    arrange: (spotify: FakeSpotifyClient) => void;
+  };
 
   afterEach(async () => {
     vi.restoreAllMocks();
@@ -19,12 +25,248 @@ describe('spotify routes', () => {
     const spotify = createFakeSpotifyClient();
     const spotifyFactory = vi.fn(async (): Promise<SpotifyClient> => {
       await Promise.resolve();
-      return spotify as unknown as SpotifyClient;
+      return spotify;
     });
     const app = buildApp({ spotifyFactory });
     apps.push(app);
     return { app, spotify, spotifyFactory };
   }
+
+  function spotifyResponse<Method extends keyof SpotifyClient>(
+    body: unknown,
+  ): Awaited<ReturnType<SpotifyClient[Method]>> {
+    return { body } as Awaited<ReturnType<SpotifyClient[Method]>>;
+  }
+
+  function arrangeSpotifyCase(testCase: SpotifyValidationCase, spotify: FakeSpotifyClient) {
+    testCase.arrange(spotify);
+  }
+
+  const directValidationCases: SpotifyValidationCase[] = [
+    {
+      label: 'genre arrays',
+      request: { method: 'GET', url: '/api/spotify/getAvailableGenreSeeds' },
+      arrange: (spotify) => {
+        spotify.getAvailableGenreSeeds.mockResolvedValue(
+          spotifyResponse<'getAvailableGenreSeeds'>({}),
+        );
+      },
+    },
+    {
+      label: 'track search payloads',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/searchTracks',
+        payload: { query: 'garden' },
+      },
+      arrange: (spotify) => {
+        spotify.searchTracks.mockResolvedValue(spotifyResponse<'searchTracks'>({}));
+      },
+    },
+    {
+      label: 'artist search payloads',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/searchArtists',
+        payload: { query: 'phoebe bridgers' },
+      },
+      arrange: (spotify) => {
+        spotify.searchArtists.mockResolvedValue(spotifyResponse<'searchArtists'>({}));
+      },
+    },
+    {
+      label: 'recommendation payloads',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getRecommendations',
+        payload: { options: { seed_tracks: ['track-1'] } },
+      },
+      arrange: (spotify) => {
+        spotify.getRecommendations.mockResolvedValue(
+          spotifyResponse<'getRecommendations'>({ seeds: [] }),
+        );
+      },
+    },
+    {
+      label: 'playlist track pages',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getPlaylistTracks',
+        payload: { playlistId: 'playlist-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getPlaylistTracks.mockResolvedValue(
+          spotifyResponse<'getPlaylistTracks'>({ total: 1, next: null }),
+        );
+      },
+    },
+    {
+      label: 'user playlist pages',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getUserPlaylists',
+        payload: { userId: 'user-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getUserPlaylists.mockResolvedValue(
+          spotifyResponse<'getUserPlaylists'>({ total: 1, next: null }),
+        );
+      },
+    },
+    {
+      label: 'track detail bodies',
+      request: { method: 'GET', url: '/api/spotify/tracks/track-1' },
+      arrange: (spotify) => {
+        spotify.getTrack.mockResolvedValue(spotifyResponse<'getTrack'>(undefined));
+      },
+    },
+    {
+      label: 'playlist detail bodies',
+      request: { method: 'GET', url: '/api/spotify/playlists/playlist-1' },
+      arrange: (spotify) => {
+        spotify.getPlaylist.mockResolvedValue(spotifyResponse<'getPlaylist'>(undefined));
+      },
+    },
+  ];
+
+  const aggregateValidationCases: SpotifyValidationCase[] = [
+    {
+      label: 'category pages without a categories object',
+      request: { method: 'GET', url: '/api/spotify/categories' },
+      arrange: (spotify) => {
+        spotify.getCategories.mockResolvedValue(spotifyResponse<'getCategories'>({}));
+      },
+    },
+    {
+      label: 'category pages without items',
+      request: { method: 'GET', url: '/api/spotify/categories' },
+      arrange: (spotify) => {
+        spotify.getCategories.mockResolvedValue(
+          spotifyResponse<'getCategories'>({ categories: { total: 1, next: null } }),
+        );
+      },
+    },
+    {
+      label: 'category detail bodies',
+      request: { method: 'GET', url: '/api/spotify/categories/party' },
+      arrange: (spotify) => {
+        spotify.getCategory.mockResolvedValue(spotifyResponse<'getCategory'>(undefined));
+      },
+    },
+    {
+      label: 'category playlist pages',
+      request: { method: 'GET', url: '/api/spotify/categories/party' },
+      arrange: (spotify) => {
+        spotify.getCategory.mockResolvedValue(spotifyResponse<'getCategory'>({
+          id: 'party',
+          name: 'Party',
+        }));
+        spotify.getPlaylistsForCategory.mockResolvedValue(
+          spotifyResponse<'getPlaylistsForCategory'>({
+            playlists: { total: 1, next: null },
+          }),
+        );
+      },
+    },
+    {
+      label: 'artist detail bodies',
+      request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
+      arrange: (spotify) => {
+        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>(undefined));
+      },
+    },
+    {
+      label: 'artist top track arrays',
+      request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
+      arrange: (spotify) => {
+        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>({
+          id: 'artist-1',
+          name: 'boygenius',
+        }));
+        spotify.getArtistTopTracks.mockResolvedValue(
+          spotifyResponse<'getArtistTopTracks'>({}),
+        );
+        spotify.getArtistAlbums.mockResolvedValue(
+          spotifyResponse<'getArtistAlbums'>({
+            items: [{ id: 'album-1', name: 'the record' }],
+            total: 1,
+          }),
+        );
+        spotify.getArtistRelatedArtists.mockResolvedValue(
+          spotifyResponse<'getArtistRelatedArtists'>({
+            artists: [{ id: 'artist-2', name: 'Lucy Dacus' }],
+          }),
+        );
+      },
+    },
+    {
+      label: 'artist album arrays',
+      request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
+      arrange: (spotify) => {
+        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>({
+          id: 'artist-1',
+          name: 'boygenius',
+        }));
+        spotify.getArtistTopTracks.mockResolvedValue(
+          spotifyResponse<'getArtistTopTracks'>({
+            tracks: [{ id: 'track-1', name: '$20' }],
+          }),
+        );
+        spotify.getArtistAlbums.mockResolvedValue(
+          spotifyResponse<'getArtistAlbums'>({ total: 1 }),
+        );
+        spotify.getArtistRelatedArtists.mockResolvedValue(
+          spotifyResponse<'getArtistRelatedArtists'>({
+            artists: [{ id: 'artist-2', name: 'Lucy Dacus' }],
+          }),
+        );
+      },
+    },
+    {
+      label: 'artist related arrays',
+      request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
+      arrange: (spotify) => {
+        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>({
+          id: 'artist-1',
+          name: 'boygenius',
+        }));
+        spotify.getArtistTopTracks.mockResolvedValue(
+          spotifyResponse<'getArtistTopTracks'>({
+            tracks: [{ id: 'track-1', name: '$20' }],
+          }),
+        );
+        spotify.getArtistAlbums.mockResolvedValue(
+          spotifyResponse<'getArtistAlbums'>({
+            items: [{ id: 'album-1', name: 'the record' }],
+            total: 1,
+          }),
+        );
+        spotify.getArtistRelatedArtists.mockResolvedValue(
+          spotifyResponse<'getArtistRelatedArtists'>({}),
+        );
+      },
+    },
+    {
+      label: 'user detail bodies',
+      request: { method: 'GET', url: '/api/spotify/users/user-1' },
+      arrange: (spotify) => {
+        spotify.getUser.mockResolvedValue(spotifyResponse<'getUser'>(undefined));
+      },
+    },
+    {
+      label: 'user playlist totals',
+      request: { method: 'GET', url: '/api/spotify/users/user-1' },
+      arrange: (spotify) => {
+        spotify.getUser.mockResolvedValue(spotifyResponse<'getUser'>({
+          id: 'user-1',
+          display_name: 'Adam',
+        }));
+        spotify.getUserPlaylists.mockResolvedValue(
+          spotifyResponse<'getUserPlaylists'>({ items: [] }),
+        );
+      },
+    },
+  ];
 
   it('returns a JSON validation error for an empty track search', async () => {
     const { app, spotifyFactory } = createSpotifyApp();
@@ -42,10 +284,27 @@ describe('spotify routes', () => {
     });
   });
 
+  it('returns invalid_request for malformed JSON on Spotify POST routes', async () => {
+    const { app, spotifyFactory } = createSpotifyApp();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/spotify/searchTracks',
+      headers: { 'content-type': 'application/json' },
+      payload: '{',
+    });
+
+    expect(spotifyFactory).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'invalid_request', message: 'The request body is invalid.' },
+    });
+  });
+
   it('returns track search results from Spotify', async () => {
     const { app, spotify } = createSpotifyApp();
     const tracks = { items: [{ id: 'track-1', name: 'Garden Song' }], total: 1, next: null };
-    spotify.searchTracks.mockResolvedValue({ body: { tracks } });
+    spotify.searchTracks.mockResolvedValue(spotifyResponse<'searchTracks'>({ tracks }));
 
     const response = await app.inject({
       method: 'POST',
@@ -77,7 +336,7 @@ describe('spotify routes', () => {
   it('returns artist search results from Spotify', async () => {
     const { app, spotify } = createSpotifyApp();
     const artists = { items: [{ id: 'artist-1', name: 'Phoebe Bridgers' }], total: 1, next: null };
-    spotify.searchArtists.mockResolvedValue({ body: { artists } });
+    spotify.searchArtists.mockResolvedValue(spotifyResponse<'searchArtists'>({ artists }));
 
     const response = await app.inject({
       method: 'POST',
@@ -118,7 +377,7 @@ describe('spotify routes', () => {
       total: 1,
       next: null,
     };
-    spotify.getPlaylistTracks.mockResolvedValue({ body: playlistTracks });
+    spotify.getPlaylistTracks.mockResolvedValue(spotifyResponse<'getPlaylistTracks'>(playlistTracks));
 
     const response = await app.inject({
       method: 'POST',
@@ -158,7 +417,7 @@ describe('spotify routes', () => {
   it('translates page offsets before requesting user playlists', async () => {
     const { app, spotify } = createSpotifyApp();
     const playlists = { items: [{ id: 'playlist-1', name: 'Favorites' }], total: 1, next: null };
-    spotify.getUserPlaylists.mockResolvedValue({ body: playlists });
+    spotify.getUserPlaylists.mockResolvedValue(spotifyResponse<'getUserPlaylists'>(playlists));
 
     const response = await app.inject({
       method: 'POST',
@@ -194,7 +453,7 @@ describe('spotify routes', () => {
     const { app, spotify } = createSpotifyApp();
     const recommendations = { tracks: [{ id: 'track-1', name: 'Kyoto' }], seeds: [] };
     const options = { seed_tracks: ['track-1'], limit: 5 };
-    spotify.getRecommendations.mockResolvedValue({ body: recommendations });
+    spotify.getRecommendations.mockResolvedValue(spotifyResponse<'getRecommendations'>(recommendations));
 
     const response = await app.inject({
       method: 'POST',
@@ -209,7 +468,9 @@ describe('spotify routes', () => {
 
   it('returns available genre seeds', async () => {
     const { app, spotify } = createSpotifyApp();
-    spotify.getAvailableGenreSeeds.mockResolvedValue({ body: { genres: ['rock', 'jazz'] } });
+    spotify.getAvailableGenreSeeds.mockResolvedValue(spotifyResponse<'getAvailableGenreSeeds'>({
+      genres: ['rock', 'jazz'],
+    }));
 
     const response = await app.inject({
       method: 'GET',
@@ -221,9 +482,24 @@ describe('spotify routes', () => {
     expect(response.json()).toEqual(['rock', 'jazz']);
   });
 
+  it('does not expose implicit HEAD handlers for Spotify GET routes', async () => {
+    const { app, spotifyFactory } = createSpotifyApp();
+
+    const response = await app.inject({
+      method: 'HEAD',
+      url: '/api/spotify/getAvailableGenreSeeds',
+    });
+
+    expect(spotifyFactory).not.toHaveBeenCalled();
+    expect(response.statusCode).toBeGreaterThanOrEqual(400);
+    expect(response.statusCode).not.toBe(200);
+  });
+
   it('returns the loader genres data from the same Spotify endpoint', async () => {
     const { app, spotify } = createSpotifyApp();
-    spotify.getAvailableGenreSeeds.mockResolvedValue({ body: { genres: ['ambient', 'folk'] } });
+    spotify.getAvailableGenreSeeds.mockResolvedValue(spotifyResponse<'getAvailableGenreSeeds'>({
+      genres: ['ambient', 'folk'],
+    }));
 
     const response = await app.inject({
       method: 'GET',
@@ -235,10 +511,27 @@ describe('spotify routes', () => {
     expect(response.json()).toEqual(['ambient', 'folk']);
   });
 
+  for (const testCase of directValidationCases) {
+    it(`returns a safe 502 when Spotify omits required direct ${testCase.label}`, async () => {
+      const { app, spotify } = createSpotifyApp();
+      arrangeSpotifyCase(testCase, spotify);
+
+      const response = await app.inject(testCase.request);
+
+      expect(response.statusCode).toBe(502);
+      expect(JSON.parse(response.body)).toEqual({
+        error: {
+          code: 'spotify_upstream_error',
+          message: 'Spotify could not complete the request.',
+        },
+      });
+    });
+  }
+
   it('returns a track detail body', async () => {
     const { app, spotify } = createSpotifyApp();
     const track = { id: 'track-1', name: 'Chinese Satellite' };
-    spotify.getTrack.mockResolvedValue({ body: track });
+    spotify.getTrack.mockResolvedValue(spotifyResponse<'getTrack'>(track));
 
     const response = await app.inject({
       method: 'GET',
@@ -283,7 +576,7 @@ describe('spotify routes', () => {
   it('returns a playlist detail body', async () => {
     const { app, spotify } = createSpotifyApp();
     const playlist = { id: 'playlist-1', name: 'Chill Mix' };
-    spotify.getPlaylist.mockResolvedValue({ body: playlist });
+    spotify.getPlaylist.mockResolvedValue(spotifyResponse<'getPlaylist'>(playlist));
 
     const response = await app.inject({
       method: 'GET',
@@ -317,10 +610,12 @@ describe('spotify routes', () => {
     const artistAlbums = { items: [{ id: 'album-1', name: 'the record' }], total: 1 };
     const relatedArtists = [{ id: 'artist-2', name: 'Lucy Dacus' }];
 
-    spotify.getArtist.mockResolvedValue({ body: artist });
-    spotify.getArtistTopTracks.mockResolvedValue({ body: artistTopTracks });
-    spotify.getArtistAlbums.mockResolvedValue({ body: artistAlbums });
-    spotify.getArtistRelatedArtists.mockResolvedValue({ body: { artists: relatedArtists } });
+    spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>(artist));
+    spotify.getArtistTopTracks.mockResolvedValue(spotifyResponse<'getArtistTopTracks'>(artistTopTracks));
+    spotify.getArtistAlbums.mockResolvedValue(spotifyResponse<'getArtistAlbums'>(artistAlbums));
+    spotify.getArtistRelatedArtists.mockResolvedValue(spotifyResponse<'getArtistRelatedArtists'>({
+      artists: relatedArtists,
+    }));
 
     const response = await app.inject({
       method: 'GET',
@@ -343,8 +638,8 @@ describe('spotify routes', () => {
   it('aggregates user details into one response', async () => {
     const { app, spotify } = createSpotifyApp();
     const user = { id: 'user-1', display_name: 'Adam' };
-    spotify.getUser.mockResolvedValue({ body: user });
-    spotify.getUserPlaylists.mockResolvedValue({ body: { total: 42 } });
+    spotify.getUser.mockResolvedValue(spotifyResponse<'getUser'>(user));
+    spotify.getUserPlaylists.mockResolvedValue(spotifyResponse<'getUserPlaylists'>({ total: 42 }));
 
     const response = await app.inject({
       method: 'GET',
@@ -365,8 +660,10 @@ describe('spotify routes', () => {
     const category = { id: 'party', name: 'Party' };
     const categoryPlaylists = { items: [{ id: 'playlist-1', name: 'Party Mix' }], total: 1, next: null };
 
-    spotify.getCategory.mockResolvedValue({ body: category });
-    spotify.getPlaylistsForCategory.mockResolvedValue({ body: { playlists: categoryPlaylists } });
+    spotify.getCategory.mockResolvedValue(spotifyResponse<'getCategory'>(category));
+    spotify.getPlaylistsForCategory.mockResolvedValue(spotifyResponse<'getPlaylistsForCategory'>({
+      playlists: categoryPlaylists,
+    }));
 
     const response = await app.inject({
       method: 'GET',
@@ -382,28 +679,41 @@ describe('spotify routes', () => {
     });
   });
 
+  for (const testCase of aggregateValidationCases) {
+    it(`returns a safe 502 when Spotify omits required aggregate ${testCase.label}`, async () => {
+      const { app, spotify } = createSpotifyApp();
+      arrangeSpotifyCase(testCase, spotify);
+
+      const response = await app.inject(testCase.request);
+
+      expect(response.statusCode).toBe(502);
+      expect(JSON.parse(response.body)).toEqual({
+        error: {
+          code: 'spotify_upstream_error',
+          message: 'Spotify could not complete the request.',
+        },
+      });
+    });
+  }
+
   it('aggregates every category page without requesting beyond the final page', async () => {
     const { app, spotify } = createSpotifyApp();
 
     spotify.getCategories
-      .mockResolvedValueOnce({
-        body: {
-          categories: {
-            items: [{ id: 'one', name: 'One' }, { id: 'two', name: 'Two' }],
-            next: 'https://spotify.example/next',
-            total: 3,
-          },
+      .mockResolvedValueOnce(spotifyResponse<'getCategories'>({
+        categories: {
+          items: [{ id: 'one', name: 'One' }, { id: 'two', name: 'Two' }],
+          next: 'https://spotify.example/next',
+          total: 3,
         },
-      })
-      .mockResolvedValueOnce({
-        body: {
-          categories: {
-            items: [{ id: 'three', name: 'Three' }],
-            next: null,
-            total: 3,
-          },
+      }))
+      .mockResolvedValueOnce(spotifyResponse<'getCategories'>({
+        categories: {
+          items: [{ id: 'three', name: 'Three' }],
+          next: null,
+          total: 3,
         },
-      });
+      }));
 
     const response = await app.inject({
       method: 'GET',
@@ -421,9 +731,13 @@ describe('spotify routes', () => {
     ]);
   });
 
-  it('turns Spotify upstream failures into a safe 502 and logs the original error', async () => {
+  it('turns Spotify upstream failures into a safe 502 and logs a sanitized error projection', async () => {
     const { app, spotify } = createSpotifyApp();
-    const upstreamError = new Error('upstream exploded');
+    const sentinel = 'top-secret-token';
+    const upstreamError = Object.assign(new Error('upstream exploded'), {
+      code: 'SPOTIFY_UPSTREAM',
+      secret: sentinel,
+    });
     const logError = vi.fn();
     spotify.getAvailableGenreSeeds.mockRejectedValue(upstreamError);
 
@@ -445,17 +759,36 @@ describe('spotify routes', () => {
         message: 'Spotify could not complete the request.',
       },
     });
-    expect(logError).toHaveBeenCalledWith({ err: upstreamError }, 'Spotify request failed');
-    expect(JSON.stringify(logError.mock.calls)).not.toContain('top-secret-token');
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        name: 'Error',
+        message: 'upstream exploded',
+        code: 'SPOTIFY_UPSTREAM',
+        statusCode: undefined,
+      },
+    }, 'Spotify request failed');
+    expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
+    expect(response.body).not.toContain(sentinel);
   });
 
-  it('does not rewrite spotify client factory failures as upstream errors', async () => {
+  it('turns spotify client factory status-code failures into a safe 502 and logs a sanitized error projection', async () => {
+    const sentinel = 'status-leak-token';
+    const logError = vi.fn();
     const spotifyFactory = vi.fn(async (): Promise<SpotifyClient> => {
       await Promise.resolve();
-      throw new Error('factory boom');
+      throw Object.assign(new Error('factory boom'), {
+        code: 'SPOTIFY_FACTORY',
+        secret: sentinel,
+        statusCode: 429,
+      });
     });
     const app = buildApp({ spotifyFactory });
     apps.push(app);
+
+    app.addHook('onRequest', async (request) => {
+      await Promise.resolve();
+      Object.assign(request.log, { error: logError });
+    });
 
     const response = await app.inject({
       method: 'GET',
@@ -463,11 +796,76 @@ describe('spotify routes', () => {
     });
 
     expect(spotifyFactory).toHaveBeenCalledOnce();
-    expect(response.statusCode).toBe(500);
+    expect(response.statusCode).toBe(502);
     expect(response.json()).toEqual({
-      error: { code: 'internal_error', message: 'The request could not be completed.' },
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
     });
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        name: 'Error',
+        message: 'factory boom',
+        code: 'SPOTIFY_FACTORY',
+        statusCode: 429,
+      },
+    }, 'Spotify request failed');
     expect(response.body).not.toContain('factory boom');
+    expect(response.body).not.toContain(sentinel);
+    expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
+  });
+
+  it('returns a safe 500 when Spotify is not configured', async () => {
+    const originalClientId = process.env.SPOTIFY_CLIENT_ID;
+    const originalClientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+    const logError = vi.fn();
+
+    delete process.env.SPOTIFY_CLIENT_ID;
+    delete process.env.SPOTIFY_CLIENT_SECRET;
+
+    try {
+      const app = buildApp();
+      apps.push(app);
+
+      app.addHook('onRequest', async (request) => {
+        await Promise.resolve();
+        Object.assign(request.log, { error: logError });
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/spotify/genres',
+      });
+
+      expect(response.statusCode).toBe(500);
+      expect(response.json()).toEqual({
+        error: {
+          code: 'spotify_not_configured',
+          message: 'Spotify is not configured.',
+        },
+      });
+      expect(logError).toHaveBeenCalledWith({
+        err: {
+          name: 'SpotifyConfigurationError',
+          message: 'Spotify client credentials are missing or invalid.',
+          code: 'spotify_not_configured',
+          statusCode: undefined,
+        },
+      }, 'Spotify request failed');
+    } finally {
+      if (originalClientId === undefined) {
+        delete process.env.SPOTIFY_CLIENT_ID;
+      } else {
+        process.env.SPOTIFY_CLIENT_ID = originalClientId;
+      }
+
+      if (originalClientSecret === undefined) {
+        delete process.env.SPOTIFY_CLIENT_SECRET;
+      } else {
+        process.env.SPOTIFY_CLIENT_SECRET = originalClientSecret;
+      }
+    }
   });
 
   it('rejects wrong HTTP methods without calling Spotify', async () => {
@@ -517,29 +915,33 @@ describe('spotify pagination helper', () => {
 
   it('concatenates multiple pages and advances by the accumulated item count', async () => {
     const { getAllPages } = await loadPaginationModule();
+    const firstPage = {
+      marker: 'first-page',
+      items: ['a', 'b'],
+      next: 'page-2',
+      total: 3,
+    };
+    const secondPage = {
+      marker: 'second-page',
+      items: ['c'],
+      next: null,
+      total: 3,
+    };
     const request = vi.fn()
-      .mockResolvedValueOnce({
-        marker: 'first-page',
-        items: ['a', 'b'],
-        next: 'page-2',
-        total: 3,
-      })
-      .mockResolvedValueOnce({
-        marker: 'second-page',
-        items: ['c'],
-        next: null,
-        total: 3,
-      });
+      .mockResolvedValueOnce(firstPage)
+      .mockResolvedValueOnce(secondPage);
 
     const response = await getAllPages(request);
 
     expect(request).toHaveBeenCalledTimes(2);
     expect(request).toHaveBeenNthCalledWith(1, 50, 0);
     expect(request).toHaveBeenNthCalledWith(2, 50, 2);
+    expect(firstPage.items).toEqual(['a', 'b']);
+    expect(response).not.toBe(firstPage);
     expect(response).toEqual({
-      marker: 'first-page',
+      marker: 'second-page',
       items: ['a', 'b', 'c'],
-      next: 'page-2',
+      next: null,
       total: 3,
     });
   });

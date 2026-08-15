@@ -1,62 +1,35 @@
 import { vi } from 'vitest';
+import type { SpotifyClient } from '../src/spotify/client.js';
 
-type SpotifyResponse<Body = unknown> = Promise<{ body: Body }>;
-type SearchOptions = Record<string, unknown>;
-type PaginationOptions = { limit?: number; offset?: number };
-
-type FakeSpotifyClientMethods = {
-  getAvailableGenreSeeds: () => SpotifyResponse<{ genres: string[] }>;
-  getPlaylistTracks: (playlistId: string, options?: PaginationOptions) => SpotifyResponse;
-  getRecommendations: (options?: Record<string, unknown>) => SpotifyResponse;
-  getUserPlaylists: (userId: string, options?: PaginationOptions) => SpotifyResponse;
-  searchArtists: (query: string, options?: SearchOptions) => SpotifyResponse<{ artists: unknown }>;
-  searchTracks: (query: string, options?: SearchOptions) => SpotifyResponse<{ tracks: unknown }>;
-  getCategories: (options?: PaginationOptions) => SpotifyResponse<{
-    categories: {
-      items: unknown[];
-      next?: string | null;
-      total?: number;
-    };
-  }>;
-  getCategory: (categoryId: string) => SpotifyResponse;
-  getPlaylistsForCategory: (categoryId: string) => SpotifyResponse<{ playlists: unknown }>;
-  getTrack: (trackId: string) => SpotifyResponse;
-  getArtist: (artistId: string) => SpotifyResponse;
-  getArtistTopTracks: (artistId: string, country: string) => SpotifyResponse;
-  getArtistAlbums: (artistId: string, options?: { limit?: number }) => SpotifyResponse;
-  getArtistRelatedArtists: (artistId: string) => SpotifyResponse<{ artists: unknown }>;
-  getUser: (userId: string) => SpotifyResponse;
-  getPlaylist: (playlistId: string) => SpotifyResponse;
-};
-
-const rejectUnexpectedSpotifyCall = async () => {
-  await Promise.resolve();
-  throw new Error('Unexpected Spotify call');
-};
-
-function createUnexpectedSpotifyMock<Method extends keyof FakeSpotifyClientMethods>() {
-  return vi.fn<FakeSpotifyClientMethods[Method]>(rejectUnexpectedSpotifyCall as FakeSpotifyClientMethods[Method]);
+function createUnexpectedSpotifyMock<
+  Method extends (...args: never[]) => Promise<{ body: unknown }>
+>() {
+  return vi.fn<Method>((async (...args: Parameters<Method>) => {
+    void args;
+    await Promise.resolve();
+    throw new Error('Unexpected Spotify call');
+  }) as unknown as Method);
 }
 
 export function createFakeSpotifyClient() {
   return {
-    getAvailableGenreSeeds: createUnexpectedSpotifyMock<'getAvailableGenreSeeds'>(),
-    getPlaylistTracks: createUnexpectedSpotifyMock<'getPlaylistTracks'>(),
-    getRecommendations: createUnexpectedSpotifyMock<'getRecommendations'>(),
-    getUserPlaylists: createUnexpectedSpotifyMock<'getUserPlaylists'>(),
-    searchArtists: createUnexpectedSpotifyMock<'searchArtists'>(),
-    searchTracks: createUnexpectedSpotifyMock<'searchTracks'>(),
-    getCategories: createUnexpectedSpotifyMock<'getCategories'>(),
-    getCategory: createUnexpectedSpotifyMock<'getCategory'>(),
-    getPlaylistsForCategory: createUnexpectedSpotifyMock<'getPlaylistsForCategory'>(),
-    getTrack: createUnexpectedSpotifyMock<'getTrack'>(),
-    getArtist: createUnexpectedSpotifyMock<'getArtist'>(),
-    getArtistTopTracks: createUnexpectedSpotifyMock<'getArtistTopTracks'>(),
-    getArtistAlbums: createUnexpectedSpotifyMock<'getArtistAlbums'>(),
-    getArtistRelatedArtists: createUnexpectedSpotifyMock<'getArtistRelatedArtists'>(),
-    getUser: createUnexpectedSpotifyMock<'getUser'>(),
-    getPlaylist: createUnexpectedSpotifyMock<'getPlaylist'>(),
-  };
+    getAvailableGenreSeeds: createUnexpectedSpotifyMock<SpotifyClient['getAvailableGenreSeeds']>(),
+    getPlaylistTracks: createUnexpectedSpotifyMock<SpotifyClient['getPlaylistTracks']>(),
+    getRecommendations: createUnexpectedSpotifyMock<SpotifyClient['getRecommendations']>(),
+    getUserPlaylists: createUnexpectedSpotifyMock<SpotifyClient['getUserPlaylists']>(),
+    searchArtists: createUnexpectedSpotifyMock<SpotifyClient['searchArtists']>(),
+    searchTracks: createUnexpectedSpotifyMock<SpotifyClient['searchTracks']>(),
+    getCategories: createUnexpectedSpotifyMock<SpotifyClient['getCategories']>(),
+    getCategory: createUnexpectedSpotifyMock<SpotifyClient['getCategory']>(),
+    getPlaylistsForCategory: createUnexpectedSpotifyMock<SpotifyClient['getPlaylistsForCategory']>(),
+    getTrack: createUnexpectedSpotifyMock<SpotifyClient['getTrack']>(),
+    getArtist: createUnexpectedSpotifyMock<SpotifyClient['getArtist']>(),
+    getArtistTopTracks: createUnexpectedSpotifyMock<SpotifyClient['getArtistTopTracks']>(),
+    getArtistAlbums: createUnexpectedSpotifyMock<SpotifyClient['getArtistAlbums']>(),
+    getArtistRelatedArtists: createUnexpectedSpotifyMock<SpotifyClient['getArtistRelatedArtists']>(),
+    getUser: createUnexpectedSpotifyMock<SpotifyClient['getUser']>(),
+    getPlaylist: createUnexpectedSpotifyMock<SpotifyClient['getPlaylist']>(),
+  } satisfies SpotifyClient;
 }
 
 export type FakeSpotifyClient = ReturnType<typeof createFakeSpotifyClient>;

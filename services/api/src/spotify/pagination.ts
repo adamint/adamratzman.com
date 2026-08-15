@@ -8,9 +8,10 @@ export async function getAllPages<Response extends SpotifyPagination<Item>, Item
   request: (limit: number, offset: number) => Promise<Response>,
   limit = 50,
 ): Promise<Response> {
-  const paginatedResponse = await request(limit, 0);
-  let currentResponse = paginatedResponse;
-  let total = currentResponse.items.length;
+  const firstResponse = await request(limit, 0);
+  let currentResponse = firstResponse;
+  let aggregatedItems = [...firstResponse.items];
+  let total = aggregatedItems.length;
   let expectedTotal = currentResponse.total;
 
   while (currentResponse.next && (expectedTotal === undefined || total < expectedTotal)) {
@@ -20,10 +21,15 @@ export async function getAllPages<Response extends SpotifyPagination<Item>, Item
     }
 
     currentResponse = nextResponse;
-    total += currentResponse.items.length;
+    aggregatedItems = aggregatedItems.concat(currentResponse.items);
+    total = aggregatedItems.length;
     expectedTotal = currentResponse.total ?? expectedTotal;
-    paginatedResponse.items = paginatedResponse.items.concat(currentResponse.items);
   }
 
-  return paginatedResponse;
+  return {
+    ...firstResponse,
+    ...currentResponse,
+    items: aggregatedItems,
+    total: currentResponse.total ?? expectedTotal,
+  };
 }
