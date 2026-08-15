@@ -9,7 +9,10 @@ const fastifyBadRequestErrorCodes = new Set([
   'FST_ERR_CTP_INVALID_JSON_BODY',
   'FST_ERR_VALIDATION',
 ]);
-const fastifyInvalidJsonBodyErrorCode = 'FST_ERR_CTP_INVALID_JSON_BODY';
+const fastifyInvalidJsonBodyErrorCodes = new Set([
+  'FST_ERR_CTP_EMPTY_JSON_BODY',
+  'FST_ERR_CTP_INVALID_JSON_BODY',
+]);
 
 const genericClientErrorResponses: Partial<Record<number, { code: string; message: string }>> = {
   401: { code: 'unauthorized', message: 'Authentication is required.' },
@@ -43,11 +46,17 @@ function readClientStatusCode(error: unknown) {
 
 function isFastifyBadRequestError(error: unknown): error is { code: string } {
   return (
+    hasFastifyErrorCode(error, fastifyBadRequestErrorCodes)
+  );
+}
+
+function hasFastifyErrorCode(error: unknown, allowedCodes: Set<string>): error is { code: string } {
+  return (
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
     typeof error.code === 'string' &&
-    fastifyBadRequestErrorCodes.has(error.code)
+    allowedCodes.has(error.code)
   );
 }
 
@@ -86,16 +95,16 @@ export function buildApp(dependencies: AppDependencies = {}) {
       return;
     }
 
-    if (isFastifyBadRequestError(error)) {
-      if (
-        error.code === fastifyInvalidJsonBodyErrorCode &&
-        isSpotifyRouteUrl(request.routeOptions.url) &&
-        isSpotifyRouteUrl(request.url)
-      ) {
-        await reply.code(400).send(errorResponse('invalid_request', 'The request body is invalid.'));
-        return;
-      }
+    if (
+      hasFastifyErrorCode(error, fastifyInvalidJsonBodyErrorCodes) &&
+      isSpotifyRouteUrl(request.routeOptions.url) &&
+      isSpotifyRouteUrl(request.url)
+    ) {
+      await reply.code(400).send(errorResponse('invalid_request', 'The request body is invalid.'));
+      return;
+    }
 
+    if (isFastifyBadRequestError(error)) {
       await reply.code(400).send(errorResponse('bad_request', 'The request is invalid.'));
       return;
     }

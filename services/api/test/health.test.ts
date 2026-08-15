@@ -60,6 +60,25 @@ describe('API foundation', () => {
     });
   });
 
+  it('preserves non-Spotify empty JSON client errors', async () => {
+    const app = buildApp();
+    apps.push(app);
+
+    app.post('/api/echo', () => ({ status: 'ok' }));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/echo',
+      headers: { 'content-type': 'application/json' },
+      payload: '',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'client_error', message: 'The request could not be completed.' },
+    });
+  });
+
   it('preserves client error boundaries for validation failures', async () => {
     const app = buildApp();
     apps.push(app);

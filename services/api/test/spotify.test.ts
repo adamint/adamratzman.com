@@ -38,6 +38,122 @@ describe('spotify routes', () => {
     return { body } as Awaited<ReturnType<SpotifyClient[Method]>>;
   }
 
+  function createImage(url = 'https://images.example/image.png') {
+    return { url };
+  }
+
+  function createArtistSummary(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'artist-1',
+      name: 'Phoebe Bridgers',
+      uri: 'spotify:artist:artist-1',
+      ...overrides,
+    };
+  }
+
+  function createTrackSummary(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'track-1',
+      uri: 'spotify:track:track-1',
+      name: 'Garden Song',
+      artists: [createArtistSummary()],
+      album: { images: [createImage('https://images.example/track.png')] },
+      popularity: 84,
+      duration_ms: 207000,
+      preview_url: null,
+      ...overrides,
+    };
+  }
+
+  function createTrackDetail(overrides: Record<string, unknown> = {}) {
+    return {
+      ...createTrackSummary(),
+      external_urls: { spotify: 'https://open.spotify.com/track/track-1' },
+      ...overrides,
+    };
+  }
+
+  function createUserReference(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'user-1',
+      display_name: 'Adam',
+      ...overrides,
+    };
+  }
+
+  function createPlaylistSummary(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'playlist-1',
+      name: 'Favorites',
+      images: [createImage('https://images.example/playlist.png')],
+      owner: createUserReference(),
+      tracks: { total: 12 },
+      description: 'Favorite songs',
+      ...overrides,
+    };
+  }
+
+  function createPlaylistDetail(overrides: Record<string, unknown> = {}) {
+    return {
+      ...createPlaylistSummary(),
+      external_urls: { spotify: 'https://open.spotify.com/playlist/playlist-1' },
+      followers: { total: 128 },
+      public: true,
+      collaborative: false,
+      ...overrides,
+    };
+  }
+
+  function createEpisodeSummary(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'episode-1',
+      external_urls: { spotify: 'https://open.spotify.com/episode/episode-1' },
+      images: [createImage('https://images.example/episode.png')],
+      name: 'Episode 1',
+      duration_ms: 180000,
+      show: {
+        external_urls: { spotify: 'https://open.spotify.com/show/show-1' },
+        name: 'Show 1',
+      },
+      release_date: '2024-01-01',
+      description: 'Episode description',
+      ...overrides,
+    };
+  }
+
+  function createCategory(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'party',
+      name: 'Party',
+      icons: [createImage('https://images.example/category.png')],
+      ...overrides,
+    };
+  }
+
+  function createArtistDetail(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'artist-1',
+      name: 'boygenius',
+      external_urls: { spotify: 'https://open.spotify.com/artist/artist-1' },
+      images: [createImage('https://images.example/artist.png')],
+      popularity: 97,
+      followers: { total: 1000000 },
+      genres: ['indie'],
+      ...overrides,
+    };
+  }
+
+  function createUserDetail(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'user-1',
+      display_name: 'Adam',
+      external_urls: { spotify: 'https://open.spotify.com/user/user-1' },
+      images: [createImage('https://images.example/user.png')],
+      followers: { total: 42 },
+      ...overrides,
+    };
+  }
+
   function arrangeSpotifyCase(testCase: SpotifyValidationCase, spotify: FakeSpotifyClient) {
     testCase.arrange(spotify);
   }
@@ -64,6 +180,34 @@ describe('spotify routes', () => {
       },
     },
     {
+      label: 'track search pages',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/searchTracks',
+        payload: { query: 'garden' },
+      },
+      arrange: (spotify) => {
+        spotify.searchTracks.mockResolvedValue(
+          spotifyResponse<'searchTracks'>({ tracks: {} }),
+        );
+      },
+    },
+    {
+      label: 'track search item fields',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/searchTracks',
+        payload: { query: 'garden' },
+      },
+      arrange: (spotify) => {
+        spotify.searchTracks.mockResolvedValue(
+          spotifyResponse<'searchTracks'>({
+            tracks: { items: [{ name: 'Garden Song', artists: [{}] }] },
+          }),
+        );
+      },
+    },
+    {
       label: 'artist search payloads',
       request: {
         method: 'POST',
@@ -72,6 +216,32 @@ describe('spotify routes', () => {
       },
       arrange: (spotify) => {
         spotify.searchArtists.mockResolvedValue(spotifyResponse<'searchArtists'>({}));
+      },
+    },
+    {
+      label: 'artist search pages',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/searchArtists',
+        payload: { query: 'phoebe bridgers' },
+      },
+      arrange: (spotify) => {
+        spotify.searchArtists.mockResolvedValue(
+          spotifyResponse<'searchArtists'>({ artists: {} }),
+        );
+      },
+    },
+    {
+      label: 'artist search item fields',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/searchArtists',
+        payload: { query: 'phoebe bridgers' },
+      },
+      arrange: (spotify) => {
+        spotify.searchArtists.mockResolvedValue(
+          spotifyResponse<'searchArtists'>({ artists: { items: [{ name: 'Phoebe Bridgers' }] } }),
+        );
       },
     },
     {
@@ -84,6 +254,54 @@ describe('spotify routes', () => {
       arrange: (spotify) => {
         spotify.getRecommendations.mockResolvedValue(
           spotifyResponse<'getRecommendations'>({ seeds: [] }),
+        );
+      },
+    },
+    {
+      label: 'recommendation track fields',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getRecommendations',
+        payload: { options: { seed_tracks: ['track-1'] } },
+      },
+      arrange: (spotify) => {
+        spotify.getRecommendations.mockResolvedValue(
+          spotifyResponse<'getRecommendations'>({
+            tracks: [createTrackSummary({ album: { images: [] } })],
+            seeds: [],
+          }),
+        );
+      },
+    },
+    {
+      label: 'recommendation preview urls',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getRecommendations',
+        payload: { options: { seed_tracks: ['track-1'] } },
+      },
+      arrange: (spotify) => {
+        spotify.getRecommendations.mockResolvedValue(
+          spotifyResponse<'getRecommendations'>({
+            tracks: [createTrackSummary({ preview_url: { bad: true } })],
+            seeds: [{ id: 'seed-1' }],
+          }),
+        );
+      },
+    },
+    {
+      label: 'recommendation seed items',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getRecommendations',
+        payload: { options: { seed_tracks: ['track-1'] } },
+      },
+      arrange: (spotify) => {
+        spotify.getRecommendations.mockResolvedValue(
+          spotifyResponse<'getRecommendations'>({
+            tracks: [createTrackSummary()],
+            seeds: [null],
+          }),
         );
       },
     },
@@ -101,6 +319,85 @@ describe('spotify routes', () => {
       },
     },
     {
+      label: 'playlist track totals',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getPlaylistTracks',
+        payload: { playlistId: 'playlist-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getPlaylistTracks.mockResolvedValue(
+          spotifyResponse<'getPlaylistTracks'>({
+            items: [{ track: createTrackSummary() }],
+            next: null,
+          }),
+        );
+      },
+    },
+    {
+      label: 'playlist track item fields',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getPlaylistTracks',
+        payload: { playlistId: 'playlist-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getPlaylistTracks.mockResolvedValue(
+          spotifyResponse<'getPlaylistTracks'>({
+            items: [{ track: createTrackSummary({ album: { images: [] } }) }],
+            total: 1,
+            next: null,
+          }),
+        );
+      },
+    },
+    {
+      label: 'playlist episode item fields',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getPlaylistTracks',
+        payload: { playlistId: 'playlist-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getPlaylistTracks.mockResolvedValue(
+          spotifyResponse<'getPlaylistTracks'>({
+            items: [
+              {
+                track: createEpisodeSummary({
+                  show: { name: 'Show 1' },
+                }),
+              },
+            ],
+            total: 1,
+            next: null,
+          }),
+        );
+      },
+    },
+    {
+      label: 'playlist episode descriptions',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getPlaylistTracks',
+        payload: { playlistId: 'playlist-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getPlaylistTracks.mockResolvedValue(
+          spotifyResponse<'getPlaylistTracks'>({
+            items: [
+              {
+                track: createEpisodeSummary({
+                  description: { bad: true },
+                }),
+              },
+            ],
+            total: 1,
+            next: null,
+          }),
+        );
+      },
+    },
+    {
       label: 'user playlist pages',
       request: {
         method: 'POST',
@@ -114,6 +411,73 @@ describe('spotify routes', () => {
       },
     },
     {
+      label: 'user playlist totals',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getUserPlaylists',
+        payload: { userId: 'user-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getUserPlaylists.mockResolvedValue(
+          spotifyResponse<'getUserPlaylists'>({
+            items: [createPlaylistSummary()],
+            next: null,
+          }),
+        );
+      },
+    },
+    {
+      label: 'user playlist item fields',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getUserPlaylists',
+        payload: { userId: 'user-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getUserPlaylists.mockResolvedValue(
+          spotifyResponse<'getUserPlaylists'>({
+            items: [createPlaylistSummary({ owner: {} })],
+            total: 1,
+            next: null,
+          }),
+        );
+      },
+    },
+    {
+      label: 'user playlist owner display names',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getUserPlaylists',
+        payload: { userId: 'user-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getUserPlaylists.mockResolvedValue(
+          spotifyResponse<'getUserPlaylists'>({
+            items: [createPlaylistSummary({ owner: { id: 'user-1', display_name: { bad: true } } })],
+            total: 1,
+            next: null,
+          }),
+        );
+      },
+    },
+    {
+      label: 'user playlist descriptions',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getUserPlaylists',
+        payload: { userId: 'user-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getUserPlaylists.mockResolvedValue(
+          spotifyResponse<'getUserPlaylists'>({
+            items: [createPlaylistSummary({ description: { bad: true } })],
+            total: 1,
+            next: null,
+          }),
+        );
+      },
+    },
+    {
       label: 'track detail bodies',
       request: { method: 'GET', url: '/api/spotify/tracks/track-1' },
       arrange: (spotify) => {
@@ -121,10 +485,74 @@ describe('spotify routes', () => {
       },
     },
     {
+      label: 'track detail fields',
+      request: { method: 'GET', url: '/api/spotify/tracks/track-1' },
+      arrange: (spotify) => {
+        spotify.getTrack.mockResolvedValue(
+          spotifyResponse<'getTrack'>(createTrackDetail({ external_urls: {} })),
+        );
+      },
+    },
+    {
       label: 'playlist detail bodies',
       request: { method: 'GET', url: '/api/spotify/playlists/playlist-1' },
       arrange: (spotify) => {
         spotify.getPlaylist.mockResolvedValue(spotifyResponse<'getPlaylist'>(undefined));
+      },
+    },
+    {
+      label: 'playlist detail fields',
+      request: { method: 'GET', url: '/api/spotify/playlists/playlist-1' },
+      arrange: (spotify) => {
+        spotify.getPlaylist.mockResolvedValue(
+          spotifyResponse<'getPlaylist'>(createPlaylistDetail({ followers: {} })),
+        );
+      },
+    },
+    {
+      label: 'playlist detail owner display names',
+      request: { method: 'GET', url: '/api/spotify/playlists/playlist-1' },
+      arrange: (spotify) => {
+        spotify.getPlaylist.mockResolvedValue(
+          spotifyResponse<'getPlaylist'>(
+            createPlaylistDetail({ owner: { id: 'user-1', display_name: { bad: true } } }),
+          ),
+        );
+      },
+    },
+    {
+      label: 'playlist detail image urls',
+      request: { method: 'GET', url: '/api/spotify/playlists/playlist-1' },
+      arrange: (spotify) => {
+        spotify.getPlaylist.mockResolvedValue(
+          spotifyResponse<'getPlaylist'>(createPlaylistDetail({ images: [{ url: { bad: true } }] })),
+        );
+      },
+    },
+    {
+      label: 'playlist detail owner follower totals',
+      request: { method: 'GET', url: '/api/spotify/playlists/playlist-1' },
+      arrange: (spotify) => {
+        spotify.getPlaylist.mockResolvedValue(
+          spotifyResponse<'getPlaylist'>(
+            createPlaylistDetail({
+              owner: {
+                id: 'user-1',
+                display_name: 'Adam',
+                followers: { total: 'bad' },
+              },
+            }),
+          ),
+        );
+      },
+    },
+    {
+      label: 'playlist detail descriptions',
+      request: { method: 'GET', url: '/api/spotify/playlists/playlist-1' },
+      arrange: (spotify) => {
+        spotify.getPlaylist.mockResolvedValue(
+          spotifyResponse<'getPlaylist'>(createPlaylistDetail({ description: { bad: true } })),
+        );
       },
     },
   ];
@@ -147,6 +575,17 @@ describe('spotify routes', () => {
       },
     },
     {
+      label: 'category item fields',
+      request: { method: 'GET', url: '/api/spotify/categories' },
+      arrange: (spotify) => {
+        spotify.getCategories.mockResolvedValue(
+          spotifyResponse<'getCategories'>({
+            categories: { items: [createCategory({ icons: [] })], total: 1, next: null },
+          }),
+        );
+      },
+    },
+    {
       label: 'category detail bodies',
       request: { method: 'GET', url: '/api/spotify/categories/party' },
       arrange: (spotify) => {
@@ -154,16 +593,43 @@ describe('spotify routes', () => {
       },
     },
     {
+      label: 'category detail fields',
+      request: { method: 'GET', url: '/api/spotify/categories/party' },
+      arrange: (spotify) => {
+        spotify.getCategory.mockResolvedValue(
+          spotifyResponse<'getCategory'>(createCategory({ icons: [] })),
+        );
+        spotify.getPlaylistsForCategory.mockResolvedValue(
+          spotifyResponse<'getPlaylistsForCategory'>({
+            playlists: { items: [createPlaylistSummary()], total: 1, next: null },
+          }),
+        );
+      },
+    },
+    {
       label: 'category playlist pages',
       request: { method: 'GET', url: '/api/spotify/categories/party' },
       arrange: (spotify) => {
-        spotify.getCategory.mockResolvedValue(spotifyResponse<'getCategory'>({
-          id: 'party',
-          name: 'Party',
-        }));
+        spotify.getCategory.mockResolvedValue(spotifyResponse<'getCategory'>(createCategory()));
         spotify.getPlaylistsForCategory.mockResolvedValue(
           spotifyResponse<'getPlaylistsForCategory'>({
             playlists: { total: 1, next: null },
+          }),
+        );
+      },
+    },
+    {
+      label: 'category playlist item fields',
+      request: { method: 'GET', url: '/api/spotify/categories/party' },
+      arrange: (spotify) => {
+        spotify.getCategory.mockResolvedValue(spotifyResponse<'getCategory'>(createCategory()));
+        spotify.getPlaylistsForCategory.mockResolvedValue(
+          spotifyResponse<'getPlaylistsForCategory'>({
+            playlists: {
+              items: [createPlaylistSummary({ tracks: {} })],
+              total: 1,
+              next: null,
+            },
           }),
         );
       },
@@ -176,13 +642,28 @@ describe('spotify routes', () => {
       },
     },
     {
+      label: 'artist detail fields',
+      request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
+      arrange: (spotify) => {
+        spotify.getArtist.mockResolvedValue(
+          spotifyResponse<'getArtist'>(createArtistDetail({ external_urls: {} })),
+        );
+        spotify.getArtistTopTracks.mockResolvedValue(
+          spotifyResponse<'getArtistTopTracks'>({ tracks: [createTrackSummary()] }),
+        );
+        spotify.getArtistAlbums.mockResolvedValue(
+          spotifyResponse<'getArtistAlbums'>({ items: [{ id: 'album-1' }], total: 1 }),
+        );
+        spotify.getArtistRelatedArtists.mockResolvedValue(
+          spotifyResponse<'getArtistRelatedArtists'>({ artists: [createArtistSummary()] }),
+        );
+      },
+    },
+    {
       label: 'artist top track arrays',
       request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
       arrange: (spotify) => {
-        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>({
-          id: 'artist-1',
-          name: 'boygenius',
-        }));
+        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>(createArtistDetail()));
         spotify.getArtistTopTracks.mockResolvedValue(
           spotifyResponse<'getArtistTopTracks'>({}),
         );
@@ -194,7 +675,30 @@ describe('spotify routes', () => {
         );
         spotify.getArtistRelatedArtists.mockResolvedValue(
           spotifyResponse<'getArtistRelatedArtists'>({
-            artists: [{ id: 'artist-2', name: 'Lucy Dacus' }],
+            artists: [createArtistSummary({ id: 'artist-2', name: 'Lucy Dacus' })],
+          }),
+        );
+      },
+    },
+    {
+      label: 'artist top track fields',
+      request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
+      arrange: (spotify) => {
+        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>(createArtistDetail()));
+        spotify.getArtistTopTracks.mockResolvedValue(
+          spotifyResponse<'getArtistTopTracks'>({
+            tracks: [createTrackSummary({ album: { images: [] } })],
+          }),
+        );
+        spotify.getArtistAlbums.mockResolvedValue(
+          spotifyResponse<'getArtistAlbums'>({
+            items: [{ id: 'album-1', name: 'the record' }],
+            total: 1,
+          }),
+        );
+        spotify.getArtistRelatedArtists.mockResolvedValue(
+          spotifyResponse<'getArtistRelatedArtists'>({
+            artists: [createArtistSummary({ id: 'artist-2', name: 'Lucy Dacus' })],
           }),
         );
       },
@@ -203,13 +707,10 @@ describe('spotify routes', () => {
       label: 'artist album arrays',
       request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
       arrange: (spotify) => {
-        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>({
-          id: 'artist-1',
-          name: 'boygenius',
-        }));
+        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>(createArtistDetail()));
         spotify.getArtistTopTracks.mockResolvedValue(
           spotifyResponse<'getArtistTopTracks'>({
-            tracks: [{ id: 'track-1', name: '$20' }],
+            tracks: [createTrackSummary()],
           }),
         );
         spotify.getArtistAlbums.mockResolvedValue(
@@ -217,7 +718,29 @@ describe('spotify routes', () => {
         );
         spotify.getArtistRelatedArtists.mockResolvedValue(
           spotifyResponse<'getArtistRelatedArtists'>({
-            artists: [{ id: 'artist-2', name: 'Lucy Dacus' }],
+            artists: [createArtistSummary({ id: 'artist-2', name: 'Lucy Dacus' })],
+          }),
+        );
+      },
+    },
+    {
+      label: 'artist album totals',
+      request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
+      arrange: (spotify) => {
+        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>(createArtistDetail()));
+        spotify.getArtistTopTracks.mockResolvedValue(
+          spotifyResponse<'getArtistTopTracks'>({
+            tracks: [createTrackSummary()],
+          }),
+        );
+        spotify.getArtistAlbums.mockResolvedValue(
+          spotifyResponse<'getArtistAlbums'>({
+            items: [{ id: 'album-1', name: 'the record' }],
+          }),
+        );
+        spotify.getArtistRelatedArtists.mockResolvedValue(
+          spotifyResponse<'getArtistRelatedArtists'>({
+            artists: [createArtistSummary({ id: 'artist-2', name: 'Lucy Dacus' })],
           }),
         );
       },
@@ -226,13 +749,10 @@ describe('spotify routes', () => {
       label: 'artist related arrays',
       request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
       arrange: (spotify) => {
-        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>({
-          id: 'artist-1',
-          name: 'boygenius',
-        }));
+        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>(createArtistDetail()));
         spotify.getArtistTopTracks.mockResolvedValue(
           spotifyResponse<'getArtistTopTracks'>({
-            tracks: [{ id: 'track-1', name: '$20' }],
+            tracks: [createTrackSummary()],
           }),
         );
         spotify.getArtistAlbums.mockResolvedValue(
@@ -247,6 +767,27 @@ describe('spotify routes', () => {
       },
     },
     {
+      label: 'artist related item fields',
+      request: { method: 'GET', url: '/api/spotify/artists/artist-1' },
+      arrange: (spotify) => {
+        spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>(createArtistDetail()));
+        spotify.getArtistTopTracks.mockResolvedValue(
+          spotifyResponse<'getArtistTopTracks'>({
+            tracks: [createTrackSummary()],
+          }),
+        );
+        spotify.getArtistAlbums.mockResolvedValue(
+          spotifyResponse<'getArtistAlbums'>({
+            items: [{ id: 'album-1', name: 'the record' }],
+            total: 1,
+          }),
+        );
+        spotify.getArtistRelatedArtists.mockResolvedValue(
+          spotifyResponse<'getArtistRelatedArtists'>({ artists: [{ id: 'artist-2' }] }),
+        );
+      },
+    },
+    {
       label: 'user detail bodies',
       request: { method: 'GET', url: '/api/spotify/users/user-1' },
       arrange: (spotify) => {
@@ -254,13 +795,46 @@ describe('spotify routes', () => {
       },
     },
     {
+      label: 'user detail fields',
+      request: { method: 'GET', url: '/api/spotify/users/user-1' },
+      arrange: (spotify) => {
+        spotify.getUser.mockResolvedValue(
+          spotifyResponse<'getUser'>(createUserDetail({ external_urls: {} })),
+        );
+        spotify.getUserPlaylists.mockResolvedValue(
+          spotifyResponse<'getUserPlaylists'>({ items: [createPlaylistSummary()], total: 1 }),
+        );
+      },
+    },
+    {
+      label: 'user detail display names',
+      request: { method: 'GET', url: '/api/spotify/users/user-1' },
+      arrange: (spotify) => {
+        spotify.getUser.mockResolvedValue(
+          spotifyResponse<'getUser'>(createUserDetail({ display_name: { bad: true } })),
+        );
+        spotify.getUserPlaylists.mockResolvedValue(
+          spotifyResponse<'getUserPlaylists'>({ items: [createPlaylistSummary()], total: 1 }),
+        );
+      },
+    },
+    {
+      label: 'user detail image urls',
+      request: { method: 'GET', url: '/api/spotify/users/user-1' },
+      arrange: (spotify) => {
+        spotify.getUser.mockResolvedValue(
+          spotifyResponse<'getUser'>(createUserDetail({ images: [{ url: { bad: true } }] })),
+        );
+        spotify.getUserPlaylists.mockResolvedValue(
+          spotifyResponse<'getUserPlaylists'>({ items: [createPlaylistSummary()], total: 1 }),
+        );
+      },
+    },
+    {
       label: 'user playlist totals',
       request: { method: 'GET', url: '/api/spotify/users/user-1' },
       arrange: (spotify) => {
-        spotify.getUser.mockResolvedValue(spotifyResponse<'getUser'>({
-          id: 'user-1',
-          display_name: 'Adam',
-        }));
+        spotify.getUser.mockResolvedValue(spotifyResponse<'getUser'>(createUserDetail()));
         spotify.getUserPlaylists.mockResolvedValue(
           spotifyResponse<'getUserPlaylists'>({ items: [] }),
         );
@@ -301,9 +875,26 @@ describe('spotify routes', () => {
     });
   });
 
+  it('returns invalid_request for an empty JSON body on Spotify POST routes', async () => {
+    const { app, spotifyFactory } = createSpotifyApp();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/spotify/searchTracks',
+      headers: { 'content-type': 'application/json' },
+      payload: '',
+    });
+
+    expect(spotifyFactory).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'invalid_request', message: 'The request body is invalid.' },
+    });
+  });
+
   it('returns track search results from Spotify', async () => {
     const { app, spotify } = createSpotifyApp();
-    const tracks = { items: [{ id: 'track-1', name: 'Garden Song' }], total: 1, next: null };
+    const tracks = { items: [createTrackSummary()], total: 1, next: null };
     spotify.searchTracks.mockResolvedValue(spotifyResponse<'searchTracks'>({ tracks }));
 
     const response = await app.inject({
@@ -335,7 +926,11 @@ describe('spotify routes', () => {
 
   it('returns artist search results from Spotify', async () => {
     const { app, spotify } = createSpotifyApp();
-    const artists = { items: [{ id: 'artist-1', name: 'Phoebe Bridgers' }], total: 1, next: null };
+    const artists = {
+      items: [createArtistSummary()],
+      total: 1,
+      next: null,
+    };
     spotify.searchArtists.mockResolvedValue(spotifyResponse<'searchArtists'>({ artists }));
 
     const response = await app.inject({
@@ -373,7 +968,7 @@ describe('spotify routes', () => {
   it('translates page offsets before requesting playlist tracks', async () => {
     const { app, spotify } = createSpotifyApp();
     const playlistTracks = {
-      items: [{ track: { id: 'track-1', name: 'Motion Sickness' } }],
+      items: [{ track: createTrackSummary({ id: 'track-2', name: 'Motion Sickness' }) }],
       total: 1,
       next: null,
     };
@@ -416,7 +1011,7 @@ describe('spotify routes', () => {
 
   it('translates page offsets before requesting user playlists', async () => {
     const { app, spotify } = createSpotifyApp();
-    const playlists = { items: [{ id: 'playlist-1', name: 'Favorites' }], total: 1, next: null };
+    const playlists = { items: [createPlaylistSummary()], total: 1, next: null };
     spotify.getUserPlaylists.mockResolvedValue(spotifyResponse<'getUserPlaylists'>(playlists));
 
     const response = await app.inject({
@@ -451,7 +1046,10 @@ describe('spotify routes', () => {
 
   it('returns Spotify recommendations', async () => {
     const { app, spotify } = createSpotifyApp();
-    const recommendations = { tracks: [{ id: 'track-1', name: 'Kyoto' }], seeds: [] };
+    const recommendations = {
+      tracks: [createTrackSummary({ id: 'track-3', name: 'Kyoto' })],
+      seeds: [],
+    };
     const options = { seed_tracks: ['track-1'], limit: 5 };
     spotify.getRecommendations.mockResolvedValue(spotifyResponse<'getRecommendations'>(recommendations));
 
@@ -530,7 +1128,7 @@ describe('spotify routes', () => {
 
   it('returns a track detail body', async () => {
     const { app, spotify } = createSpotifyApp();
-    const track = { id: 'track-1', name: 'Chinese Satellite' };
+    const track = createTrackDetail({ id: 'track-4', name: 'Chinese Satellite' });
     spotify.getTrack.mockResolvedValue(spotifyResponse<'getTrack'>(track));
 
     const response = await app.inject({
@@ -575,7 +1173,7 @@ describe('spotify routes', () => {
 
   it('returns a playlist detail body', async () => {
     const { app, spotify } = createSpotifyApp();
-    const playlist = { id: 'playlist-1', name: 'Chill Mix' };
+    const playlist = createPlaylistDetail({ id: 'playlist-2', name: 'Chill Mix' });
     spotify.getPlaylist.mockResolvedValue(spotifyResponse<'getPlaylist'>(playlist));
 
     const response = await app.inject({
@@ -584,6 +1182,21 @@ describe('spotify routes', () => {
     });
 
     expect(spotify.getPlaylist).toHaveBeenCalledWith('playlist-1');
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(playlist);
+  });
+
+  it('returns a playlist detail body when Spotify reports a null public flag', async () => {
+    const { app, spotify } = createSpotifyApp();
+    const playlist = createPlaylistDetail({ id: 'playlist-4', public: null });
+    spotify.getPlaylist.mockResolvedValue(spotifyResponse<'getPlaylist'>(playlist));
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/playlists/playlist-4',
+    });
+
+    expect(spotify.getPlaylist).toHaveBeenCalledWith('playlist-4');
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(playlist);
   });
@@ -605,10 +1218,10 @@ describe('spotify routes', () => {
 
   it('aggregates artist details into one response', async () => {
     const { app, spotify } = createSpotifyApp();
-    const artist = { id: 'artist-1', name: 'boygenius' };
-    const artistTopTracks = { tracks: [{ id: 'track-1', name: '$20' }] };
+    const artist = createArtistDetail();
+    const artistTopTracks = { tracks: [createTrackSummary({ id: 'track-5', name: '$20' })] };
     const artistAlbums = { items: [{ id: 'album-1', name: 'the record' }], total: 1 };
-    const relatedArtists = [{ id: 'artist-2', name: 'Lucy Dacus' }];
+    const relatedArtists = [createArtistSummary({ id: 'artist-2', name: 'Lucy Dacus' })];
 
     spotify.getArtist.mockResolvedValue(spotifyResponse<'getArtist'>(artist));
     spotify.getArtistTopTracks.mockResolvedValue(spotifyResponse<'getArtistTopTracks'>(artistTopTracks));
@@ -637,9 +1250,33 @@ describe('spotify routes', () => {
 
   it('aggregates user details into one response', async () => {
     const { app, spotify } = createSpotifyApp();
-    const user = { id: 'user-1', display_name: 'Adam' };
+    const user = createUserDetail();
     spotify.getUser.mockResolvedValue(spotifyResponse<'getUser'>(user));
-    spotify.getUserPlaylists.mockResolvedValue(spotifyResponse<'getUserPlaylists'>({ total: 42 }));
+    spotify.getUserPlaylists.mockResolvedValue(
+      spotifyResponse<'getUserPlaylists'>({ items: [], total: 42 }),
+    );
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/users/user-1',
+    });
+
+    expect(spotify.getUser).toHaveBeenCalledWith('user-1');
+    expect(spotify.getUserPlaylists).toHaveBeenCalledWith('user-1');
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      user,
+      totalPlaylists: 42,
+    });
+  });
+
+  it('aggregates user details when optional profile fields are null', async () => {
+    const { app, spotify } = createSpotifyApp();
+    const user = createUserDetail({ display_name: null, images: null, followers: null });
+    spotify.getUser.mockResolvedValue(spotifyResponse<'getUser'>(user));
+    spotify.getUserPlaylists.mockResolvedValue(
+      spotifyResponse<'getUserPlaylists'>({ items: [], total: 42 }),
+    );
 
     const response = await app.inject({
       method: 'GET',
@@ -657,8 +1294,12 @@ describe('spotify routes', () => {
 
   it('aggregates category details into one response', async () => {
     const { app, spotify } = createSpotifyApp();
-    const category = { id: 'party', name: 'Party' };
-    const categoryPlaylists = { items: [{ id: 'playlist-1', name: 'Party Mix' }], total: 1, next: null };
+    const category = createCategory();
+    const categoryPlaylists = {
+      items: [createPlaylistSummary({ id: 'playlist-3', name: 'Party Mix' })],
+      total: 1,
+      next: null,
+    };
 
     spotify.getCategory.mockResolvedValue(spotifyResponse<'getCategory'>(category));
     spotify.getPlaylistsForCategory.mockResolvedValue(spotifyResponse<'getPlaylistsForCategory'>({
@@ -702,14 +1343,17 @@ describe('spotify routes', () => {
     spotify.getCategories
       .mockResolvedValueOnce(spotifyResponse<'getCategories'>({
         categories: {
-          items: [{ id: 'one', name: 'One' }, { id: 'two', name: 'Two' }],
+          items: [
+            createCategory({ id: 'one', name: 'One' }),
+            createCategory({ id: 'two', name: 'Two' }),
+          ],
           next: 'https://spotify.example/next',
           total: 3,
         },
       }))
       .mockResolvedValueOnce(spotifyResponse<'getCategories'>({
         categories: {
-          items: [{ id: 'three', name: 'Three' }],
+          items: [createCategory({ id: 'three', name: 'Three' })],
           next: null,
           total: 3,
         },
@@ -725,16 +1369,16 @@ describe('spotify routes', () => {
     expect(spotify.getCategories).toHaveBeenNthCalledWith(2, { limit: 50, offset: 2 });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual([
-      { id: 'one', name: 'One' },
-      { id: 'two', name: 'Two' },
-      { id: 'three', name: 'Three' },
+      createCategory({ id: 'one', name: 'One' }),
+      createCategory({ id: 'two', name: 'Two' }),
+      createCategory({ id: 'three', name: 'Three' }),
     ]);
   });
 
   it('turns Spotify upstream failures into a safe 502 and logs a sanitized error projection', async () => {
     const { app, spotify } = createSpotifyApp();
     const sentinel = 'top-secret-token';
-    const upstreamError = Object.assign(new Error('upstream exploded'), {
+    const upstreamError = Object.assign(new Error(`upstream exploded ${sentinel}`), {
       code: 'SPOTIFY_UPSTREAM',
       secret: sentinel,
     });
@@ -762,12 +1406,14 @@ describe('spotify routes', () => {
     expect(logError).toHaveBeenCalledWith({
       err: {
         name: 'Error',
-        message: 'upstream exploded',
         code: 'SPOTIFY_UPSTREAM',
         statusCode: undefined,
       },
+      method: 'GET',
+      route: '/api/spotify/getAvailableGenreSeeds',
     }, 'Spotify request failed');
     expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
+    expect(JSON.stringify(logError.mock.calls)).not.toContain('upstream exploded');
     expect(response.body).not.toContain(sentinel);
   });
 
@@ -776,7 +1422,7 @@ describe('spotify routes', () => {
     const logError = vi.fn();
     const spotifyFactory = vi.fn(async (): Promise<SpotifyClient> => {
       await Promise.resolve();
-      throw Object.assign(new Error('factory boom'), {
+      throw Object.assign(new Error(`factory boom ${sentinel}`), {
         code: 'SPOTIFY_FACTORY',
         secret: sentinel,
         statusCode: 429,
@@ -806,14 +1452,16 @@ describe('spotify routes', () => {
     expect(logError).toHaveBeenCalledWith({
       err: {
         name: 'Error',
-        message: 'factory boom',
         code: 'SPOTIFY_FACTORY',
         statusCode: 429,
       },
+      method: 'GET',
+      route: '/api/spotify/genres',
     }, 'Spotify request failed');
     expect(response.body).not.toContain('factory boom');
     expect(response.body).not.toContain(sentinel);
     expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
+    expect(JSON.stringify(logError.mock.calls)).not.toContain('factory boom');
   });
 
   it('returns a safe 500 when Spotify is not configured', async () => {
@@ -848,10 +1496,11 @@ describe('spotify routes', () => {
       expect(logError).toHaveBeenCalledWith({
         err: {
           name: 'SpotifyConfigurationError',
-          message: 'Spotify client credentials are missing or invalid.',
           code: 'spotify_not_configured',
           statusCode: undefined,
         },
+        method: 'GET',
+        route: '/api/spotify/genres',
       }, 'Spotify request failed');
     } finally {
       if (originalClientId === undefined) {
@@ -868,20 +1517,22 @@ describe('spotify routes', () => {
     }
   });
 
-  it('rejects wrong HTTP methods without calling Spotify', async () => {
+  const wrongMethodCases: Array<Pick<InjectOptions, 'method' | 'url'>> = [
+    { method: 'GET', url: '/api/spotify/searchTracks' },
+    { method: 'GET', url: '/api/spotify/getPlaylistTracks' },
+    { method: 'POST', url: '/api/spotify/genres' },
+    { method: 'POST', url: '/api/spotify/tracks/track-1' },
+  ];
+
+  it.each(wrongMethodCases)('rejects wrong Spotify HTTP methods for $method $url without calling Spotify', async ({ method, url }) => {
     const { app, spotifyFactory } = createSpotifyApp();
 
-    const searchResponse = await app.inject({
-      method: 'GET',
-      url: '/api/spotify/searchTracks',
-    });
-    const genresResponse = await app.inject({
-      method: 'POST',
-      url: '/api/spotify/genres',
-    });
+    const response = await app.inject({ method, url });
 
-    expect(searchResponse.statusCode).toBeGreaterThanOrEqual(400);
-    expect(genresResponse.statusCode).toBeGreaterThanOrEqual(400);
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: { code: 'not_found', message: 'Route not found.' },
+    });
     expect(spotifyFactory).not.toHaveBeenCalled();
   });
 });
