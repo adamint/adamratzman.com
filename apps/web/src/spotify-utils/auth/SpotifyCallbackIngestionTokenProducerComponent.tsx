@@ -2,6 +2,7 @@ import axios, { AxiosResponse } from 'axios';
 import { useEffect, useRef } from 'react';
 import {
   doSpotifyPkceRefresh,
+  isLocalAbsolutePath,
   logoutOfSpotify,
   saveTokenAndGetRedirectPath,
   type SetSpotifyTokenInfo,
@@ -53,15 +54,15 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
             requestStartedRef.current = true;
             const pkceResponse = await axios.post<URLSearchParams, AxiosResponse<SpotifyToken>>('https://accounts.spotify.com/api/token', params);
             const pathToRedirectTo = saveTokenAndGetRedirectPath(pkceResponse.data, setSpotifyTokenInfo);
-            const destination = pathToRedirectTo?.startsWith('/') && !pathToRedirectTo.startsWith('//')
+            const destination = isLocalAbsolutePath(pathToRedirectTo)
               ? pathToRedirectTo
               : '/projects/spotify';
-            requestStartedRef.current = false;
             await navigate(destination, { replace: true });
           } catch (e) {
-            requestStartedRef.current = false;
             console.log(e);
             logoutOfSpotify();
+            setSpotifyPkceCallbackCodeLocalStorage(authCode);
+            requestStartedRef.current = false;
           }
         } else if (!existingTokenInfo || existingTokenInfo.expiry < Date.now()) {
           if (!existingTokenInfo || !existingTokenInfo.token?.refresh_token) {

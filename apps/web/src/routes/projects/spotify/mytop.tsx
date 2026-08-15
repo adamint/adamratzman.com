@@ -10,6 +10,7 @@ import { SpotifyArtist } from '../../../components/projects/spotify/views/Spotif
 import { TimeRange } from '../../../components/utils/SpotifyTypes';
 import {
   PkceGuardedSpotifyWebApiJs,
+  buildSpotifyRedirectPath,
   useSpotifyWebApiGuardValidPkceToken,
 } from '../../../spotify-utils/auth/SpotifyAuthUtils';
 import { useSpotifyStore } from '../../../components/utils/useSpotifyStore';
@@ -17,12 +18,14 @@ import { SpotifyRouteComponent } from '../../../components/projects/spotify/Spot
 import { RequireSpotifyScopesOrElseShowLogin } from '../../../spotify-utils/auth/RequireSpotifyScopesOrElseShowLogin';
 import shallow from 'zustand/shallow';
 import { PageTitle } from '../../../components/meta/PageTitle';
+import { useLocation } from 'react-router-dom';
 
 function SpotifyViewMyTopRoute() {
   const spotifyRedirectUri = useSpotifyStore(state => state.spotifyRedirectUri);
   const [codeVerifier, setCodeVerifier] = useSpotifyStore(state => [state.codeVerifier, state.setCodeVerifier], shallow);
   const [spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo] = useSpotifyStore(state => [state.spotifyClientId, state.spotifyTokenInfo, state.setSpotifyTokenInfo]);
   const guardedSpotifyApi = useSpotifyWebApiGuardValidPkceToken(spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo);
+  const location = useLocation();
 
   const [timeRange, setTimeRange] = useState<TimeRange>('short_term');
   const [pageLoading, setPageLoading] = useState(false);
@@ -40,7 +43,7 @@ function SpotifyViewMyTopRoute() {
                                                               redirectUri={spotifyRedirectUri()}
                                                               codeVerifier={codeVerifier}
                                                               setCodeVerifier={setCodeVerifier}
-                                                              redirectPathAfter='/projects/spotify/mytop'
+                                                              redirectPathAfter={buildSpotifyRedirectPath(location)}
                                                               spotifyToken={spotifyTokenInfo.token}
                                                               title='View your Spotify top tracks and artists'>
       <PageTitle title="Your top Spotify tracks and artists" />

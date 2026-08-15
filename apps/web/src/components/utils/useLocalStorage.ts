@@ -18,13 +18,11 @@ export function useLocalStorage<T>(key: string, initialValue: T | undefined = un
     }, refreshDurationMs);
 
     return () => clearInterval(intervalId);
-
-    // eslint-disable-next-line
   }, []);
 
   function setAndSaveValueToLocalStorage(newValue: T | null) {
     if (!newValue) localStorage.removeItem(key);
-    else localStorage.setItem(key, JSON.stringify(value));
+    else localStorage.setItem(key, JSON.stringify(newValue));
     setValue(newValue);
   }
 

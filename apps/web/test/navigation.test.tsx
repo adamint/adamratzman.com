@@ -36,6 +36,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function PersistentNavbarLayout() {
+  return (
+    <ChakraProvider theme={theme}>
+      <Navbar />
+      <Outlet />
+    </ChakraProvider>
+  );
+}
+
 describe('navigation primitives', () => {
   it('uses React Router navigation for internal Chakra links', async () => {
     const user = userEvent.setup();
@@ -105,15 +114,14 @@ describe('navigation primitives', () => {
     const { router } = renderWithRouter([
       {
         path: '/',
-        Component: () => (
-          <ChakraProvider theme={theme}>
-            <Navbar />
-          </ChakraProvider>
-        ),
-      },
-      {
-        path: '/projects',
-        Component: () => <h1>Projects page</h1>,
+        Component: PersistentNavbarLayout,
+        children: [
+          { index: true, Component: () => null },
+          {
+            path: 'projects',
+            Component: () => <h1>Projects page</h1>,
+          },
+        ],
       },
     ]);
 
@@ -127,11 +135,14 @@ describe('navigation primitives', () => {
     expect(projectsLink).toHaveProperty('tagName', 'A');
     expect(projectsLink).toHaveAttribute('href', '/projects');
 
-    projectsLink.addEventListener('click', event => event.preventDefault(), {
-      once: true,
+    const clickEvent = new MouseEvent('click', {
+      bubbles: true,
+      button: 1,
+      cancelable: true,
     });
-    fireEvent.click(projectsLink, { ctrlKey: true });
+    fireEvent(projectsLink, clickEvent);
 
+    expect(clickEvent.defaultPrevented).toBe(false);
     expect(router.state.location.pathname).toBe('/');
   });
 
@@ -140,26 +151,21 @@ describe('navigation primitives', () => {
     const { router } = renderWithRouter([
       {
         path: '/',
-        Component: () => (
-          <ChakraProvider theme={theme}>
-            <Navbar />
-          </ChakraProvider>
-        ),
-      },
-      {
-        path: '/projects',
-        Component: () => (
-          <ChakraProvider theme={theme}>
-            <Navbar />
-            <h1>Projects page</h1>
-          </ChakraProvider>
-        ),
+        Component: PersistentNavbarLayout,
+        children: [
+          { index: true, Component: () => null },
+          {
+            path: 'projects',
+            Component: () => <h1>Projects page</h1>,
+          },
+        ],
       },
     ]);
 
-    await user.click(await screen.findByRole('button', {
+    const menuButton = await screen.findByRole('button', {
       name: 'Open navigation menu',
-    }));
+    });
+    await user.click(menuButton);
     const projectsLink = screen.getByRole('menuitem', {
       name: 'Online Projects',
     });
@@ -170,7 +176,7 @@ describe('navigation primitives', () => {
     expect(router.state.location.pathname).toBe('/projects');
     expect(screen.getByRole('button', {
       name: 'Open navigation menu',
-    })).toBeVisible();
+    })).toBe(menuButton);
   });
 
   it('uses exact active matching for mobile internal navigation', async () => {
@@ -420,6 +426,79 @@ describe('navigation primitives', () => {
     expect(requestParams.get('code')).toBe('new-code');
   });
 
+  it('keeps the callback request guard active while navigation is pending', async () => {
+    localStorage.setItem(
+      'spotify_pkce_callback_code',
+      JSON.stringify('previous-code'),
+    );
+    localStorage.setItem(
+      'spotify_redirect_after_auth',
+      '/projects/spotify',
+    );
+    const postSpy = mockSpotifyTokenExchange();
+    let finishNavigation: () => void = () => undefined;
+    const pendingNavigation = new Promise<void>((resolve) => {
+      finishNavigation = resolve;
+    });
+    const { router } = renderSpotifyCallback({
+      initialEntries: [
+        '/projects/spotify/callback?code=callback-code',
+      ],
+      spotifyProjectLoader: () => pendingNavigation,
+    });
+
+    await waitFor(() => {
+      expect(postSpy).toHaveBeenCalledTimes(1);
+      expect(router.state.navigation.state).toBe('loading');
+    });
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 150));
+    });
+    expect(postSpy).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      finishNavigation();
+      await pendingNavigation;
+    });
+    expect(await screen.findByRole('heading', {
+      name: 'Spotify projects',
+    })).toBeVisible();
+  });
+
+  it('persists a failed callback request code across remounts', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const postSpy = vi.spyOn(axios, 'post').mockRejectedValue(
+      new Error('invalid one-time code'),
+    );
+    const firstRender = renderSpotifyCallback({
+      initialEntries: [
+        '/projects/spotify/callback?code=callback-code',
+      ],
+    });
+
+    await waitFor(() => {
+      expect(postSpy).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(localStorage.getItem('spotify_pkce_callback_code')).toBe(
+        JSON.stringify('callback-code'),
+      );
+    });
+
+    firstRender.unmount();
+    renderSpotifyCallback({
+      initialEntries: [
+        '/projects/spotify/callback?code=callback-code',
+      ],
+    });
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 150));
+    });
+    expect(postSpy).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     '//example.com/steal',
     'https://example.com/steal',
@@ -508,9 +587,11 @@ function mockSpotifyTokenExchange() {
 function renderSpotifyCallback({
   initialEntries,
   initialIndex = 0,
+  spotifyProjectLoader,
 }: {
   initialEntries: string[];
   initialIndex?: number;
+  spotifyProjectLoader?: RouteObject['loader'];
 }) {
   const setSpotifyTokenInfo = vi.fn();
   const routes: RouteObject[] = [
@@ -530,6 +611,7 @@ function renderSpotifyCallback({
     {
       path: '/projects/spotify',
       Component: () => <h1>Spotify projects</h1>,
+      loader: spotifyProjectLoader,
     },
   ];
 

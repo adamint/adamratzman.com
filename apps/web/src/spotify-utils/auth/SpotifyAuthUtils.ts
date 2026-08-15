@@ -17,6 +17,10 @@ export function buildSpotifyRedirectPath(location: {
   return `${location.pathname}${location.search}${location.hash}`;
 }
 
+export function isLocalAbsolutePath(candidate: string | null): candidate is string {
+  return candidate !== null && /^\/(?![/\\])/u.test(candidate);
+}
+
 const pkceCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
 
 export function createPkceCodeVerifier(

@@ -4,6 +4,7 @@ import { getSpotifyClientId } from '../src/components/utils/useSpotifyStore';
 import {
   createPkceCodeVerifier,
   doSpotifyPkceRefresh,
+  isLocalAbsolutePath,
 } from '../src/spotify-utils/auth/SpotifyAuthUtils';
 
 afterEach(() => {
@@ -81,5 +82,21 @@ describe('Spotify PKCE browser compatibility', () => {
 
     expect(logSpy).not.toHaveBeenCalled();
     expect(setSpotifyTokenInfo).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('Spotify redirect validation', () => {
+  it.each([
+    { path: '/', accepted: true },
+    { path: '/projects/spotify/mytop?tab=artists#top', accepted: true },
+    { path: '//evil.example', accepted: false },
+    { path: String.raw`/\evil.example`, accepted: false },
+    { path: String.raw`/\/evil.example`, accepted: false },
+    { path: 'https://evil.example', accepted: false },
+    { path: 'projects/spotify', accepted: false },
+    { path: '', accepted: false },
+    { path: null, accepted: false },
+  ])('returns $accepted for $path', ({ path, accepted }) => {
+    expect(isLocalAbsolutePath(path)).toBe(accepted);
   });
 });

@@ -39,7 +39,6 @@ const transitionalLegacyPureMoveFiles = [
   'src/components/utils/useColorModeColor.ts',
   'src/components/utils/useData.ts',
   'src/components/utils/useKomootData.ts',
-  'src/components/utils/useLocalStorage.ts',
   'src/components/utils/useNoShowBeforeRender.ts',
   'src/routes/projects/calculator.tsx',
   'src/routes/projects/spotify/callback.tsx',
