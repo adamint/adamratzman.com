@@ -50,6 +50,29 @@ type PendingPlaylist = {
   formValues: PlaylistFormValues;
 }
 
+type PlaylistRecoveryMarker<
+  Kind extends 'completed' | 'unrecoverable' = 'completed' | 'unrecoverable',
+> = {
+  kind: Kind;
+  spotifyUserId: string;
+  trackUris: string[];
+}
+
+type PlaylistRecovery = PendingPlaylist
+  | PlaylistRecoveryMarker<'unrecoverable'>
+  | { kind: 'unrecoverable' };
+
+type PendingPlaylistReadResult =
+  | { kind: 'absent' }
+  | { kind: 'completed' }
+  | { kind: 'malformed' }
+  | { kind: 'mismatched' }
+  | { kind: 'pending'; pendingPlaylist: PendingPlaylist }
+  | {
+    kind: 'unrecoverable';
+    marker: PlaylistRecoveryMarker<'unrecoverable'>;
+  };
+
 type CreateSpotifyPlaylistModalProps = {
   guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   createPlaylistDisclosure: UseDisclosureReturn;
@@ -104,6 +127,22 @@ const pendingPlaylistSchema = z.object({
   ).min(1).max(50),
 }).strict();
 
+const playlistRecoveryMarkerSchema = z.object({
+  kind: z.enum(['completed', 'unrecoverable']),
+  spotifyUserId: z.string().min(1).max(256),
+  trackUris: z.array(
+    z.string().refine(isSpotifyTrackUri),
+  ).min(1).max(50),
+}).strict();
+
+const storedPlaylistRecoverySchema = z.union([
+  pendingPlaylistSchema,
+  playlistRecoveryMarkerSchema,
+]);
+
+const volatilePlaylistRecovery = new Map<string, PendingPlaylist | PlaylistRecoveryMarker>();
+const volatileRecoveryFallbackScopes = new Set<string>();
+
 function isSpotifyTrackUri(value: string) {
   const match = /^spotify:track:([^:]+)$/u.exec(value);
   return match !== null && isSpotifyTrackId(match[1]);
@@ -119,7 +158,7 @@ function createDefaultPlaylistFormValues(): PlaylistFormValues {
 }
 
 function pendingPlaylistMatches(
-  pendingPlaylist: PendingPlaylist,
+  pendingPlaylist: Pick<PendingPlaylist, 'spotifyUserId' | 'trackUris'>,
   spotifyUserId: string,
   trackUris: string[],
 ) {
@@ -128,69 +167,178 @@ function pendingPlaylistMatches(
     && pendingPlaylist.trackUris.every((uri, index) => uri === trackUris[index]);
 }
 
-function loadPendingPlaylist(
+function createPlaylistRecoveryScopeKey(
   spotifyUserId: string,
   trackUris: string[],
-): PendingPlaylist | null {
-  if (typeof window === 'undefined') return null;
+): string {
+  return JSON.stringify([spotifyUserId, trackUris]);
+}
+
+function parsePendingPlaylistStorage(
+  storedValue: string | null,
+  spotifyUserId: string,
+  trackUris: string[],
+): PendingPlaylistReadResult {
+  if (storedValue === null) return { kind: 'absent' };
+  if (storedValue.trim().length === 0) return { kind: 'malformed' };
+
+  try {
+    const parsed = storedPlaylistRecoverySchema.safeParse(
+      JSON.parse(storedValue),
+    );
+    if (!parsed.success) return { kind: 'malformed' };
+    if (!pendingPlaylistMatches(parsed.data, spotifyUserId, trackUris)) {
+      return { kind: 'mismatched' };
+    }
+    if ('kind' in parsed.data) {
+      return parsed.data.kind === 'completed'
+        ? { kind: 'completed' }
+        : {
+          kind: 'unrecoverable',
+          marker: {
+            kind: 'unrecoverable',
+            spotifyUserId: parsed.data.spotifyUserId,
+            trackUris: parsed.data.trackUris,
+          },
+        };
+    }
+    return { kind: 'pending', pendingPlaylist: parsed.data };
+  } catch {
+    return { kind: 'malformed' };
+  }
+}
+
+function readPendingPlaylistStorage(
+  spotifyUserId: string,
+  trackUris: string[],
+  scopeKey: string,
+): PendingPlaylistReadResult {
+  if (typeof window === 'undefined') return { kind: 'absent' };
+  if (
+    volatileRecoveryFallbackScopes.has(scopeKey)
+    && volatilePlaylistRecovery.has(scopeKey)
+  ) {
+    return readVolatilePlaylistRecovery(scopeKey);
+  }
 
   try {
     const storedValue = window.sessionStorage.getItem(
       spotifyPendingPlaylistStorageKey,
     );
-    if (!storedValue) return null;
-
-    const parsed = pendingPlaylistSchema.safeParse(JSON.parse(storedValue));
-    if (
-      parsed.success
-      && pendingPlaylistMatches(parsed.data, spotifyUserId, trackUris)
-    ) {
-      return parsed.data;
-    }
+    const parsed = parsePendingPlaylistStorage(
+      storedValue,
+      spotifyUserId,
+      trackUris,
+    );
+    if (parsed.kind !== 'absent') return parsed;
+    return parsed;
   } catch {
-    // Invalid or unavailable session storage is handled as no recovery state.
+    return readVolatilePlaylistRecovery(scopeKey);
   }
+}
 
-  clearPendingPlaylistStorage();
-  return null;
+function readVolatilePlaylistRecovery(
+  scopeKey: string,
+): PendingPlaylistReadResult {
+  const volatileRecovery = volatilePlaylistRecovery.get(scopeKey);
+  if (!volatileRecovery) return { kind: 'absent' };
+  if ('kind' in volatileRecovery) {
+    return volatileRecovery.kind === 'completed'
+      ? { kind: 'completed' }
+      : {
+        kind: 'unrecoverable',
+        marker: {
+          kind: 'unrecoverable',
+          spotifyUserId: volatileRecovery.spotifyUserId,
+          trackUris: volatileRecovery.trackUris,
+        },
+      };
+  }
+  return { kind: 'pending', pendingPlaylist: volatileRecovery };
 }
 
 function createPendingPlaylist(
-  playlist: SpotifyApi.CreatePlaylistResponse,
+  playlist: unknown,
   spotifyUserId: string,
   trackUris: string[],
   formValues: PlaylistFormValues,
 ): PendingPlaylist | null {
-  const spotifyUrl = getSafeSpotifyPlaylistUrl(
-    playlist.external_urls.spotify,
-  );
-  const parsed = pendingPlaylistSchema.safeParse({
-    formValues,
-    playlistId: playlist.id,
-    ...(spotifyUrl ? { spotifyUrl } : {}),
-    spotifyUserId,
-    trackUris,
-  });
-  return parsed.success ? parsed.data : null;
+  try {
+    const response = playlist as SpotifyApi.CreatePlaylistResponse;
+    const spotifyUrl = getSafeSpotifyPlaylistUrl(
+      response.external_urls?.spotify,
+    );
+    const parsed = pendingPlaylistSchema.safeParse({
+      formValues,
+      playlistId: response.id,
+      ...(spotifyUrl ? { spotifyUrl } : {}),
+      spotifyUserId,
+      trackUris,
+    });
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
 }
 
-function storePendingPlaylist(pendingPlaylist: PendingPlaylist) {
+function createPlaylistRecoveryMarker<
+  Kind extends PlaylistRecoveryMarker['kind'],
+>(
+  kind: Kind,
+  spotifyUserId: string,
+  trackUris: string[],
+): PlaylistRecoveryMarker<Kind> | null {
+  const marker: PlaylistRecoveryMarker<Kind> = {
+    kind,
+    spotifyUserId,
+    trackUris,
+  };
+  const parsed = playlistRecoveryMarkerSchema.safeParse({
+    ...marker,
+  });
+  return parsed.success ? marker : null;
+}
+
+function storePlaylistRecovery(
+  recovery: PendingPlaylist | PlaylistRecoveryMarker,
+  scopeKey: string,
+) {
+  volatilePlaylistRecovery.set(scopeKey, recovery);
   try {
     window.sessionStorage.setItem(
       spotifyPendingPlaylistStorageKey,
-      JSON.stringify(pendingPlaylist),
+      JSON.stringify(recovery),
     );
+    volatileRecoveryFallbackScopes.delete(scopeKey);
   } catch {
-    // The in-memory recovery state still supports retry in this modal session.
+    volatileRecoveryFallbackScopes.add(scopeKey);
+    // Volatile recovery still blocks duplicate creation in this document.
   }
 }
 
-function clearPendingPlaylistStorage() {
+function removePendingPlaylistStorage(scopeKey: string) {
   try {
     window.sessionStorage.removeItem(spotifyPendingPlaylistStorageKey);
+    volatilePlaylistRecovery.delete(scopeKey);
+    volatileRecoveryFallbackScopes.delete(scopeKey);
   } catch {
-    // Storage cleanup failures must not break modal recovery.
+    volatileRecoveryFallbackScopes.add(scopeKey);
+    // A safe marker or volatile recovery remains authoritative.
   }
+}
+
+function completePlaylistRecovery(
+  spotifyUserId: string,
+  trackUris: string[],
+  scopeKey: string,
+) {
+  const completedMarker = createPlaylistRecoveryMarker(
+    'completed',
+    spotifyUserId,
+    trackUris,
+  );
+  if (completedMarker) storePlaylistRecovery(completedMarker, scopeKey);
+  removePendingPlaylistStorage(scopeKey);
 }
 
 export function CreateSpotifyPlaylistModal({
@@ -206,17 +354,50 @@ export function CreateSpotifyPlaylistModal({
     () => recommendedTracks.map(track => track.uri),
     [recommendedTracks],
   );
-  const [pendingPlaylist, setPendingPlaylist] = useState(
-    () => loadPendingPlaylist(spotifyUserId, trackUris),
+  const recoveryScopeKey = useMemo(
+    () => createPlaylistRecoveryScopeKey(spotifyUserId, trackUris),
+    [spotifyUserId, trackUris],
   );
-  const activePendingPlaylist = pendingPlaylist
-    && pendingPlaylistMatches(pendingPlaylist, spotifyUserId, trackUris)
-    ? pendingPlaylist
+  const [hydratedRecovery, setHydratedRecovery] = useState<{
+    recovery: PlaylistRecovery | null;
+    scopeKey: string;
+  } | null>(null);
+  const recoveryHydrated = hydratedRecovery?.scopeKey === recoveryScopeKey;
+  const recovery = recoveryHydrated ? hydratedRecovery.recovery : null;
+  const activePendingPlaylist = recovery && !('kind' in recovery)
+    ? recovery
     : null;
+  const unrecoverablePlaylist = recovery !== null
+    && 'kind' in recovery
+    && recovery.kind === 'unrecoverable';
+  const formLocked = !recoveryHydrated
+    || activePendingPlaylist !== null
+    || unrecoverablePlaylist;
 
   useEffect(() => {
-    setPendingPlaylist(loadPendingPlaylist(spotifyUserId, trackUris));
-  }, [spotifyUserId, trackUris]);
+    const readResult = readPendingPlaylistStorage(
+      spotifyUserId,
+      trackUris,
+      recoveryScopeKey,
+    );
+
+    if (readResult.kind === 'malformed' || readResult.kind === 'mismatched') {
+      volatilePlaylistRecovery.delete(recoveryScopeKey);
+      removePendingPlaylistStorage(recoveryScopeKey);
+    } else if (readResult.kind === 'completed') {
+      removePendingPlaylistStorage(recoveryScopeKey);
+    }
+
+    const nextRecovery = readResult.kind === 'pending'
+      ? readResult.pendingPlaylist
+      : readResult.kind === 'unrecoverable'
+        ? readResult.marker
+        : null;
+    setHydratedRecovery({
+      recovery: nextRecovery,
+      scopeKey: recoveryScopeKey,
+    });
+  }, [recoveryScopeKey, spotifyUserId, trackUris]);
 
   function validatePlaylistName(value: string) {
     return (value.length === 0) ? 'Playlist name cannot be empty' : null;
@@ -239,7 +420,14 @@ export function CreateSpotifyPlaylistModal({
       initialValues={activePendingPlaylist?.formValues
         ?? createDefaultPlaylistFormValues()}
       onSubmit={async (values, actions) => {
-        if (submittingRef.current) return;
+        if (
+          !recoveryHydrated
+          || unrecoverablePlaylist
+          || submittingRef.current
+        ) {
+          actions.setSubmitting(false);
+          return;
+        }
         submittingRef.current = true;
         setSubmitting(true);
         let pendingPlaylistForAttempt = activePendingPlaylist;
@@ -263,9 +451,32 @@ export function CreateSpotifyPlaylistModal({
               trackUris,
               values,
             );
-            if (!pendingPlaylistForAttempt) throw new Error();
-            storePendingPlaylist(pendingPlaylistForAttempt);
-            setPendingPlaylist(pendingPlaylistForAttempt);
+            if (!pendingPlaylistForAttempt) {
+              const unrecoverableMarker = createPlaylistRecoveryMarker(
+                'unrecoverable',
+                spotifyUserId,
+                trackUris,
+              );
+              if (unrecoverableMarker) {
+                storePlaylistRecovery(
+                  unrecoverableMarker,
+                  recoveryScopeKey,
+                );
+              }
+              setHydratedRecovery({
+                recovery: unrecoverableMarker ?? { kind: 'unrecoverable' },
+                scopeKey: recoveryScopeKey,
+              });
+              return;
+            }
+            storePlaylistRecovery(
+              pendingPlaylistForAttempt,
+              recoveryScopeKey,
+            );
+            setHydratedRecovery({
+              recovery: pendingPlaylistForAttempt,
+              scopeKey: recoveryScopeKey,
+            });
           }
 
           await spotifyApi.replaceTracksInPlaylist(
@@ -273,8 +484,15 @@ export function CreateSpotifyPlaylistModal({
             pendingPlaylistForAttempt.trackUris,
           );
           const spotifyUrlForPlaylist = pendingPlaylistForAttempt.spotifyUrl;
-          clearPendingPlaylistStorage();
-          setPendingPlaylist(null);
+          completePlaylistRecovery(
+            spotifyUserId,
+            trackUris,
+            recoveryScopeKey,
+          );
+          setHydratedRecovery({
+            recovery: null,
+            scopeKey: recoveryScopeKey,
+          });
           actions.resetForm({
             values: createDefaultPlaylistFormValues(),
           });
@@ -335,11 +553,23 @@ export function CreateSpotifyPlaylistModal({
                   </AlertDescription>
                 </Box>
               </Alert>}
+              {unrecoverablePlaylist && !submitting && <Alert status='warning' mb={4} alignItems='start'>
+                <AlertIcon mt={1} />
+                <Box>
+                  <AlertTitle>
+                    A playlist may have been created, but we cannot complete it automatically.
+                  </AlertTitle>
+                  <AlertDescription>
+                    To prevent creating a duplicate, playlist creation is blocked. Check Spotify before abandoning
+                    this state and starting over.
+                  </AlertDescription>
+                </Box>
+              </Alert>}
               <Field name='playlistName' validate={validatePlaylistName}>
                 {({ field, form }: FieldProps) => (
                   <FormControl isInvalid={!!(form.errors.playlistName && form.touched.playlistName)} mb={3}>
                     <FormLabel htmlFor='playlistName'>Playlist name</FormLabel>
-                    <Input {...field} id='playlistName' isDisabled={!!activePendingPlaylist}
+                    <Input {...field} id='playlistName' isDisabled={formLocked}
                            placeholder='playlist name' />
                     <FormErrorMessage>{form.errors.playlistName?.toLocaleString()}</FormErrorMessage>
                   </FormControl>
@@ -352,7 +582,7 @@ export function CreateSpotifyPlaylistModal({
                                display='flex' mb={3}>
                     <FormLabel htmlFor='playlistShouldBePublic'>Should playlist be public?</FormLabel>
                     <Switch {...field} isChecked={props.values.playlistShouldBePublic}
-                            isDisabled={!!activePendingPlaylist}
+                            isDisabled={formLocked}
                             onChange={() => {
                               const newPublic = !props.values.playlistShouldBePublic;
                               props.setFieldValue('playlistShouldBePublic', newPublic);
@@ -372,7 +602,7 @@ export function CreateSpotifyPlaylistModal({
                     display='flex' mb={3}>
                     <FormLabel htmlFor='playlistShouldBeCollaborative'>Should playlist be collaborative?</FormLabel>
                     <Switch {...field} isChecked={props.values.playlistShouldBeCollaborative}
-                            isDisabled={!!activePendingPlaylist}
+                            isDisabled={formLocked}
                             onChange={() => {
                               const newCollaborative = !props.values.playlistShouldBeCollaborative;
                               props.setFieldValue('playlistShouldBeCollaborative', newCollaborative);
@@ -390,7 +620,7 @@ export function CreateSpotifyPlaylistModal({
                   <FormControl isInvalid={!!(form.errors.playlistDescription && form.touched.playlistDescription)}
                                mb={3}>
                     <FormLabel htmlFor='playlistDescription'>Playlist description</FormLabel>
-                    <Textarea {...field} id='playlistDescription' isDisabled={!!activePendingPlaylist}
+                    <Textarea {...field} id='playlistDescription' isDisabled={formLocked}
                               placeholder='Enter playlist description (optional)' />
                     <FormErrorMessage>{form.errors.playlistDescription?.toLocaleString()}</FormErrorMessage>
                   </FormControl>
@@ -398,24 +628,32 @@ export function CreateSpotifyPlaylistModal({
               </Field>
             </ModalBody>
             <ModalFooter>
-              {activePendingPlaylist && <Button colorScheme='red' variant='outline' mr={3}
-                                                isDisabled={submitting} type='button'
-                                                onClick={() => {
-                                                  clearPendingPlaylistStorage();
-                                                  setPendingPlaylist(null);
-                                                  props.resetForm({
-                                                    values: createDefaultPlaylistFormValues(),
-                                                  });
-                                                  closeModal();
-                                                }}>
-                Abandon playlist recovery
+              {(activePendingPlaylist || unrecoverablePlaylist) && <Button colorScheme='red' variant='outline' mr={3}
+                                                                           isDisabled={submitting} type='button'
+                                                                           onClick={() => {
+                                                                             completePlaylistRecovery(
+                                                                               spotifyUserId,
+                                                                               trackUris,
+                                                                               recoveryScopeKey,
+                                                                             );
+                                                                             setHydratedRecovery({
+                                                                               recovery: null,
+                                                                               scopeKey: recoveryScopeKey,
+                                                                             });
+                                                                             props.resetForm({
+                                                                               values: createDefaultPlaylistFormValues(),
+                                                                             });
+                                                                             closeModal();
+                                                                           }}>
+                Abandon playlist and reset
               </Button>}
               <Button variant='ghost' mr={3} isDisabled={submitting}
                       onClick={closeModal} type='button'>Close</Button>
-              <Button colorScheme='blue' type='submit' isDisabled={props.isSubmitting}
-                      isLoading={props.isSubmitting}>
+              {!unrecoverablePlaylist && <Button colorScheme='blue' type='submit'
+                                                 isDisabled={!recoveryHydrated || props.isSubmitting}
+                                                 isLoading={props.isSubmitting}>
                 {activePendingPlaylist ? 'Retry adding tracks' : 'Create Playlist'}
-              </Button>
+              </Button>}
             </ModalFooter>
           </ModalContent>
         </Form>
