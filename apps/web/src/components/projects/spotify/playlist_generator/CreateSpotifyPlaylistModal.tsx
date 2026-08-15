@@ -33,6 +33,28 @@ type CreateSpotifyPlaylistModalProps = {
   recommendedTracks: SpotifyApi.TrackObjectFull[];
 }
 
+export function getSafeSpotifyPlaylistUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+
+  try {
+    const url = new URL(value);
+    const authority = /^https:\/\/([^/?#]*)/iu.exec(value.trim())?.[1];
+    if (
+      url.protocol !== 'https:'
+      || url.origin !== 'https://open.spotify.com'
+      || authority?.includes('@')
+      || url.username
+      || url.password
+    ) {
+      return null;
+    }
+
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function CreateSpotifyPlaylistModal({
                                              guardedSpotifyApi,
                                              createPlaylistDisclosure,
@@ -45,10 +67,6 @@ export function CreateSpotifyPlaylistModal({
     return (value.length === 0) ? 'Playlist name cannot be empty' : null;
   }
 
-  // @ts-ignore
-  // @ts-ignore
-  // @ts-ignore
-  // @ts-ignore
   return <Modal blockScrollOnMount={false} isOpen={createPlaylistDisclosure.isOpen}
                 onClose={createPlaylistDisclosure.onClose}>
     <ModalOverlay />
@@ -71,26 +89,30 @@ export function CreateSpotifyPlaylistModal({
           const spotifyApi = await guardedSpotifyApi.getApi();
           const createdPlaylist = await spotifyApi.createPlaylist(spotifyUserId, playlistCreationOptions);
           await spotifyApi.addTracksToPlaylist(createdPlaylist.id, recommendedTracks.map(track => track.uri));
-          const spotifyUrlForPlaylist = createdPlaylist.external_urls.spotify;
+          const spotifyUrlForPlaylist = getSafeSpotifyPlaylistUrl(createdPlaylist.external_urls.spotify);
           createPlaylistDisclosure.onClose();
           toast({
             status: 'success',
             title: 'Successfully created playlist.',
-            description: 'Redirecting you now to Spotify...',
+            description: spotifyUrlForPlaylist
+              ? 'Redirecting you now to Spotify...'
+              : 'Your Spotify playlist is ready.',
           });
 
-          setTimeout(() => {
-            window.open(spotifyUrlForPlaylist, '_blank');
-          }, 2000);
+          if (spotifyUrlForPlaylist) {
+            setTimeout(() => {
+              window.open(spotifyUrlForPlaylist, '_blank', 'noopener,noreferrer');
+            }, 2000);
+          }
 
-        } catch (e: any) {
+        } catch {
           toast({
             status: 'error',
             title: 'Failed to create playlist. Please reload the page and try again',
-            description: e.statusText ?? e.response,
           });
+        } finally {
+          actions.setSubmitting(false);
         }
-        actions.setSubmitting(false);
       }}
     >
       {(props) => (
@@ -159,7 +181,8 @@ export function CreateSpotifyPlaylistModal({
             </ModalBody>
             <ModalFooter>
               <Button variant='ghost' mr={3} onClick={createPlaylistDisclosure.onClose}>Close</Button>
-              <Button colorScheme='blue' type='submit' isLoading={props.isSubmitting}>Create Playlist</Button>
+              <Button colorScheme='blue' type='submit' isDisabled={props.isSubmitting}
+                      isLoading={props.isSubmitting}>Create Playlist</Button>
             </ModalFooter>
           </ModalContent>
         </Form>

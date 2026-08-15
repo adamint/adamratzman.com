@@ -10,6 +10,8 @@ type SpotifyEpisodeProps = {
 }
 
 export function SpotifyEpisode({ episode, openInNewTab = false, ...rest }: SpotifyEpisodeProps & FlexProps) {
+  const imageUrl = episode.images.at(0)?.url;
+
   function EpisodeLink({ children }: { children: React.ReactNode }) {
     return <ChakraRouterLink href={episode.external_urls.spotify} target={openInNewTab ? '_blank' : '_self'}>
       {children}
@@ -17,9 +19,9 @@ export function SpotifyEpisode({ episode, openInNewTab = false, ...rest }: Spoti
   }
 
   return <Flex {...rest} maxW={{ base: '100%', md: '75%' }}>
-    <EpisodeLink>
-      <Image boxSize={75} mr={2.5} src={episode.images[0].url} alt="Spotify episode preview image" />
-    </EpisodeLink>
+    {imageUrl && <EpisodeLink>
+      <Image boxSize={75} mr={2.5} src={imageUrl} alt="Spotify episode preview image" />
+    </EpisodeLink>}
     <Box flex='1' my='auto'>
       <Heading size='md'><EpisodeLink><b>{episode.name}</b></EpisodeLink></Heading>
       <Text fontSize='md'>Duration: {humanizeDuration(episode.duration_ms, { units: ['m', 's'], round: true })}. From

@@ -8,6 +8,8 @@ import {
 } from '../src/components/projects/spotify/views/PaginatedSpotifyDisplay';
 import { SpotifyPlaylist } from '../src/components/projects/spotify/views/SpotifyPlaylist';
 import { SpotifyTrack } from '../src/components/projects/spotify/views/SpotifyTrack';
+import { SpotifyArtist } from '../src/components/projects/spotify/views/SpotifyArtist';
+import { SpotifyEpisode } from '../src/components/projects/spotify/views/SpotifyEpisode';
 import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
 
@@ -323,6 +325,60 @@ describe('Spotify paginated result cards', () => {
     })).toBeVisible();
     expect(screen.queryByRole('img', {
       name: 'Spotify track preview image',
+    })).not.toBeInTheDocument();
+  });
+
+  it('renders an artist without artwork', () => {
+    renderCard(
+      <SpotifyArtist artist={{
+        followers: {
+          total: 1234,
+        },
+        genres: ['indie'],
+        id: 'artist',
+        images: [],
+        name: 'No Image Artist',
+        popularity: 42,
+      } as unknown as SpotifyApi.ArtistObjectFull} />,
+    );
+
+    expect(screen.getByRole('heading', {
+      name: 'No Image Artist',
+    })).toBeVisible();
+    expect(screen.getByText(/Popularity: 42%/u)).toBeVisible();
+    expect(screen.queryByRole('img', {
+      name: 'Spotify artist preview image',
+    })).not.toBeInTheDocument();
+  });
+
+  it('renders an episode without artwork', () => {
+    renderCard(
+      <SpotifyEpisode episode={{
+        description: 'Episode description',
+        duration_ms: 120_000,
+        external_urls: {
+          spotify: 'https://open.spotify.com/episode/episode',
+        },
+        id: 'episode',
+        images: [],
+        name: 'No Image Episode',
+        release_date: '2026-08-15',
+        show: {
+          external_urls: {
+            spotify: 'https://open.spotify.com/show/show',
+          },
+          name: 'Example Show',
+        },
+      } as unknown as SpotifyApi.EpisodeObjectFull} />,
+    );
+
+    expect(screen.getByRole('heading', {
+      name: 'No Image Episode',
+    })).toBeVisible();
+    expect(screen.getByText(/Example Show/u)).toBeVisible();
+    expect(screen.getByText(/Episode description/u)).toBeVisible();
+    expect(screen.queryByRole('img', {
+      name: 'Spotify episode preview image',
     })).not.toBeInTheDocument();
   });
 });
