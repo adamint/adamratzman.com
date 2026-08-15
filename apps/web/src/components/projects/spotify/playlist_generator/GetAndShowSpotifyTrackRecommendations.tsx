@@ -1,13 +1,14 @@
-import useDeepCompareEffect from 'use-deep-compare-effect';
-import AwesomeDebouncePromise from 'awesome-debounce-promise';
-import { useState } from 'react';
-import type { GetRecommendationsRequest } from '@adamratzman/contracts';
-import { useData } from '../../../utils/useData';
+import { useMemo } from 'react';
+import type {
+  GetRecommendationsRequest,
+  SpotifyRecommendationOptions,
+  SpotifyRecommendationsResponse,
+  SpotifyRecommendationTuningKey,
+} from '@adamratzman/contracts';
 import type {
   SelectedObjects,
   SelectedTrackAttribute,
 } from '../../../../routes/projects/spotify/recommend';
-import axios, { AxiosResponse } from 'axios';
 import { useNoShowBeforeRender } from '../../../utils/useNoShowBeforeRender';
 import {
   Accordion,
@@ -17,38 +18,14 @@ import {
   AlertTitle,
   Box,
   Heading,
-  Link,
   Spinner,
 } from '@chakra-ui/react';
 import { SpotifyTrack } from '../views/SpotifyTrack';
 import { SeedView } from './SeedView';
-
-interface RecommendationReturn {
-  tracks: SpotifyApi.TrackObjectFull[];
-  seeds: SpotifyApi.RecommendationsSeedObject[];
-}
-
-type RecommendationOptions = GetRecommendationsRequest['options'];
-
-async function getRecommendations(
-  options: RecommendationOptions | null,
-): Promise<RecommendationReturn | null> {
-  if (!options) return null;
-  const recommendationsResponse = (await axios.post<GetRecommendationsRequest, AxiosResponse<SpotifyApi.RecommendationsFromSeedsResponse>>(
-      '/api/spotify/getRecommendations',
-      { options: options })
-  ).data;
-
-  return {
-    tracks: recommendationsResponse.tracks as SpotifyApi.TrackObjectFull[],
-    seeds: recommendationsResponse.seeds,
-  };
-}
-
-const getRecommendationsFunctionDebounced = AwesomeDebouncePromise(
-  getRecommendations,
-  1000,
-);
+import { useLatestAsyncData } from '../../../utils/useLatestAsyncData';
+import { fetchJson } from '../../../../api/client';
+import { isSpotifyRecommendationsResponse } from '../../../../api/spotifyBrowserValidation';
+import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
 
 type GetAndShowSpotifyTrackRecommendationsProps = {
   selectedObjects: SelectedObjects;
@@ -58,40 +35,42 @@ type GetAndShowSpotifyTrackRecommendationsProps = {
 export function GetAndShowSpotifyTrackRecommendations({
                                                         selectedObjects,
                                                         selectedTrackAttributes,
-                                                      }: GetAndShowSpotifyTrackRecommendationsProps) {
+                                                        }: GetAndShowSpotifyTrackRecommendationsProps) {
   const shouldShow = useNoShowBeforeRender();
-  const [options, setOptions] = useState<RecommendationOptions | null>(null);
-  const {
-    loading,
-    data,
-    error,
-  } = useData<RecommendationReturn | null, unknown>(
-    getRecommendationsFunctionDebounced,
-    [options],
-    [options],
-    true,
-  );
-
-  useDeepCompareEffect(() => {
+  const options = useMemo<SpotifyRecommendationOptions>(() => {
     const selectedObjectKeys = Object.keys(selectedObjects);
-    const recommendationOptions: RecommendationOptions = {
+    const recommendationOptions: SpotifyRecommendationOptions = {
       seed_genres: selectedObjectKeys.filter(uri => uri.startsWith('spotify:genre:')).map(uri => uri.replace('spotify:genre:', '')),
       seed_artists: selectedObjectKeys.filter(uri => uri.startsWith('spotify:artist:')).map(uri => uri.replace('spotify:artist:', '')),
       seed_tracks: selectedObjectKeys.filter(uri => uri.startsWith('spotify:track:')).map(uri => uri.replace('spotify:track:', '')),
       limit: 50,
     };
     selectedTrackAttributes.forEach(selectedTrackAttribute => {
-      recommendationOptions[`${selectedTrackAttribute.type}_${selectedTrackAttribute.id}`] = !selectedTrackAttribute.trackAttribute.valueMapper ? selectedTrackAttribute.value : selectedTrackAttribute.trackAttribute.valueMapper(selectedTrackAttribute.value);
+      const key: SpotifyRecommendationTuningKey = `${selectedTrackAttribute.type}_${selectedTrackAttribute.id}`;
+      recommendationOptions[key] = !selectedTrackAttribute.trackAttribute.valueMapper ? selectedTrackAttribute.value : selectedTrackAttribute.trackAttribute.valueMapper(selectedTrackAttribute.value);
     });
-    setOptions(recommendationOptions);
-  }, [selectedObjects, selectedTrackAttributes]);
 
-  function handleCreateYourPlaylistButtonClicked() {
-    window.open(
-      `/projects/spotify/recommend/create-playlist?trackIds=${data!.tracks.map(track => track.id).join(',')}`,
-      '_blank',
-    );
-  }
+    return recommendationOptions;
+  }, [selectedObjects, selectedTrackAttributes]);
+  const producer = useMemo(() => (
+    async (signal: AbortSignal): Promise<SpotifyRecommendationsResponse> => {
+      const request: GetRecommendationsRequest = { options };
+      const response = await fetchJson<unknown>(
+        '/api/spotify/getRecommendations',
+        {
+          body: JSON.stringify(request),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+          signal,
+        },
+      );
+      if (!isSpotifyRecommendationsResponse(response)) throw new Error();
+      return response;
+    }
+  ), [options]);
+  const { loading, data, error } = useLatestAsyncData(producer);
 
   if (loading || !shouldShow) return <Box>Loading recommendations... <Spinner size='sm' /></Box>;
   else if (error || !data) return <Alert status='error'>
@@ -101,11 +80,24 @@ export function GetAndShowSpotifyTrackRecommendations({
   </Alert>;
   else {
     const { tracks, seeds } = data;
+    const searchParams = new URLSearchParams();
+    tracks.forEach(track => searchParams.append('trackIds', track.id));
+    const playlistPath = '/projects/spotify/recommend/create-playlist';
+    const playlistUrl = searchParams.size > 0
+      ? `${playlistPath}?${searchParams.toString()}`
+      : playlistPath;
+
     return <>
       <Box>
         <Box mb={5}>
           <Heading size='mdx'>Recommended tracks ({tracks.length})</Heading>
-          <Link onClick={handleCreateYourPlaylistButtonClicked}>Create your playlist (requires Spotify login) →</Link>
+          <ChakraRouterLink
+            href={playlistUrl}
+            rel='noopener noreferrer'
+            target='_blank'
+          >
+            Create your playlist (requires Spotify login) →
+          </ChakraRouterLink>
           <Accordion allowToggle mt={2}>
             {seeds.map((seed, index) => <SeedView key={seed.id} index={index} seedSource={seed} />)}
           </Accordion>

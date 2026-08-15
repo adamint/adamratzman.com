@@ -1,5 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Box } from '@chakra-ui/react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
+  Box,
+} from '@chakra-ui/react';
 import Fuse from 'fuse.js';
 import {
   AutoComplete,
@@ -10,19 +15,37 @@ import {
   AutoCompleteList,
   AutoCompleteTag,
 } from '@choc-ui/chakra-autocomplete';
-import type { SearchRequest } from '@adamratzman/contracts';
+import type {
+  SearchRequest,
+  SpotifyAutocompleteArtist,
+  SpotifyAutocompleteTrack,
+} from '@adamratzman/contracts';
 import { AutocompleteOption, SelectedObjects } from '../../../../routes/projects/spotify/recommend';
-import axios, { AxiosResponse } from 'axios';
+import { fetchJson } from '../../../../api/client';
+import {
+  isSpotifyArtistSearchPage,
+  isSpotifyGenreList,
+  isSpotifyTrackSearchPage,
+} from '../../../../api/spotifyBrowserValidation';
+import { useLatestAsyncData } from '../../../utils/useLatestAsyncData';
 
 type SpotifyArtistGenreTrackSearchAutocompleteComponentProps = {
   selectedObjects: SelectedObjects;
   setSelectedObjects: (selectedObjects: SelectedObjects) => void;
 }
 
-async function handleInputChange(event: React.ChangeEvent<HTMLInputElement>, setInputText: (query: string) => void, searchAndFilterResults: (query: string) => Promise<void>) {
-  const query = event.target.value;
-  setInputText(query);
-  await searchAndFilterResults(query);
+type SpotifySearchResults = {
+  artists: SpotifyAutocompleteArtist[];
+  tracks: SpotifyAutocompleteTrack[];
+};
+
+async function getAvailableGenreSeeds(signal: AbortSignal) {
+  const response = await fetchJson<unknown>(
+    '/api/spotify/getAvailableGenreSeeds',
+    { signal },
+  );
+  if (!isSpotifyGenreList(response)) throw new Error();
+  return response;
 }
 
 export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
@@ -30,9 +53,87 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
                                                                      setSelectedObjects,
                                                                    }: SpotifyArtistGenreTrackSearchAutocompleteComponentProps) {
   const [inputText, setInputText] = useState('');
-  const [allAvailableGenreSeeds, setAllAvailableGenreSeeds] = useState<string[]>([]);
-  const [allAutocompleteOptions, setAllAutocompleteOptions] = useState<AutocompleteOption[]>([]);
   const [tagToRemove, setTagToRemove] = useState<{ onRemove: () => void } | null>(null);
+  const query = inputText.trim();
+  const genreState = useLatestAsyncData(getAvailableGenreSeeds);
+  const searchProducer = useMemo(() => {
+    if (!query) return null;
+
+    return async (signal: AbortSignal): Promise<SpotifySearchResults> => {
+      await abortableDelay(250, signal);
+      const request: SearchRequest = {
+        options: { limit: 10 },
+        query,
+      };
+      const init: RequestInit = {
+        body: JSON.stringify(request),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+        signal,
+      };
+      const [trackResponse, artistResponse] = await Promise.all([
+        fetchJson<unknown>('/api/spotify/searchTracks', init),
+        fetchJson<unknown>('/api/spotify/searchArtists', init),
+      ]);
+
+      if (!isSpotifyTrackSearchPage(trackResponse)
+        || !isSpotifyArtistSearchPage(artistResponse)) {
+        throw new Error();
+      }
+
+      return {
+        artists: artistResponse.items,
+        tracks: trackResponse.items,
+      };
+    };
+  }, [query]);
+  const searchState = useLatestAsyncData(searchProducer);
+  const allAutocompleteOptions = useMemo(() => {
+    if (!query || genreState.error || searchState.error || !searchState.data) {
+      return [];
+    }
+
+    const genres: AutocompleteOption[] = (genreState.data ?? [])
+      .filter(genreSeed => genreSeed.includes(query.toLowerCase()))
+      .map(genreSeed => ({
+        uri: `spotify:genre:${genreSeed}`,
+        text: genreSeed,
+        additionalText: undefined,
+        textMapper: () => <><b>{genreSeed}</b></>,
+        type: 'genre',
+      }));
+    const tracks: AutocompleteOption[] = searchState.data.tracks.map(track => ({
+      uri: track.uri,
+      text: track.name,
+      additionalText: track.artists.map(artist => artist.name).join(' '),
+      textMapper: () => <>
+        <b>{track.name}</b> <Box as='span' ml={1}>
+          by {track.artists.map(artist => artist.name).join(', ')}
+        </Box>
+      </>,
+      type: 'track',
+    }));
+    const artists: AutocompleteOption[] = searchState.data.artists.map(artist => ({
+      uri: artist.uri,
+      text: artist.name,
+      additionalText: undefined,
+      textMapper: () => <><b>{artist.name}</b></>,
+      type: 'artist',
+    }));
+    const fuse = new Fuse([...tracks, ...artists, ...genres], {
+      keys: ['text', 'additionalText'],
+    });
+
+    return fuse.search(query).map(result => result.item);
+  }, [
+    genreState.data,
+    genreState.error,
+    query,
+    searchState.data,
+    searchState.error,
+  ]);
 
   useEffect(() => {
     if (tagToRemove) {
@@ -41,86 +142,10 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
     }
   }, [tagToRemove, selectedObjects]);
 
-  useEffect(() => {
-    void (async () => {
-      setAllAvailableGenreSeeds((await axios.get<string[]>('/api/spotify/getAvailableGenreSeeds')).data);
-    })();
-  }, []);
-
-  async function searchAndFilterResults(query: string) {
-    if (query.length < 1) {
-      setAllAutocompleteOptions([]);
-      return;
-    }
-
-    const genres: AutocompleteOption[] = allAvailableGenreSeeds
-      .filter(genreSeed => genreSeed.includes(query.toLowerCase()))
-      .map((genreSeed: string) => ({
-        uri: `spotify:genre:${genreSeed}`,
-        text: genreSeed,
-        additionalText: undefined,
-        obj: genreSeed,
-        textMapper: () => <><b>{genreSeed}</b></>,
-        type: 'genre',
-      }));
-
-    const trackPromise = async () => {
-      const tracks = (await axios.post<SearchRequest, AxiosResponse<SpotifyApi.PagingObject<SpotifyApi.TrackObjectFull>>>(
-        '/api/spotify/searchTracks',
-        { query: query, options: { limit: 10 } },
-      )).data.items;
-
-      return tracks.map((track: SpotifyApi.TrackObjectFull) => {
-        return {
-          uri: track.uri,
-          text: track.name,
-          additionalText: track.artists.map((artist: SpotifyApi.ArtistObjectSimplified) => artist.name).join(' '),
-          obj: track,
-          textMapper: () => <>
-            <b>{track.name}</b> <Box as='span'
-                                     ml={1}> by {track.artists.map((artist: SpotifyApi.ArtistObjectSimplified) => artist.name).join(', ')}</Box>
-          </>,
-          type: 'track',
-        };
-      });
-    };
-
-    const artistPromise = async () => {
-      const artists = (await axios.post<SearchRequest, AxiosResponse<SpotifyApi.PagingObject<SpotifyApi.ArtistObjectFull>>>(
-        '/api/spotify/searchArtists',
-        { query: query, options: { limit: 10 } },
-      )).data.items;
-
-      return artists.map((artist: SpotifyApi.ArtistObjectFull) => {
-        return {
-          uri: artist.uri,
-          text: artist.name,
-          additionalText: null,
-          obj: artist,
-          textMapper: () => <><b>{artist.name}</b></>,
-          type: 'artist',
-        };
-      });
-    };
-
-    const [tracks, artists] = await Promise.all([trackPromise(), artistPromise()]);
-
-    const allFoundObjects = [...tracks, ...artists, ...genres];
-
-    const fuse = new Fuse(allFoundObjects, {
-      keys: ['text', 'additionalText'],
-    });
-
-    const searchResults = fuse.search(query);
-    const searchResultItems = searchResults.map(result => result.item as AutocompleteOption);
-
-    setAllAutocompleteOptions(searchResultItems);
-  }
-
   function getAutocompleteItem(option: AutocompleteOption) {
     return <AutoCompleteItem
       key={`autocomplete-spotify-option-${option.uri}`}
-      value={option}>
+      value={option.uri}>
       {option.textMapper()}
     </AutoCompleteItem>;
   }
@@ -172,7 +197,7 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
     <AutoCompleteInput variant='filled' placeholder='Enter a Spotify track, artist, or genre...' autoFocus
                        value={inputText}
                        onChange={e => {
-                         void handleInputChange(e, setInputText, searchAndFilterResults);
+                         setInputText(e.target.value);
                        }}>
       {({ tags }: { tags: Array<{ label: unknown; onRemove: () => void }> }) => {
         return tags.map(tag => {
@@ -218,5 +243,31 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
       </AutoCompleteGroup>
 
     </AutoCompleteList>
+    {(genreState.error || searchState.error) && <Alert status='error' mt={2}>
+      <AlertIcon />
+      <AlertDescription>
+        We were unable to search Spotify. Please try again.
+      </AlertDescription>
+    </Alert>}
   </AutoComplete>;
+}
+
+function abortableDelay(milliseconds: number, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const handleAbort = () => {
+      window.clearTimeout(timer);
+      reject(new DOMException('The request was aborted.', 'AbortError'));
+    };
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener('abort', handleAbort);
+      resolve();
+    }, milliseconds);
+
+    if (signal.aborted) {
+      handleAbort();
+      return;
+    }
+
+    signal.addEventListener('abort', handleAbort, { once: true });
+  });
 }
