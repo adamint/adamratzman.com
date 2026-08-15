@@ -81,7 +81,8 @@ function requireBody<Body>(
   response: { body?: Body | null | undefined },
   description: string,
 ): Body {
-  return requireField(response.body, `${description} body`);
+  const body = requireField(response.body, `${description} body`);
+  return projectSpotifyResponse(body);
 }
 
 function requireArray<Item>(

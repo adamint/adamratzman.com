@@ -1739,6 +1739,78 @@ describe('spotify routes', () => {
     expect(response.body).not.toContain(sentinel);
   });
 
+  it('uses the first projected getter value for Spotify validation and response bodies', async () => {
+    const sentinel = 'SERIALIZE_SENTINEL';
+    const { app, spotify, spotifyFactory } = createSpotifyApp();
+    let nameReads = 0;
+
+    const track = createTrackDetail() as Record<string, unknown>;
+    Object.defineProperty(track, 'name', {
+      enumerable: true,
+      get() {
+        nameReads += 1;
+        return nameReads === 1 ? 'Garden Song' : sentinel;
+      },
+    });
+    spotify.getTrack.mockResolvedValue(spotifyResponse<'getTrack'>(track));
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/tracks/track-1',
+    });
+
+    expect(spotifyFactory).toHaveBeenCalledOnce();
+    expect(spotify.getTrack).toHaveBeenCalledOnce();
+    expect(spotify.getTrack).toHaveBeenCalledWith('track-1');
+    expect(nameReads).toBe(1);
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(createTrackDetail());
+    expect(response.body).not.toContain(sentinel);
+  });
+
+  it('turns contract-replacing Spotify response toJSON payloads into a safe 502', async () => {
+    const sentinel = 'SERIALIZE_SENTINEL';
+    const logError = vi.fn();
+    const { app, spotify, spotifyFactory } = createSpotifyApp();
+
+    app.addHook('onRequest', async (request) => {
+      await Promise.resolve();
+      Object.assign(request.log, { error: logError });
+    });
+
+    spotify.getTrack.mockResolvedValue(spotifyResponse<'getTrack'>({
+      ...createTrackDetail(),
+      toJSON() {
+        return { evil: sentinel };
+      },
+    }));
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/tracks/track-1',
+    });
+
+    expect(spotifyFactory).toHaveBeenCalledOnce();
+    expect(spotify.getTrack).toHaveBeenCalledOnce();
+    expect(spotify.getTrack).toHaveBeenCalledWith('track-1');
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        classification: 'spotify_request_failure',
+      },
+      method: 'GET',
+      route: '/api/spotify/tracks/:trackId(^.+$)',
+    }, 'Spotify request failed');
+    expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
+    expect(response.body).not.toContain(sentinel);
+  });
+
   it('turns Spotify response toJSON serialization failures into a safe 502 without leaking sentinels', async () => {
     const sentinel = 'SERIALIZE_SENTINEL';
     const logError = vi.fn();
@@ -1938,7 +2010,7 @@ describe('spotify routes', () => {
 });
 
 describe('spotify serialization helper', () => {
-  it('projects Spotify responses to plain JSON-safe data without changing payload shape', async () => {
+  it('projects stable getters to plain JSON-safe data without changing payload shape', async () => {
     const { projectSpotifyResponse } = await loadSerializationModule();
     const expectedTrack = {
       id: 'track-1',
@@ -1959,16 +2031,15 @@ describe('spotify serialization helper', () => {
       preview_url: null,
       external_urls: { spotify: 'https://open.spotify.com/track/track-1' },
     };
+    let nameReads = 0;
     const sourceTrack = Object.assign(
       Object.create({ inherited: 'root' }) as Record<string, unknown>,
       {
         ...expectedTrack,
-        artists: [
-          Object.assign(
-            Object.create({ inherited: 'artist' }) as Record<string, unknown>,
-            expectedTrack.artists[0],
-          ),
-        ],
+        artists: [Object.assign(
+          Object.create({ inherited: 'artist' }) as Record<string, unknown>,
+          expectedTrack.artists[0],
+        )],
         album: Object.assign(
           Object.create({ inherited: 'album' }) as Record<string, unknown>,
           { images: [Object.assign(
@@ -1982,9 +2053,17 @@ describe('spotify serialization helper', () => {
         ),
       },
     );
+    Object.defineProperty(sourceTrack, 'name', {
+      enumerable: true,
+      get() {
+        nameReads += 1;
+        return expectedTrack.name;
+      },
+    });
 
     const projectedTrack = projectSpotifyResponse<typeof sourceTrack>(sourceTrack);
 
+    expect(nameReads).toBe(1);
     expect(projectedTrack).toEqual(expectedTrack);
     expect(Object.getPrototypeOf(projectedTrack)).toBe(Object.prototype);
     expect(Object.getPrototypeOf(projectedTrack.artists[0])).toBe(Object.prototype);
