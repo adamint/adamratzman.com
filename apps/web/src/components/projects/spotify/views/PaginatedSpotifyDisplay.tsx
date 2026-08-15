@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Box, Flex } from '@chakra-ui/react';
+import { Box, Flex, Spinner } from '@chakra-ui/react';
 import Pagination from '@choc-ui/paginator';
 import { TimeRange } from '../../../utils/SpotifyTypes';
 import { SpotifyPagination } from '../../../utils/SpotifyApiPaginationHelper';
@@ -102,7 +102,19 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
 
   if (error) return null;
 
-  if (loading || !data) return null;
+  if (loading) {
+    return <Flex
+      alignItems='center'
+      aria-label='Loading Spotify results'
+      justifyContent='center'
+      py={8}
+      role='status'
+    >
+      <Spinner aria-hidden='true' color='blue.500' size='lg' />
+    </Flex>;
+  }
+
+  if (!data) return null;
 
   function handleOnShowSizeChange(currentPage: number | undefined, size: number | undefined) {
     setLimitPerPage(normalizePageSize(size));

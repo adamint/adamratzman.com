@@ -1,4 +1,4 @@
-import { act, cleanup, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SpotifyRouteComponent } from '../src/components/projects/spotify/SpotifyRouteComponent';
 import SpotifyViewMyTopRoute from '../src/routes/projects/spotify/mytop';
@@ -102,18 +102,7 @@ describe('Spotify route authentication', () => {
   });
 
   it('keeps my-top producers stable while page loading state changes', async () => {
-    const tokenInfo: SpotifyTokenInfo = {
-      expiry: Date.now() + 60_000,
-      token: {
-        access_token: 'access-token',
-        expires_in: 3600,
-        refresh_token: 'refresh-token',
-        scope: 'user-top-read',
-        token_type: 'Bearer',
-      },
-    };
-    spotifyStoreState.spotifyTokenInfo = tokenInfo;
-    localStorage.setItem('spotify_token', JSON.stringify(tokenInfo));
+    authorizeMyTop();
     let resolveTracks!: (value: { items: never[]; total: number }) => void;
     const tracks = new Promise<{ items: never[]; total: number }>((resolve) => {
       resolveTracks = resolve;
@@ -166,6 +155,202 @@ describe('Spotify route authentication', () => {
 
     expect(callsWhilePending).toBe(1);
   });
+
+  it('keeps the loading indicator owned by the current my-top generation', async () => {
+    authorizeMyTop();
+    const oldTracks = deferred<TopPage>();
+    const currentTracks = deferred<TopPage>();
+    const getMyTopTracks = vi.fn()
+      .mockReturnValueOnce(oldTracks.promise)
+      .mockReturnValueOnce(currentTracks.promise);
+    const getMyTopArtists = vi.fn();
+    mockMyTopApi(getMyTopTracks, getMyTopArtists);
+
+    renderMyTopRoute();
+
+    expect(await screen.findByRole('heading', {
+      name: 'Your top tracks and artists',
+    })).toBeVisible();
+    await waitFor(() => {
+      expect(getMyTopTracks).toHaveBeenCalledOnce();
+    });
+    expectCurrentLoadingSpinner();
+    expect(getMyTopArtists).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByRole('combobox', {
+      name: 'Time Range',
+    }), {
+      target: { value: 'medium_term' },
+    });
+    await waitFor(() => {
+      expect(getMyTopTracks).toHaveBeenCalledTimes(2);
+    });
+
+    oldTracks.resolve(emptyTopPage());
+    await act(async () => {
+      await oldTracks.promise;
+    });
+
+    expectCurrentLoadingSpinner();
+
+    currentTracks.resolve(emptyTopPage());
+    await act(async () => {
+      await currentTracks.promise;
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('status', {
+        name: 'Loading Spotify results',
+      })).not.toBeInTheDocument();
+    });
+  });
+
+  it('lazy-unmounts inactive my-top tabs without hidden duplicate requests', async () => {
+    authorizeMyTop();
+    const oldTracks = deferred<TopPage>();
+    const currentTracks = deferred<TopPage>();
+    const oldArtists = deferred<TopPage>();
+    const getMyTopTracks = vi.fn()
+      .mockReturnValueOnce(oldTracks.promise)
+      .mockReturnValueOnce(currentTracks.promise);
+    const getMyTopArtists = vi.fn().mockReturnValue(oldArtists.promise);
+    mockMyTopApi(getMyTopTracks, getMyTopArtists);
+
+    renderMyTopRoute();
+
+    await waitFor(() => {
+      expect(getMyTopTracks).toHaveBeenCalledOnce();
+    });
+    expect(getMyTopArtists).not.toHaveBeenCalled();
+    expectCurrentLoadingSpinner();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Top Artists/u }));
+    await waitFor(() => {
+      expect(getMyTopArtists).toHaveBeenCalledOnce();
+    });
+    expectCurrentLoadingSpinner();
+
+    oldTracks.resolve(emptyTopPage());
+    await act(async () => {
+      await oldTracks.promise;
+    });
+    expectCurrentLoadingSpinner();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Top Tracks/u }));
+    await waitFor(() => {
+      expect(getMyTopTracks).toHaveBeenCalledTimes(2);
+    });
+
+    oldArtists.resolve(emptyTopPage());
+    await act(async () => {
+      await oldArtists.promise;
+    });
+    expectCurrentLoadingSpinner();
+
+    await act(async () => {
+      await new Promise(resolve => window.setTimeout(resolve, 20));
+    });
+    expect(getMyTopTracks).toHaveBeenCalledTimes(2);
+    expect(getMyTopArtists).toHaveBeenCalledOnce();
+
+    currentTracks.resolve(emptyTopPage());
+    await act(async () => {
+      await currentTracks.promise;
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('status', {
+        name: 'Loading Spotify results',
+      })).not.toBeInTheDocument();
+    });
+  });
+
+  it('does not launch hidden my-top work after a deferred API lookup resolves', async () => {
+    authorizeMyTop();
+    const artistPage = deferred<TopPage>();
+    const api = deferred<{
+      getMyTopArtists: ReturnType<typeof vi.fn>;
+      getMyTopTracks: ReturnType<typeof vi.fn>;
+    }>();
+    const getMyTopTracks = vi.fn();
+    const getMyTopArtists = vi.fn().mockReturnValue(artistPage.promise);
+    const getApi = vi.fn().mockReturnValue(api.promise);
+    vi.spyOn(SpotifyAuthUtils, 'useSpotifyWebApiGuardValidPkceToken').mockImplementation(() => ({
+      getApi: getApi as never,
+    }));
+
+    renderMyTopRoute();
+
+    await waitFor(() => {
+      expect(getApi).toHaveBeenCalledOnce();
+    });
+    fireEvent.click(screen.getByRole('tab', { name: /Top Artists/u }));
+    await waitFor(() => {
+      expect(getApi).toHaveBeenCalledTimes(2);
+    });
+
+    api.resolve({
+      getMyTopArtists,
+      getMyTopTracks,
+    });
+    await act(async () => {
+      await api.promise;
+    });
+    await waitFor(() => {
+      expect(getMyTopArtists).toHaveBeenCalledOnce();
+    });
+
+    expect(getMyTopTracks).not.toHaveBeenCalled();
+    expectCurrentLoadingSpinner();
+
+    artistPage.resolve(emptyTopPage());
+    await act(async () => {
+      await artistPage.promise;
+    });
+  });
+
+  it('starts each activated my-top tab on the first page', async () => {
+    authorizeMyTop();
+    const getMyTopTracks = vi.fn().mockResolvedValue({
+      items: [],
+      total: 50,
+    });
+    const getMyTopArtists = vi.fn().mockResolvedValue({
+      items: [],
+      total: 50,
+    });
+    mockMyTopApi(getMyTopTracks, getMyTopArtists);
+
+    renderMyTopRoute();
+
+    await waitFor(() => {
+      expect(getMyTopTracks).toHaveBeenCalledOnce();
+    });
+    fireEvent.click(await screen.findByRole('button', { name: '2' }));
+    await waitFor(() => {
+      expect(getMyTopTracks).toHaveBeenCalledTimes(2);
+    });
+    expect(getMyTopTracks.mock.calls[1]?.[0]).toMatchObject({
+      limit: 10,
+      offset: 10,
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: /Top Artists/u }));
+    await waitFor(() => {
+      expect(getMyTopArtists).toHaveBeenCalledOnce();
+    });
+    expect(getMyTopArtists.mock.calls[0]?.[0]).toMatchObject({
+      limit: 10,
+      offset: 0,
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: /Top Tracks/u }));
+    await waitFor(() => {
+      expect(getMyTopTracks).toHaveBeenCalledTimes(3);
+    });
+    expect(getMyTopTracks.mock.calls[2]?.[0]).toMatchObject({
+      limit: 10,
+      offset: 0,
+    });
+  });
 });
 
 function renderSpotifyRoute(initialEntry: string) {
@@ -181,4 +366,78 @@ function renderSpotifyRoute(initialEntry: string) {
   ], {
     initialEntries: [initialEntry],
   });
+}
+
+type TopPage = {
+  items: never[];
+  total: number;
+};
+
+function authorizeMyTop() {
+  const tokenInfo: SpotifyTokenInfo = {
+    expiry: Date.now() + 60_000,
+    token: {
+      access_token: 'access-token',
+      expires_in: 3600,
+      refresh_token: 'refresh-token',
+      scope: 'user-top-read',
+      token_type: 'Bearer',
+    },
+  };
+  spotifyStoreState.spotifyTokenInfo = tokenInfo;
+  localStorage.setItem('spotify_token', JSON.stringify(tokenInfo));
+}
+
+function mockMyTopApi(
+  getMyTopTracks: ReturnType<typeof vi.fn>,
+  getMyTopArtists: ReturnType<typeof vi.fn>,
+) {
+  vi.spyOn(SpotifyAuthUtils, 'useSpotifyWebApiGuardValidPkceToken').mockImplementation(() => ({
+    getApi: () => Promise.resolve({
+      getMyTopArtists,
+      getMyTopTracks,
+    } as never),
+  }));
+}
+
+function renderMyTopRoute() {
+  return renderWithRouter([
+    {
+      path: '/projects/spotify/mytop',
+      Component: SpotifyViewMyTopRoute,
+    },
+    {
+      path: '/projects/spotify',
+      Component: () => <h1>Spotify projects</h1>,
+    },
+  ], {
+    initialEntries: ['/projects/spotify/mytop'],
+  });
+}
+
+function expectCurrentLoadingSpinner() {
+  const status = screen.getByRole('status', {
+    name: 'Loading Spotify results',
+  });
+  expect(status).toBeVisible();
+  expect(status.querySelector('.chakra-spinner')).toBeInTheDocument();
+  expect(document.querySelectorAll('.chakra-spinner')).toHaveLength(1);
+}
+
+function emptyTopPage(): TopPage {
+  return {
+    items: [],
+    total: 0,
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, reject, resolve };
 }

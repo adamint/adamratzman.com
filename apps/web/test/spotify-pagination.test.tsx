@@ -37,6 +37,61 @@ describe('Spotify pagination request lifecycle', () => {
     expect(dataProducer.mock.calls[0]?.[2].aborted).toBe(false);
   });
 
+  it('shows a stable accessible indicator while the current generation loads', async () => {
+    const currentPage = deferred<ReturnType<typeof page>>();
+    const dataProducer = vi.fn().mockReturnValue(currentPage.promise);
+
+    renderPaginator(dataProducer);
+
+    await waitFor(() => {
+      expect(dataProducer).toHaveBeenCalledOnce();
+    });
+    expect(screen.getByRole('status', {
+      name: 'Loading Spotify results',
+    })).toBeVisible();
+
+    currentPage.resolve(page('current'));
+    expect(await screen.findByText('current')).toBeVisible();
+    expect(screen.queryByRole('status', {
+      name: 'Loading Spotify results',
+    })).not.toBeInTheDocument();
+  });
+
+  it('keeps loading owned by the newest request generation', async () => {
+    const oldPage = deferred<ReturnType<typeof page>>();
+    const currentPage = deferred<ReturnType<typeof page>>();
+    const dataProducer = vi.fn((
+      _limit: number,
+      offset: number,
+    ) => offset === 0 ? oldPage.promise : currentPage.promise);
+
+    renderPaginator(dataProducer, { showNextGeneration: true });
+
+    await waitFor(() => {
+      expect(dataProducer).toHaveBeenCalledOnce();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Load next generation' }));
+    await waitFor(() => {
+      expect(dataProducer).toHaveBeenCalledTimes(2);
+    });
+
+    oldPage.resolve(page('old'));
+    await act(async () => {
+      await oldPage.promise;
+    });
+
+    expect(screen.getByRole('status', {
+      name: 'Loading Spotify results',
+    })).toBeVisible();
+    expect(screen.queryByText('old')).not.toBeInTheDocument();
+
+    currentPage.resolve(page('current'));
+    expect(await screen.findByText('current')).toBeVisible();
+    expect(screen.queryByRole('status', {
+      name: 'Loading Spotify results',
+    })).not.toBeInTheDocument();
+  });
+
   it('aborts and ignores a superseded slow response', async () => {
     const oldPage = deferred<ReturnType<typeof page>>();
     const newPage = deferred<ReturnType<typeof page>>();

@@ -37,7 +37,11 @@ export async function fetchJson<T>(
     let body: unknown;
     try {
       body = await response.json();
-    } catch {
+    } catch (error) {
+      if (init.signal?.aborted || isAbortError(error)) {
+        throw error;
+      }
+
       throw new ApiClientError(genericErrorMessage, response.status);
     }
 
@@ -48,7 +52,7 @@ export async function fetchJson<T>(
     throw new ApiClientError(genericErrorMessage, response.status);
   }
 
-  return parseServerValidatedSuccessJson<T>(response);
+  return parseServerValidatedSuccessJson<T>(response, init.signal);
 }
 
 function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
@@ -76,10 +80,17 @@ function isAbortError(error: unknown) {
     && Reflect.get(error, 'name') === 'AbortError';
 }
 
-async function parseServerValidatedSuccessJson<T>(response: Response) {
+async function parseServerValidatedSuccessJson<T>(
+  response: Response,
+  signal: AbortSignal | null | undefined,
+) {
   try {
     return await response.json() as T;
-  } catch {
+  } catch (error) {
+    if (signal?.aborted || isAbortError(error)) {
+      throw error;
+    }
+
     throw new ApiClientError(genericErrorMessage, response.status);
   }
 }

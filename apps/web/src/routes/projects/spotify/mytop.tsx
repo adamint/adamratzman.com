@@ -28,7 +28,6 @@ function SpotifyViewMyTopRoute() {
   const location = useLocation();
 
   const [timeRange, setTimeRange] = useState<TimeRange>('short_term');
-  const [pageLoading, setPageLoading] = useState(false);
   const [limitPerPage, setLimitPerPage] = useState<number>(10);
   const [pageOffset, setPageOffset] = useState<number>(0);
 
@@ -49,8 +48,7 @@ function SpotifyViewMyTopRoute() {
       <PageTitle title="Your top Spotify tracks and artists" />
 
       <ProjectPage projectTitle='Your top tracks and artists'
-                   topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}
-                   isLoading={pageLoading}>
+                   topRight={<SpotifyLogoutButton setSpotifyTokenInfo={setSpotifyTokenInfo} />}>
         <FormControl mb={5}>
           <FormLabel>Time Range</FormLabel>
           <Select value={timeRange} onChange={handleTimeRangeChanged}>
@@ -60,7 +58,12 @@ function SpotifyViewMyTopRoute() {
           </Select>
         </FormControl>
 
-        <Tabs variant='enclosed'>
+        <Tabs
+          isLazy
+          lazyBehavior='unmount'
+          onChange={() => setPageOffset(0)}
+          variant='enclosed'
+        >
           <TabList>
             <Tab>Top Tracks <Icon as={MdPlayCircleOutline} ml={1} /></Tab>
             <Tab>Top Artists <Icon as={BsPeopleFill} ml={1} /></Tab>
@@ -69,7 +72,6 @@ function SpotifyViewMyTopRoute() {
             <TabPanel>
               <ShowTopTracks guardedSpotifyApi={guardedSpotifyApi}
                              timeRange={timeRange}
-                             setPageLoading={setPageLoading}
                              limitPerPage={limitPerPage}
                              setLimitPerPage={setLimitPerPage}
                              pageOffset={pageOffset}
@@ -79,7 +81,6 @@ function SpotifyViewMyTopRoute() {
             <TabPanel>
               <ShowTopArtists guardedSpotifyApi={guardedSpotifyApi}
                               timeRange={timeRange}
-                              setPageLoading={setPageLoading}
                               limitPerPage={limitPerPage}
                               setLimitPerPage={setLimitPerPage}
                               pageOffset={pageOffset}
@@ -96,7 +97,6 @@ function SpotifyViewMyTopRoute() {
 type ShowTopProps = {
   guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   timeRange: 'short_term' | 'medium_term' | 'long_term';
-  setPageLoading: (isLoading: boolean) => void;
   limitPerPage: number;
   setLimitPerPage: (limitPerPage: number) => void;
   pageOffset: number;
@@ -106,7 +106,6 @@ type ShowTopProps = {
 function ShowTopTracks({
                          guardedSpotifyApi,
                          timeRange,
-                         setPageLoading,
                          limitPerPage,
                          setLimitPerPage,
                          pageOffset,
@@ -119,18 +118,14 @@ function ShowTopTracks({
     offset: number,
     signal: AbortSignal,
   ) => {
-    void signal;
-    setPageLoading(true);
-    try {
-      return await (await guardedSpotifyApiRef.current.getApi()).getMyTopTracks({
-        limit,
-        offset: offset * limit,
-        time_range: timeRange,
-      });
-    } finally {
-      setPageLoading(false);
-    }
-  }, [setPageLoading, timeRange]);
+    const spotifyApi = await guardedSpotifyApiRef.current.getApi();
+    signal.throwIfAborted();
+    return spotifyApi.getMyTopTracks({
+      limit,
+      offset: offset * limit,
+      time_range: timeRange,
+    });
+  }, [timeRange]);
 
   const childDataMapper = (track: SpotifyApi.TrackObjectFull) => <SpotifyTrack track={track} key={track.id} mb={5} />;
 
@@ -148,7 +143,6 @@ function ShowTopTracks({
 function ShowTopArtists({
                           guardedSpotifyApi,
                           timeRange,
-                          setPageLoading,
                           limitPerPage,
                           setLimitPerPage,
                           pageOffset,
@@ -161,18 +155,14 @@ function ShowTopArtists({
     offset: number,
     signal: AbortSignal,
   ) => {
-    void signal;
-    setPageLoading(true);
-    try {
-      return await (await guardedSpotifyApiRef.current.getApi()).getMyTopArtists({
-        limit,
-        offset: offset * limit,
-        time_range: timeRange,
-      });
-    } finally {
-      setPageLoading(false);
-    }
-  }, [setPageLoading, timeRange]);
+    const spotifyApi = await guardedSpotifyApiRef.current.getApi();
+    signal.throwIfAborted();
+    return spotifyApi.getMyTopArtists({
+      limit,
+      offset: offset * limit,
+      time_range: timeRange,
+    });
+  }, [timeRange]);
 
   const childDataMapper = (artist: SpotifyApi.ArtistObjectFull) => <SpotifyArtist artist={artist} key={artist.id}
                                                                                   mb={5} />;

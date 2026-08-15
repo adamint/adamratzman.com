@@ -5,6 +5,15 @@ import type {
 } from '@adamratzman/contracts';
 import { replace, type LoaderFunctionArgs } from 'react-router-dom';
 import { ApiClientError, fetchJson } from './client';
+import {
+  isSpotifyArtistDetails,
+  isSpotifyCategoriesResponse,
+  isSpotifyCategoryDetails,
+  isSpotifyGenresResponse,
+  isSpotifyPlaylistResponse,
+  isSpotifyTrackResponse,
+  isSpotifyUserDetails,
+} from './spotifyLoaderValidation';
 
 type SpotifyLoaderArgs = Pick<LoaderFunctionArgs, 'params' | 'request'>;
 
@@ -12,7 +21,11 @@ export async function categoriesLoader({ request }: SpotifyLoaderArgs) {
   const categories = await loadOrReplace<SpotifyApi.CategoryObject[]>(
     '/api/spotify/categories',
     request.signal,
-    '/projects',
+    {
+      invalidResponsePath: '/projects',
+      isValid: isSpotifyCategoriesResponse,
+      requestErrorPath: '/projects',
+    },
   );
 
   return { categories };
@@ -23,9 +36,13 @@ export async function categoryLoader({ params, request }: SpotifyLoaderArgs) {
   return loadOrReplace<SpotifyCategoryDetails>(
     `/api/spotify/categories/${encodeURIComponent(categoryId)}`,
     request.signal,
-    error => error.status === 0 || error.status >= 500
-      ? '/projects'
-      : '/projects/spotify/categories',
+    {
+      invalidResponsePath: '/projects/spotify/categories',
+      isValid: isSpotifyCategoryDetails,
+      requestErrorPath: error => error.status === 0 || error.status >= 500
+        ? '/projects'
+        : '/projects/spotify/categories',
+    },
   );
 }
 
@@ -33,7 +50,11 @@ export async function genresLoader({ request }: SpotifyLoaderArgs) {
   const genres = await loadOrReplace<string[]>(
     '/api/spotify/genres',
     request.signal,
-    '/projects',
+    {
+      invalidResponsePath: '/projects',
+      isValid: isSpotifyGenresResponse,
+      requestErrorPath: '/projects',
+    },
   );
 
   return { genres };
@@ -44,7 +65,11 @@ export async function artistLoader({ params, request }: SpotifyLoaderArgs) {
   return loadOrReplace<SpotifyArtistDetails>(
     `/api/spotify/artists/${encodeURIComponent(artistId)}`,
     request.signal,
-    '/projects',
+    {
+      invalidResponsePath: '/projects',
+      isValid: isSpotifyArtistDetails,
+      requestErrorPath: '/projects',
+    },
   );
 }
 
@@ -53,7 +78,11 @@ export async function trackLoader({ params, request }: SpotifyLoaderArgs) {
   const track = await loadOrReplace<SpotifyApi.SingleTrackResponse>(
     `/api/spotify/tracks/${encodeURIComponent(trackId)}`,
     request.signal,
-    '/projects',
+    {
+      invalidResponsePath: '/projects',
+      isValid: isSpotifyTrackResponse,
+      requestErrorPath: '/projects',
+    },
   );
 
   return { track };
@@ -64,7 +93,11 @@ export async function playlistLoader({ params, request }: SpotifyLoaderArgs) {
   const playlist = await loadOrReplace<SpotifyApi.SinglePlaylistResponse>(
     `/api/spotify/playlists/${encodeURIComponent(playlistId)}`,
     request.signal,
-    '/projects',
+    {
+      invalidResponsePath: '/projects',
+      isValid: isSpotifyPlaylistResponse,
+      requestErrorPath: '/projects',
+    },
   );
 
   return { playlist, playlistId };
@@ -75,7 +108,11 @@ export async function userLoader({ params, request }: SpotifyLoaderArgs) {
   const userDetails = await loadOrReplace<SpotifyUserDetails>(
     `/api/spotify/users/${encodeURIComponent(userId)}`,
     request.signal,
-    '/projects',
+    {
+      invalidResponsePath: '/projects',
+      isValid: isSpotifyUserDetails,
+      requestErrorPath: '/projects',
+    },
   );
 
   return { ...userDetails, userId };
@@ -93,17 +130,34 @@ function requireParam(value: string | undefined, replacePath: string) {
 async function loadOrReplace<T>(
   path: string,
   signal: AbortSignal,
-  replacePath: string | ((error: ApiClientError) => string),
+  {
+    invalidResponsePath,
+    isValid,
+    requestErrorPath,
+  }: {
+    invalidResponsePath: string;
+    isValid: (value: unknown) => value is T;
+    requestErrorPath: string | ((error: ApiClientError) => string);
+  },
 ) {
+  let response: unknown;
   try {
-    return await fetchJson<T>(path, { signal });
+    response = await fetchJson<unknown>(path, { signal });
   } catch (error) {
     if (!(error instanceof ApiClientError)) {
       throw error;
     }
 
-    replaceRoute(typeof replacePath === 'function' ? replacePath(error) : replacePath);
+    replaceRoute(typeof requestErrorPath === 'function'
+      ? requestErrorPath(error)
+      : requestErrorPath);
   }
+
+  if (!isValid(response)) {
+    replaceRoute(invalidResponsePath);
+  }
+
+  return response;
 }
 
 function replaceRoute(path: string): never {

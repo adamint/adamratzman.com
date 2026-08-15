@@ -162,6 +162,273 @@ const userDetails = {
   totalPlaylists: 3,
 } satisfies SpotifyUserDetails;
 
+const malformedResponseSentinel = 'RAW_MALFORMED_SPOTIFY_SENTINEL';
+
+const malformedLoaderGroups = [
+  {
+    endpoint: '/api/spotify/categories',
+    fallbackHeading: 'Projects',
+    fallbackPath: '/projects',
+    label: 'categories',
+    load: () => categoriesLoader(loaderArgs()),
+    malformedBodies: [
+      ['null response', null],
+      ['object instead of an array', {}],
+      ['missing item fields', [{ name: 'Party', icons: category.icons }]],
+      ['empty icons', [{ ...category, icons: [] }]],
+      ['non-string icon URL', [{
+        ...category,
+        icons: [{ url: { sentinel: malformedResponseSentinel } }],
+      }]],
+    ],
+    path: '/projects/spotify/categories',
+  },
+  {
+    endpoint: '/api/spotify/genres',
+    fallbackHeading: 'Projects',
+    fallbackPath: '/projects',
+    label: 'genres',
+    load: () => genresLoader(loaderArgs()),
+    malformedBodies: [
+      ['null response', null],
+      ['object instead of an array', {}],
+      ['non-string array item', ['indie', { sentinel: malformedResponseSentinel }]],
+    ],
+    path: '/projects/spotify/genres/list',
+  },
+  {
+    endpoint: '/api/spotify/categories/party',
+    fallbackHeading: 'Spotify Category List',
+    fallbackPath: '/projects/spotify/categories',
+    label: 'category',
+    load: () => categoryLoader(loaderArgs({ categoryId: 'party' })),
+    malformedBodies: [
+      ['null response', null],
+      ['missing aggregate fields', {}],
+      ['missing category name', {
+        ...categoryDetails,
+        category: { icons: category.icons },
+      }],
+      ['empty category icons', {
+        ...categoryDetails,
+        category: { ...category, icons: [] },
+      }],
+      ['non-array playlist items', {
+        ...categoryDetails,
+        categoryPlaylists: {
+          ...categoryDetails.categoryPlaylists,
+          items: { sentinel: malformedResponseSentinel },
+        },
+      }],
+      ['malformed playlist summary', {
+        ...categoryDetails,
+        categoryPlaylists: {
+          ...categoryDetails.categoryPlaylists,
+          items: [{ ...playlistSummary, images: [] }],
+        },
+      }],
+    ],
+    path: '/projects/spotify/categories/party',
+  },
+  {
+    endpoint: '/api/spotify/artists/a',
+    fallbackHeading: 'Projects',
+    fallbackPath: '/projects',
+    label: 'artist',
+    load: () => artistLoader(loaderArgs({ artistId: 'a' })),
+    malformedBodies: [
+      ['null response', null],
+      ['missing aggregate fields', {}],
+      ['empty artist images', {
+        ...artistDetails,
+        artist: { ...artistDetails.artist, images: [] },
+      }],
+      ['non-number artist popularity', {
+        ...artistDetails,
+        artist: {
+          ...artistDetails.artist,
+          popularity: malformedResponseSentinel,
+        },
+      }],
+      ['non-number artist followers', {
+        ...artistDetails,
+        artist: {
+          ...artistDetails.artist,
+          followers: { total: malformedResponseSentinel },
+        },
+      }],
+      ['non-string artist genres', {
+        ...artistDetails,
+        artist: {
+          ...artistDetails.artist,
+          genres: [{ sentinel: malformedResponseSentinel }],
+        },
+      }],
+      ['non-number album total', {
+        ...artistDetails,
+        artistAlbums: {
+          ...artistDetails.artistAlbums,
+          total: malformedResponseSentinel,
+        },
+      }],
+      ['non-array top tracks', {
+        ...artistDetails,
+        artistTopTracks: {
+          tracks: { sentinel: malformedResponseSentinel },
+        },
+      }],
+      ['malformed top track', {
+        ...artistDetails,
+        artistTopTracks: {
+          tracks: [{
+            ...track,
+            album: { ...track.album, images: [] },
+          }],
+        },
+      }],
+      ['malformed related artist', {
+        ...artistDetails,
+        relatedArtists: [{ name: malformedResponseSentinel }],
+      }],
+    ],
+    path: '/projects/spotify/artists/a',
+  },
+  {
+    endpoint: '/api/spotify/tracks/t',
+    fallbackHeading: 'Projects',
+    fallbackPath: '/projects',
+    label: 'track',
+    load: () => trackLoader(loaderArgs({ trackId: 't' })),
+    malformedBodies: [
+      ['null response', null],
+      ['missing track fields', {}],
+      ['non-array artists', {
+        ...track,
+        artists: { sentinel: malformedResponseSentinel },
+      }],
+      ['malformed artist', {
+        ...track,
+        artists: [{ id: 'a' }],
+      }],
+      ['empty album images', {
+        ...track,
+        album: { ...track.album, images: [] },
+      }],
+      ['missing external URL', {
+        ...track,
+        external_urls: {},
+      }],
+    ],
+    path: '/projects/spotify/tracks/t',
+  },
+  {
+    endpoint: '/api/spotify/playlists/p',
+    fallbackHeading: 'Projects',
+    fallbackPath: '/projects',
+    label: 'playlist',
+    load: () => playlistLoader(loaderArgs({ playlistId: 'p' })),
+    malformedBodies: [
+      ['null response', null],
+      ['missing playlist fields', {}],
+      ['non-array images', {
+        ...playlist,
+        images: { sentinel: malformedResponseSentinel },
+      }],
+      ['missing owner', {
+        ...playlist,
+        owner: null,
+      }],
+      ['invalid optional owner display name', {
+        ...playlist,
+        owner: {
+          ...playlist.owner,
+          display_name: { sentinel: malformedResponseSentinel },
+        },
+      }],
+      ['non-number followers', {
+        ...playlist,
+        followers: { total: malformedResponseSentinel },
+      }],
+      ['non-number track total', {
+        ...playlist,
+        tracks: {
+          ...playlist.tracks,
+          total: malformedResponseSentinel,
+        },
+      }],
+      ['non-boolean public state', {
+        ...playlist,
+        public: malformedResponseSentinel,
+      }],
+      ['non-boolean collaborative state', {
+        ...playlist,
+        collaborative: null,
+      }],
+    ],
+    path: '/projects/spotify/playlists/p',
+  },
+  {
+    endpoint: '/api/spotify/users/u',
+    fallbackHeading: 'Projects',
+    fallbackPath: '/projects',
+    label: 'user',
+    load: () => userLoader(loaderArgs({ userId: 'u' })),
+    malformedBodies: [
+      ['null response', null],
+      ['missing aggregate fields', {}],
+      ['negative playlist total', {
+        ...userDetails,
+        totalPlaylists: -1,
+      }],
+      ['non-number playlist total', {
+        ...userDetails,
+        totalPlaylists: malformedResponseSentinel,
+      }],
+      ['missing external URL', {
+        ...userDetails,
+        user: { ...userDetails.user, external_urls: {} },
+      }],
+      ['non-array optional images', {
+        ...userDetails,
+        user: {
+          ...userDetails.user,
+          images: { sentinel: malformedResponseSentinel },
+        },
+      }],
+      ['malformed optional image', {
+        ...userDetails,
+        user: {
+          ...userDetails.user,
+          images: [{ url: { sentinel: malformedResponseSentinel } }],
+        },
+      }],
+      ['malformed optional followers', {
+        ...userDetails,
+        user: {
+          ...userDetails.user,
+          followers: { total: malformedResponseSentinel },
+        },
+      }],
+      ['malformed optional display name', {
+        ...userDetails,
+        user: {
+          ...userDetails.user,
+          display_name: { sentinel: malformedResponseSentinel },
+        },
+      }],
+    ],
+    path: '/projects/spotify/users/u',
+  },
+] as const;
+
+const malformedLoaderCases = malformedLoaderGroups.flatMap(group =>
+  group.malformedBodies.map(([caseLabel, malformedBody]) => ({
+    ...group,
+    caseLabel,
+    malformedBody,
+  })),
+);
+
 afterEach(() => {
   cleanup();
   axios.defaults.adapter = originalAxiosAdapter;
@@ -249,6 +516,34 @@ describe('fetchJson', () => {
       signal: controller.signal,
     })).rejects.toBe(abortReason);
   });
+
+  it.each([
+    ['success', 200, false],
+    ['error', 502, false],
+    ['success with an aborted signal', 200, true],
+    ['error with an aborted signal', 502, true],
+  ])(
+    'rethrows the original body-read failure for a %s response',
+    async (_label, status, abortSignal) => {
+      const controller = new AbortController();
+      const bodyReadFailure = abortSignal
+        ? new Error('raw abort reason')
+        : new DOMException('raw abort text', 'AbortError');
+      const response = new Response(null, { status });
+      vi.spyOn(response, 'json').mockImplementation(() => {
+        if (abortSignal) {
+          controller.abort(bodyReadFailure);
+        }
+
+        return Promise.reject(bodyReadFailure);
+      });
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+      await expect(fetchJson('/api/example', {
+        signal: controller.signal,
+      })).rejects.toBe(bodyReadFailure);
+    },
+  );
 
   it('uses a reviewed API error message and preserves the status', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
@@ -348,6 +643,17 @@ describe('Spotify API loaders', () => {
 
       await expect(loader(loaderArgs(params))).resolves.toEqual(expectedResult);
       expect(fetchMock).toHaveBeenCalledWith(expectedUrl, expect.any(Object));
+    },
+  );
+
+  it.each(malformedLoaderCases)(
+    'replaces malformed $label data ($caseLabel) before returning loader data',
+    async ({ fallbackPath, load, malformedBody }) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(malformedBody)));
+
+      const response = await captureReplace(load());
+
+      expect(response.headers.get('location')).toBe(fallbackPath);
     },
   );
 
@@ -454,6 +760,27 @@ describe('Spotify API loaders', () => {
       artistId: 'a',
     }))).rejects.toBe(abortError);
   });
+
+  it.each([
+    ['success', 200],
+    ['error', 502],
+  ])(
+    'does not replace when an aborted %s response body read rejects',
+    async (_label, status) => {
+      const controller = new AbortController();
+      const abortError = new DOMException('raw abort text', 'AbortError');
+      const response = new Response(null, { status });
+      vi.spyOn(response, 'json').mockImplementation(() => {
+        controller.abort(abortError);
+        return Promise.reject(abortError);
+      });
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+      await expect(artistLoader(loaderArgs({
+        artistId: 'a',
+      }, controller.signal))).rejects.toBe(abortError);
+    },
+  );
 });
 
 describe('Spotify route integration', () => {
@@ -665,67 +992,21 @@ describe('Spotify route integration', () => {
     expect(router.state.location.pathname).toBe('/contact');
   });
 
-  it.each([
-    [
-      'artist',
-      '/projects/spotify/artists/a',
-      '/api/spotify/artists/a',
-      {},
-      '/projects',
-      'Projects',
-    ],
-    [
-      'categories',
-      '/projects/spotify/categories',
-      '/api/spotify/categories',
-      null,
-      '/projects',
-      'Projects',
-    ],
-    [
-      'category',
-      '/projects/spotify/categories/party',
-      '/api/spotify/categories/party',
-      { categoryPlaylists: { items: [] } },
-      '/projects/spotify/categories',
-      'Spotify Category List',
-    ],
-    [
-      'genres',
-      '/projects/spotify/genres/list',
-      '/api/spotify/genres',
-      {},
-      '/projects',
-      'Projects',
-    ],
-    [
-      'playlist',
-      '/projects/spotify/playlists/p',
-      '/api/spotify/playlists/p',
-      null,
-      '/projects',
-      'Projects',
-    ],
-    [
-      'track',
-      '/projects/spotify/tracks/t',
-      '/api/spotify/tracks/t',
-      { artists: [] },
-      '/projects',
-      'Projects',
-    ],
-    [
-      'user',
-      '/projects/spotify/users/u',
-      '/api/spotify/users/u',
-      { totalPlaylists: 0 },
-      '/projects',
-      'Projects',
-    ],
-  ] as const)(
-    'contains malformed %s success data inside AppShell and replaces it safely',
-    async (_label, path, endpoint, malformedBody, fallbackPath, fallbackHeading) => {
-      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  it.each(malformedLoaderCases)(
+    'contains malformed $label data ($caseLabel) before React renders it',
+    async ({
+      endpoint,
+      fallbackHeading,
+      fallbackPath,
+      malformedBody,
+      path,
+    }) => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const pageErrors: string[] = [];
+      const recordPageError = (event: ErrorEvent) => {
+        pageErrors.push(formatObservedError(event.error ?? event.message));
+      };
+      window.addEventListener('error', recordPageError);
       const fetchMock = vi.fn((input: string | URL): Promise<Response> => {
         const requestPath = String(input);
         if (requestPath === endpoint) {
@@ -740,18 +1021,30 @@ describe('Spotify route integration', () => {
       });
       vi.stubGlobal('fetch', fetchMock);
 
-      const { router } = renderWithRouter(routes, {
-        initialEntries: [path],
-      });
+      try {
+        const { router } = renderWithRouter(routes, {
+          initialEntries: [path],
+        });
 
-      expect(await screen.findByRole('heading', {
-        name: fallbackHeading,
-      })).toBeVisible();
-      expect(router.state.location.pathname).toBe(fallbackPath);
-      expect(router.state.historyAction).toBe('REPLACE');
-      expect(document.querySelector('#main-content')).toBeInTheDocument();
-      expect(screen.queryByText(/Unexpected Application Error/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/Sorry, this page could not be loaded/i)).not.toBeInTheDocument();
+        expect(await screen.findByRole('heading', {
+          name: fallbackHeading,
+        })).toBeVisible();
+        expect(router.state.location.pathname).toBe(fallbackPath);
+        expect(router.state.historyAction).toBe('REPLACE');
+        expect(router.state.errors).toBeNull();
+        expect(document.querySelector('#main-content')).toBeInTheDocument();
+        expect(screen.queryByText(/Unexpected Application Error/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Sorry, this page could not be loaded/i)).not.toBeInTheDocument();
+        expect(formatObservedError(consoleError.mock.calls)).not.toMatch(
+          /TypeError|RAW_MALFORMED_SPOTIFY_SENTINEL/u,
+        );
+        expect(pageErrors.join('\n')).not.toMatch(
+          /TypeError|RAW_MALFORMED_SPOTIFY_SENTINEL/u,
+        );
+        expect(document.body).not.toHaveTextContent(malformedResponseSentinel);
+      } finally {
+        window.removeEventListener('error', recordPageError);
+      }
     },
   );
 
@@ -1016,4 +1309,24 @@ async function captureReplace(promise: Promise<unknown>) {
   }
 
   throw new Error('Expected a replace response.');
+}
+
+function formatObservedError(value: unknown): string {
+  if (value instanceof Error) {
+    return `${value.name}: ${value.message}\n${value.stack ?? ''}`;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(formatObservedError).join('\n');
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return Object.prototype.toString.call(value);
+    }
+  }
+
+  return String(value);
 }
