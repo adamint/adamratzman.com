@@ -3,14 +3,16 @@ import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
 import humanizeDuration from 'humanize-duration';
 import { reduceComponentsToString } from '../../../utils/StringUtils';
 import React from 'react';
+import type { SpotifyTrackCard } from '../../../../api/spotifyLoaderTypes';
 
 type SpotifyTrackProps = {
-  track: SpotifyApi.TrackObjectFull;
+  track: SpotifyTrackCard;
   openInNewTab?: boolean
 }
 
 export function SpotifyTrack({ track, openInNewTab = false, ...rest }: SpotifyTrackProps & FlexProps) {
   const shouldControlsBeNewLine = useBreakpointValue({ base: true, md: false });
+  const imageUrl = track.album.images.at(0)?.url;
 
   const artistsComponent = reduceComponentsToString(track.artists.map(artist => <ChakraRouterLink
     href={`/projects/spotify/artists/${artist.id}`} key={artist.id}
@@ -30,9 +32,9 @@ export function SpotifyTrack({ track, openInNewTab = false, ...rest }: SpotifyTr
 
   return <Box {...rest}>
     <Flex maxW={{ base: '100%', md: '95%' }}>
-      <TrackLink>
-        <Image boxSize={75} mr={2.5} src={track.album.images[0].url} alt='Spotify track preview image' />
-      </TrackLink>
+      {imageUrl && <TrackLink>
+        <Image boxSize={75} mr={2.5} src={imageUrl} alt='Spotify track preview image' />
+      </TrackLink>}
       <Box flex='1' my='auto'>
         <Heading size='md'>
           <TrackLink><b>{track.name}</b></TrackLink>

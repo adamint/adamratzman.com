@@ -162,6 +162,122 @@ const userDetails = {
   totalPlaylists: 3,
 } satisfies SpotifyUserDetails;
 
+type ExpectedSpotifyImage = {
+  url: string;
+};
+
+type ExpectedSpotifyNamedEntity = {
+  id: string;
+  name: string;
+};
+
+type ExpectedSpotifyExternalUrl = {
+  spotify: string;
+};
+
+type ExpectedSpotifyPlaylistCard = {
+  description?: string | null;
+  id: string;
+  images: ExpectedSpotifyImage[];
+  name: string;
+  owner: {
+    display_name?: string | null;
+    id: string;
+  };
+  tracks: {
+    total: number;
+  };
+};
+
+type ExpectedSpotifyTrackCard = {
+  album: {
+    images: ExpectedSpotifyImage[];
+  };
+  artists: ExpectedSpotifyNamedEntity[];
+  duration_ms: number;
+  id: string;
+  name: string;
+  popularity: number;
+  preview_url?: string | null;
+};
+
+type ExpectedSpotifyArtistDetails = {
+  artist: {
+    external_urls: ExpectedSpotifyExternalUrl;
+    followers: {
+      total: number;
+    };
+    genres: string[];
+    id: string;
+    images: ExpectedSpotifyImage[];
+    name: string;
+    popularity: number;
+  };
+  artistAlbums: {
+    total: number;
+  };
+  artistTopTracks: {
+    tracks: ExpectedSpotifyTrackCard[];
+  };
+  relatedArtists: ExpectedSpotifyNamedEntity[];
+};
+
+type ExpectedSpotifyCategoryDetails = {
+  category: {
+    icons: ExpectedSpotifyImage[];
+    name: string;
+  };
+  categoryPlaylists: {
+    items: ExpectedSpotifyPlaylistCard[];
+  };
+};
+
+type ExpectedSpotifyPlaylistDetails = {
+  collaborative: boolean;
+  description?: string | null;
+  external_urls: ExpectedSpotifyExternalUrl;
+  followers: {
+    total: number;
+  };
+  id: string;
+  images: ExpectedSpotifyImage[];
+  name: string;
+  owner: {
+    display_name?: string | null;
+    followers?: {
+      total: number;
+    } | null;
+    id: string;
+  };
+  public: boolean | null;
+  tracks: {
+    total: number;
+  };
+};
+
+type ExpectedSpotifyTrackDetails = {
+  album: {
+    images: ExpectedSpotifyImage[];
+  };
+  artists: ExpectedSpotifyNamedEntity[];
+  external_urls: ExpectedSpotifyExternalUrl;
+  id: string;
+  name: string;
+};
+
+type ExpectedSpotifyUserDetails = {
+  totalPlaylists: number;
+  user: {
+    display_name?: string | null;
+    external_urls: ExpectedSpotifyExternalUrl;
+    followers?: {
+      total: number;
+    } | null;
+    id: string;
+    images?: ExpectedSpotifyImage[] | null;
+  };
+};
+
 const malformedResponseSentinel = 'RAW_MALFORMED_SPOTIFY_SENTINEL';
 
 const malformedLoaderGroups = [
@@ -179,6 +295,13 @@ const malformedLoaderGroups = [
       ['non-string icon URL', [{
         ...category,
         icons: [{ url: { sentinel: malformedResponseSentinel } }],
+      }]],
+      ['malformed later icon', [{
+        ...category,
+        icons: [
+          category.icons[0],
+          { url: { sentinel: malformedResponseSentinel } },
+        ],
       }]],
     ],
     path: '/projects/spotify/categories',
@@ -242,6 +365,13 @@ const malformedLoaderGroups = [
       ['empty artist images', {
         ...artistDetails,
         artist: { ...artistDetails.artist, images: [] },
+      }],
+      ['unsafe artist external URL', {
+        ...artistDetails,
+        artist: {
+          ...artistDetails.artist,
+          external_urls: { spotify: 'javascript:alert(1)' },
+        },
       }],
       ['non-number artist popularity', {
         ...artistDetails,
@@ -318,6 +448,18 @@ const malformedLoaderGroups = [
         ...track,
         external_urls: {},
       }],
+      ['non-Spotify external URL', {
+        ...track,
+        external_urls: { spotify: 'https://example.com/track/t' },
+      }],
+      ['blob Spotify external URL', {
+        ...track,
+        external_urls: { spotify: 'blob:https://open.spotify.com/track/t' },
+      }],
+      ['credentialed Spotify external URL', {
+        ...track,
+        external_urls: { spotify: 'https://user:password@open.spotify.com/track/t' },
+      }],
     ],
     path: '/projects/spotify/tracks/t',
   },
@@ -337,6 +479,10 @@ const malformedLoaderGroups = [
       ['missing owner', {
         ...playlist,
         owner: null,
+      }],
+      ['insecure playlist external URL', {
+        ...playlist,
+        external_urls: { spotify: 'http://open.spotify.com/playlist/p' },
       }],
       ['invalid optional owner display name', {
         ...playlist,
@@ -387,6 +533,13 @@ const malformedLoaderGroups = [
       ['missing external URL', {
         ...userDetails,
         user: { ...userDetails.user, external_urls: {} },
+      }],
+      ['malformed user external URL', {
+        ...userDetails,
+        user: {
+          ...userDetails.user,
+          external_urls: { spotify: 'not a URL' },
+        },
       }],
       ['non-array optional images', {
         ...userDetails,
@@ -604,6 +757,34 @@ describe('fetchJson', () => {
 });
 
 describe('Spotify API loaders', () => {
+  it('exposes only the route-specific fields validated before rendering', () => {
+    expectTypeOf<Awaited<ReturnType<typeof categoriesLoader>>>().toEqualTypeOf<{
+      categories: Array<{
+        icons: ExpectedSpotifyImage[];
+        id: string;
+        name: string;
+      }>;
+    }>();
+    expectTypeOf<Awaited<ReturnType<typeof categoryLoader>>>()
+      .toEqualTypeOf<ExpectedSpotifyCategoryDetails>();
+    expectTypeOf<Awaited<ReturnType<typeof genresLoader>>>()
+      .toEqualTypeOf<{ genres: string[] }>();
+    expectTypeOf<Awaited<ReturnType<typeof artistLoader>>>()
+      .toEqualTypeOf<ExpectedSpotifyArtistDetails>();
+    expectTypeOf<Awaited<ReturnType<typeof trackLoader>>>().toEqualTypeOf<{
+      track: ExpectedSpotifyTrackDetails;
+    }>();
+    expectTypeOf<Awaited<ReturnType<typeof playlistLoader>>>().toEqualTypeOf<{
+      playlist: ExpectedSpotifyPlaylistDetails;
+      playlistId: string;
+    }>();
+    expectTypeOf<Awaited<ReturnType<typeof userLoader>>>().toEqualTypeOf<{
+      totalPlaylists: number;
+      user: ExpectedSpotifyUserDetails['user'];
+      userId: string;
+    }>();
+  });
+
   it('trims and encodes route IDs before requesting Spotify data', async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json(artistDetails));
     vi.stubGlobal('fetch', fetchMock);

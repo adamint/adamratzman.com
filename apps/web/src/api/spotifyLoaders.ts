@@ -1,8 +1,11 @@
 import type {
-  SpotifyArtistDetails,
-  SpotifyCategoryDetails,
-  SpotifyUserDetails,
-} from '@adamratzman/contracts';
+  SpotifyArtistDetailsData,
+  SpotifyCategoryDetailsData,
+  SpotifyCategoryListItem,
+  SpotifyPlaylistDetails,
+  SpotifyTrackDetails,
+  SpotifyUserDetailsData,
+} from './spotifyLoaderTypes';
 import { replace, type LoaderFunctionArgs } from 'react-router-dom';
 import { ApiClientError, fetchJson } from './client';
 import {
@@ -18,7 +21,7 @@ import {
 type SpotifyLoaderArgs = Pick<LoaderFunctionArgs, 'params' | 'request'>;
 
 export async function categoriesLoader({ request }: SpotifyLoaderArgs) {
-  const categories = await loadOrReplace<SpotifyApi.CategoryObject[]>(
+  const categories = await loadOrReplace<SpotifyCategoryListItem[]>(
     '/api/spotify/categories',
     request.signal,
     {
@@ -33,7 +36,7 @@ export async function categoriesLoader({ request }: SpotifyLoaderArgs) {
 
 export async function categoryLoader({ params, request }: SpotifyLoaderArgs) {
   const categoryId = requireParam(params.categoryId, '/projects/spotify/categories');
-  return loadOrReplace<SpotifyCategoryDetails>(
+  return loadOrReplace<SpotifyCategoryDetailsData>(
     `/api/spotify/categories/${encodeURIComponent(categoryId)}`,
     request.signal,
     {
@@ -62,7 +65,7 @@ export async function genresLoader({ request }: SpotifyLoaderArgs) {
 
 export async function artistLoader({ params, request }: SpotifyLoaderArgs) {
   const artistId = requireParam(params.artistId, '/projects');
-  return loadOrReplace<SpotifyArtistDetails>(
+  return loadOrReplace<SpotifyArtistDetailsData>(
     `/api/spotify/artists/${encodeURIComponent(artistId)}`,
     request.signal,
     {
@@ -75,7 +78,7 @@ export async function artistLoader({ params, request }: SpotifyLoaderArgs) {
 
 export async function trackLoader({ params, request }: SpotifyLoaderArgs) {
   const trackId = requireParam(params.trackId, '/projects');
-  const track = await loadOrReplace<SpotifyApi.SingleTrackResponse>(
+  const track = await loadOrReplace<SpotifyTrackDetails>(
     `/api/spotify/tracks/${encodeURIComponent(trackId)}`,
     request.signal,
     {
@@ -90,7 +93,7 @@ export async function trackLoader({ params, request }: SpotifyLoaderArgs) {
 
 export async function playlistLoader({ params, request }: SpotifyLoaderArgs) {
   const playlistId = requireParam(params.playlistId, '/projects');
-  const playlist = await loadOrReplace<SpotifyApi.SinglePlaylistResponse>(
+  const playlist = await loadOrReplace<SpotifyPlaylistDetails>(
     `/api/spotify/playlists/${encodeURIComponent(playlistId)}`,
     request.signal,
     {
@@ -105,7 +108,7 @@ export async function playlistLoader({ params, request }: SpotifyLoaderArgs) {
 
 export async function userLoader({ params, request }: SpotifyLoaderArgs) {
   const userId = requireParam(params.userId, '/projects');
-  const userDetails = await loadOrReplace<SpotifyUserDetails>(
+  const userDetails = await loadOrReplace<SpotifyUserDetailsData>(
     `/api/spotify/users/${encodeURIComponent(userId)}`,
     request.signal,
     {

@@ -36,14 +36,14 @@ function SpotifyArtistViewRoute() {
             href={`/projects/spotify/categories/${encodeURIComponent(genre)}`}
             key={genre}>{genre}</ChakraRouterLink>), ', ')}</Text>
         <Text><b>Related
-          artists: </b> {reduceComponentsToString(relatedArtists.slice(0, 10).map((relatedArtist: SpotifyApi.ArtistObjectFull) =>
+          artists: </b> {reduceComponentsToString(relatedArtists.slice(0, 10).map(relatedArtist =>
           <ChakraRouterLink
             href={`/projects/spotify/artists/${relatedArtist.id}`}
             key={relatedArtist.id}>{relatedArtist.name}</ChakraRouterLink>), ', ')}</Text>
       </Box>
       <Box>
         <Text mb={2}><b>Top 5 tracks</b></Text>
-        {artistTopTracks.tracks.slice(0, 5).map((track: SpotifyApi.TrackObjectFull) => <SpotifyTrack
+        {artistTopTracks.tracks.slice(0, 5).map(track => <SpotifyTrack
           track={track}
           key={track.id}
           mb={3} />)}

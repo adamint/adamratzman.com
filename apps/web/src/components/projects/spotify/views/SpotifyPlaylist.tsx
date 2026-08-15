@@ -2,13 +2,16 @@ import { Box, Flex, FlexProps, Heading, Image, Text } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
 import { trimStrimToCharacters } from '../../../utils/StringUtils';
 import React from 'react';
+import type { SpotifyPlaylistCard } from '../../../../api/spotifyLoaderTypes';
 
 type SpotifyPlaylistProps = {
-  playlist: SpotifyApi.PlaylistObjectFull | SpotifyApi.PlaylistObjectSimplified
+  playlist: SpotifyPlaylistCard;
   openInNewTab?: boolean;
 }
 
 export function SpotifyPlaylist({ playlist, openInNewTab = false, ...rest }: SpotifyPlaylistProps & FlexProps) {
+  const imageUrl = playlist.images.at(0)?.url;
+
   function PlaylistLink({ children }: { children: React.ReactNode }) {
     return <ChakraRouterLink href={`/projects/spotify/playlists/${playlist.id}`}
                              target={openInNewTab ? '_blank' : '_self'}>
@@ -17,9 +20,9 @@ export function SpotifyPlaylist({ playlist, openInNewTab = false, ...rest }: Spo
   }
 
   return <Flex {...rest} maxW={{ base: '100%', md: '75%' }}>
-    <PlaylistLink>
-      <Image boxSize={75} mr={2.5} src={playlist.images[0].url} alt='Spotify playlist preview image' />
-    </PlaylistLink>
+    {imageUrl && <PlaylistLink>
+      <Image boxSize={75} mr={2.5} src={imageUrl} alt='Spotify playlist preview image' />
+    </PlaylistLink>}
     <Box flex='1' my='auto'>
       <Heading size='md'><PlaylistLink><b>{playlist.name}</b></PlaylistLink></Heading>
       <Text fontSize='md'>From <ChakraRouterLink

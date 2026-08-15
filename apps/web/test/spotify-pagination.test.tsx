@@ -1,10 +1,14 @@
+import { ChakraProvider } from '@chakra-ui/react';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   normalizePageSize,
   PaginatedSpotifyDisplay,
 } from '../src/components/projects/spotify/views/PaginatedSpotifyDisplay';
+import { SpotifyPlaylist } from '../src/components/projects/spotify/views/SpotifyPlaylist';
+import { SpotifyTrack } from '../src/components/projects/spotify/views/SpotifyTrack';
+import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
 
 type PageItem = {
@@ -270,11 +274,77 @@ describe('Spotify pagination request lifecycle', () => {
   );
 });
 
+describe('Spotify paginated result cards', () => {
+  it('renders a playlist without cover artwork', () => {
+    renderCard(
+      <SpotifyPlaylist playlist={{
+        description: null,
+        id: 'playlist',
+        images: [],
+        name: 'No Cover Playlist',
+        owner: {
+          display_name: 'Adam',
+          id: 'adam',
+        },
+        tracks: {
+          total: 0,
+        },
+      }} />,
+    );
+
+    expect(screen.getByRole('heading', {
+      name: 'No Cover Playlist',
+    })).toBeVisible();
+    expect(screen.queryByRole('img', {
+      name: 'Spotify playlist preview image',
+    })).not.toBeInTheDocument();
+  });
+
+  it('renders a track without album artwork', () => {
+    renderCard(
+      <SpotifyTrack track={{
+        album: {
+          images: [],
+        },
+        artists: [{
+          id: 'artist',
+          name: 'Artist',
+        }],
+        duration_ms: 120_000,
+        id: 'track',
+        name: 'No Cover Track',
+        popularity: 50,
+        preview_url: null,
+      }} />,
+    );
+
+    expect(screen.getByRole('heading', {
+      name: 'No Cover Track',
+    })).toBeVisible();
+    expect(screen.queryByRole('img', {
+      name: 'Spotify track preview image',
+    })).not.toBeInTheDocument();
+  });
+});
+
 type RenderPaginatorOptions = {
   initialEntries?: string[];
   initialIndex?: number;
   showNextGeneration?: boolean;
 };
+
+function renderCard(card: ReactNode) {
+  return renderWithRouter([
+    {
+      path: '/',
+      Component: () => (
+        <ChakraProvider theme={theme}>
+          {card}
+        </ChakraProvider>
+      ),
+    },
+  ]);
+}
 
 function renderPaginator(
   dataProducer: (

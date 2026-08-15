@@ -1,12 +1,20 @@
 import type {
-  SpotifyArtistDetails,
-  SpotifyCategoryDetails,
-  SpotifyUserDetails,
-} from '@adamratzman/contracts';
+  SpotifyArtistDetailsData,
+  SpotifyCategoryDetailsData,
+  SpotifyCategoryListItem,
+  SpotifyExternalUrl,
+  SpotifyImage,
+  SpotifyNamedEntity,
+  SpotifyPlaylistCard,
+  SpotifyPlaylistDetails,
+  SpotifyTrackCard,
+  SpotifyTrackDetails,
+  SpotifyUserDetailsData,
+} from './spotifyLoaderTypes';
 
 export function isSpotifyCategoriesResponse(
   value: unknown,
-): value is SpotifyApi.CategoryObject[] {
+): value is SpotifyCategoryListItem[] {
   return Array.isArray(value) && value.every(isCategoryListItem);
 }
 
@@ -16,7 +24,7 @@ export function isSpotifyGenresResponse(value: unknown): value is string[] {
 
 export function isSpotifyCategoryDetails(
   value: unknown,
-): value is SpotifyCategoryDetails {
+): value is SpotifyCategoryDetailsData {
   if (!isRecord(value)) {
     return false;
   }
@@ -33,7 +41,7 @@ export function isSpotifyCategoryDetails(
 
 export function isSpotifyArtistDetails(
   value: unknown,
-): value is SpotifyArtistDetails {
+): value is SpotifyArtistDetailsData {
   if (!isRecord(value)) {
     return false;
   }
@@ -56,7 +64,7 @@ export function isSpotifyArtistDetails(
 
 export function isSpotifyTrackResponse(
   value: unknown,
-): value is SpotifyApi.SingleTrackResponse {
+): value is SpotifyTrackDetails {
   if (!isRecord(value)) {
     return false;
   }
@@ -70,7 +78,7 @@ export function isSpotifyTrackResponse(
 
 export function isSpotifyPlaylistResponse(
   value: unknown,
-): value is SpotifyApi.SinglePlaylistResponse {
+): value is SpotifyPlaylistDetails {
   if (!isRecord(value)
     || !isString(value['id'])
     || !isString(value['name'])
@@ -99,7 +107,7 @@ export function isSpotifyPlaylistResponse(
 
 export function isSpotifyUserDetails(
   value: unknown,
-): value is SpotifyUserDetails {
+): value is SpotifyUserDetailsData {
   if (!isRecord(value)
     || !isNonnegativeFiniteNumber(value['totalPlaylists'])) {
     return false;
@@ -118,20 +126,24 @@ export function isSpotifyUserDetails(
   return true;
 }
 
-function isCategoryListItem(value: unknown) {
+function isCategoryListItem(value: unknown): value is SpotifyCategoryListItem {
   return isRecord(value)
     && isString(value['id'])
     && isString(value['name'])
     && isRequiredImageArray(value['icons']);
 }
 
-function isCategoryDetail(value: unknown) {
+function isCategoryDetail(
+  value: unknown,
+): value is SpotifyCategoryDetailsData['category'] {
   return isRecord(value)
     && isString(value['name'])
     && isRequiredImageArray(value['icons']);
 }
 
-function isArtistDetail(value: unknown) {
+function isArtistDetail(
+  value: unknown,
+): value is SpotifyArtistDetailsData['artist'] {
   if (!isRecord(value)
     || !isString(value['id'])
     || !isString(value['name'])
@@ -145,7 +157,7 @@ function isArtistDetail(value: unknown) {
   return isStringArray(value['genres']);
 }
 
-function isTrackCard(value: unknown) {
+function isTrackCard(value: unknown): value is SpotifyTrackCard {
   if (!isRecord(value)
     || !isString(value['id'])
     || !isString(value['name'])
@@ -159,7 +171,7 @@ function isTrackCard(value: unknown) {
   return isOptionalNullableString(value['preview_url']);
 }
 
-function isPlaylistSummary(value: unknown) {
+function isPlaylistSummary(value: unknown): value is SpotifyPlaylistCard {
   if (!isRecord(value)
     || !isString(value['id'])
     || !isString(value['name'])
@@ -177,11 +189,11 @@ function isPlaylistSummary(value: unknown) {
     && isOptionalNullableString(value['description']);
 }
 
-function isArtistList(value: unknown) {
+function isArtistList(value: unknown): value is SpotifyNamedEntity[] {
   return Array.isArray(value) && value.every(isNamedId);
 }
 
-function isNamedId(value: unknown) {
+function isNamedId(value: unknown): value is SpotifyNamedEntity {
   return isRecord(value)
     && isString(value['id'])
     && isString(value['name']);
@@ -199,38 +211,54 @@ function isOptionalFollowers(value: unknown) {
   return value == null || isFollowers(value);
 }
 
-function isExternalSpotifyUrl(value: unknown) {
-  return isRecord(value) && isString(value['spotify']);
+function isExternalSpotifyUrl(value: unknown): value is SpotifyExternalUrl {
+  if (!isRecord(value) || !isString(value['spotify'])) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value['spotify']);
+    return url.protocol === 'https:'
+      && url.origin === 'https://open.spotify.com'
+      && url.username === ''
+      && url.password === '';
+  } catch {
+    return false;
+  }
 }
 
-function isRequiredImageArray(value: unknown) {
+function isRequiredImageArray(value: unknown): value is SpotifyImage[] {
   return Array.isArray(value)
     && value.length > 0
-    && isImage(value[0]);
+    && value.every(isImage);
 }
 
-function isOptionalImageArray(value: unknown) {
+function isOptionalImageArray(value: unknown): value is SpotifyImage[] {
   return Array.isArray(value)
-    && (value.length === 0 || isImage(value[0]));
+    && value.every(isImage);
 }
 
-function isOptionalNullableImageArray(value: unknown) {
+function isOptionalNullableImageArray(
+  value: unknown,
+): value is SpotifyImage[] | null | undefined {
   return value == null || isOptionalImageArray(value);
 }
 
-function isImage(value: unknown) {
+function isImage(value: unknown): value is SpotifyImage {
   return isRecord(value) && isString(value['url']);
 }
 
-function isStringArray(value: unknown) {
+function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(isString);
 }
 
-function isOptionalNullableString(value: unknown) {
+function isOptionalNullableString(
+  value: unknown,
+): value is string | null | undefined {
   return value == null || isString(value);
 }
 
-function isBooleanOrNull(value: unknown) {
+function isBooleanOrNull(value: unknown): value is boolean | null {
   return value === null || typeof value === 'boolean';
 }
 
