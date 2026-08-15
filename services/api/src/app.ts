@@ -2,8 +2,12 @@ import Fastify from 'fastify';
 import { ApiError, errorResponse } from './errors.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerProxyRoutes, type ProxyDependencies } from './routes/proxies.js';
-import { registerSpotifyRoutes } from './routes/spotify.js';
-import { createSpotifyClient, type SpotifyClientFactory } from './spotify/client.js';
+import { registerSpotifyRoutes, type SpotifyClientResolver } from './routes/spotify.js';
+import {
+  SpotifyConfigurationError,
+  createSpotifyClient,
+  type SpotifyClientFactory,
+} from './spotify/client.js';
 
 const fastifyBadRequestErrorCodes = new Set([
   'FST_ERR_CTP_INVALID_JSON_BODY',
@@ -77,13 +81,53 @@ export type AppDependencies = Partial<ProxyDependencies> & {
   spotifyFactory?: SpotifyClientFactory;
 };
 
+function isDefaultSpotifyConfigurationError(error: unknown) {
+  try {
+    return error instanceof SpotifyConfigurationError;
+  } catch {
+    return false;
+  }
+}
+
+function createSpotifyClientResolver(
+  spotifyFactory: SpotifyClientFactory | undefined,
+): SpotifyClientResolver {
+  if (spotifyFactory === undefined) {
+    return async () => {
+      try {
+        return {
+          kind: 'client' as const,
+          client: await createSpotifyClient(),
+        };
+      } catch (error) {
+        if (isDefaultSpotifyConfigurationError(error)) {
+          return { kind: 'configuration_error' as const };
+        }
+
+        return { kind: 'upstream_error' as const };
+      }
+    };
+  }
+
+  return async () => {
+    try {
+      return {
+        kind: 'client' as const,
+        client: await spotifyFactory(),
+      };
+    } catch {
+      return { kind: 'upstream_error' as const };
+    }
+  };
+}
+
 export function buildApp(dependencies: AppDependencies = {}) {
   const app = Fastify({ logger: true });
   const proxyDependencies: ProxyDependencies = {
     fetch: dependencies.fetch ?? fetch,
     backendOrigin: dependencies.backendOrigin ?? process.env.BACKEND_SITE_ORIGIN,
   };
-  const spotifyFactory = dependencies.spotifyFactory ?? createSpotifyClient;
+  const spotifyClientResolver = createSpotifyClientResolver(dependencies.spotifyFactory);
 
   app.setNotFoundHandler(async (_request, reply) => {
     await reply.code(404).send(errorResponse('not_found', 'Route not found.'));
@@ -121,6 +165,6 @@ export function buildApp(dependencies: AppDependencies = {}) {
 
   void app.register(registerHealthRoutes);
   void app.register(registerProxyRoutes, proxyDependencies);
-  void app.register(registerSpotifyRoutes, { spotifyFactory });
+  void app.register(registerSpotifyRoutes, { spotifyClientResolver });
   return app;
 }

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { InjectOptions } from 'light-my-request';
 import { buildApp } from '../src/app.js';
 import { ApiError } from '../src/errors.js';
-import type { SpotifyClient } from '../src/spotify/client.js';
+import { SpotifyConfigurationError, type SpotifyClient } from '../src/spotify/client.js';
 import { createFakeSpotifyClient, type FakeSpotifyClient } from './helpers.js';
 
 async function loadPaginationModule() {
@@ -1600,6 +1600,88 @@ describe('spotify routes', () => {
     expect(response.body).not.toContain(sentinelMessage);
     expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinelCode);
     expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinelMessage);
+  });
+
+  it('turns injected SpotifyConfigurationError failures into a safe 502', async () => {
+    const logError = vi.fn();
+    const spotifyFactory = vi.fn(async (): Promise<SpotifyClient> => {
+      await Promise.resolve();
+      throw new SpotifyConfigurationError();
+    });
+    const app = buildApp({ spotifyFactory });
+    apps.push(app);
+
+    app.addHook('onRequest', async (request) => {
+      await Promise.resolve();
+      Object.assign(request.log, { error: logError });
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/genres',
+    });
+
+    expect(spotifyFactory).toHaveBeenCalledOnce();
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        classification: 'spotify_request_failure',
+      },
+      method: 'GET',
+      route: '/api/spotify/genres',
+    }, 'Spotify request failed');
+  });
+
+  it('turns SpotifyConfigurationError prototype spoof failures into a safe 502', async () => {
+    const sentinel = 'TOPSECRETTOKEN';
+    const logError = vi.fn();
+    const spotifyFactory = vi.fn(async (): Promise<SpotifyClient> => {
+      await Promise.resolve();
+      const spoofedError = Object.assign(
+        Object.create(SpotifyConfigurationError.prototype) as Error & Record<string, unknown>,
+        {
+          message: sentinel,
+          code: sentinel,
+        },
+      );
+      throw spoofedError;
+    });
+    const app = buildApp({ spotifyFactory });
+    apps.push(app);
+
+    app.addHook('onRequest', async (request) => {
+      await Promise.resolve();
+      Object.assign(request.log, { error: logError });
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/genres',
+    });
+
+    expect(spotifyFactory).toHaveBeenCalledOnce();
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        classification: 'spotify_request_failure',
+      },
+      method: 'GET',
+      route: '/api/spotify/genres',
+    }, 'Spotify request failed');
+    expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
+    expect(response.body).not.toContain(sentinel);
   });
 
   it('turns proxy trap failures into a safe 502 without leaking sentinels', async () => {

@@ -11,14 +11,18 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { ApiError } from '../errors.js';
 import {
-  SpotifyConfigurationError,
   type SpotifyClient,
-  type SpotifyClientFactory,
 } from '../spotify/client.js';
 import { getAllPages } from '../spotify/pagination.js';
 
+export type SpotifyClientResolver = () => Promise<
+  | { kind: 'client'; client: SpotifyClient }
+  | { kind: 'configuration_error' }
+  | { kind: 'upstream_error' }
+>;
+
 export type SpotifyRouteDependencies = {
-  spotifyFactory: SpotifyClientFactory;
+  spotifyClientResolver: SpotifyClientResolver;
 };
 
 const invalidRequestError = new ApiError(400, 'invalid_request', 'The request body is invalid.');
@@ -442,49 +446,56 @@ function validateRecommendationSeed(
   return response;
 }
 
-function isSpotifyConfigurationError(error: unknown) {
-  try {
-    return error instanceof SpotifyConfigurationError;
-  } catch {
-    return false;
-  }
-}
-
-function projectSpotifyError(isConfigurationError: boolean) {
+function projectSpotifyError(
+  classification: 'spotify_configuration_error' | 'spotify_request_failure',
+) {
   return {
-    classification: isConfigurationError
-      ? 'spotify_configuration_error'
-      : 'spotify_request_failure',
+    classification,
   };
 }
 
 async function withSpotify<T>(
   request: FastifyRequest,
-  spotifyFactory: SpotifyClientFactory,
+  spotifyClientResolver: SpotifyClientResolver,
   callback: (spotify: SpotifyClient) => Promise<T>,
 ): Promise<T> {
-  try {
-    const spotify = await spotifyFactory();
-    return await callback(spotify);
-  } catch (error) {
-    const isConfigurationError = isSpotifyConfigurationError(error);
+  const resolvedSpotify = await spotifyClientResolver();
 
+  if (resolvedSpotify.kind === 'configuration_error') {
     request.log.error({
-      err: projectSpotifyError(isConfigurationError),
+      err: projectSpotifyError('spotify_configuration_error'),
       method: request.method,
       route: request.routeOptions.url,
     }, 'Spotify request failed');
 
-    if (isConfigurationError) {
-      throw new ApiError(500, 'spotify_not_configured', 'Spotify is not configured.');
-    }
+    throw new ApiError(500, 'spotify_not_configured', 'Spotify is not configured.');
+  }
+
+  if (resolvedSpotify.kind === 'upstream_error') {
+    request.log.error({
+      err: projectSpotifyError('spotify_request_failure'),
+      method: request.method,
+      route: request.routeOptions.url,
+    }, 'Spotify request failed');
+
+    throw new ApiError(502, 'spotify_upstream_error', 'Spotify could not complete the request.');
+  }
+
+  try {
+    return await callback(resolvedSpotify.client);
+  } catch {
+    request.log.error({
+      err: projectSpotifyError('spotify_request_failure'),
+      method: request.method,
+      route: request.routeOptions.url,
+    }, 'Spotify request failed');
 
     throw new ApiError(502, 'spotify_upstream_error', 'Spotify could not complete the request.');
   }
 }
 
-async function getGenres(request: FastifyRequest, spotifyFactory: SpotifyClientFactory) {
-  return withSpotify(request, spotifyFactory, async (spotify) => {
+async function getGenres(request: FastifyRequest, spotifyClientResolver: SpotifyClientResolver) {
+  return withSpotify(request, spotifyClientResolver, async (spotify) => {
     const body = requireBody(await spotify.getAvailableGenreSeeds(), 'genre seeds');
     return requireStringArray(body.genres, 'genres');
   });
@@ -492,15 +503,15 @@ async function getGenres(request: FastifyRequest, spotifyFactory: SpotifyClientF
 
 export function registerSpotifyRoutes(
   app: FastifyInstance,
-  { spotifyFactory }: SpotifyRouteDependencies,
+  { spotifyClientResolver }: SpotifyRouteDependencies,
 ) {
   app.get('/api/spotify/getAvailableGenreSeeds', spotifyGetRouteOptions, async (request) => (
-    getGenres(request, spotifyFactory)
+    getGenres(request, spotifyClientResolver)
   ));
 
   app.post('/api/spotify/getPlaylistTracks', async (request) => {
     const { playlistId, limit, offset } = parseInput(getPlaylistTracksRequestSchema, request.body);
-    return withSpotify(request, spotifyFactory, async (spotify) => {
+    return withSpotify(request, spotifyClientResolver, async (spotify) => {
       const body = requireBody(
         await spotify.getPlaylistTracks(playlistId, { limit, offset: offset * limit }),
         'playlist tracks page',
@@ -512,7 +523,7 @@ export function registerSpotifyRoutes(
 
   app.post('/api/spotify/getRecommendations', async (request) => {
     const { options } = parseInput(getRecommendationsRequestSchema, request.body);
-    return withSpotify(request, spotifyFactory, async (spotify) => {
+    return withSpotify(request, spotifyClientResolver, async (spotify) => {
       const recommendations = requireBody(
         await spotify.getRecommendations(options),
         'recommendations',
@@ -531,7 +542,7 @@ export function registerSpotifyRoutes(
 
   app.post('/api/spotify/getUserPlaylists', async (request) => {
     const { userId, limit, offset } = parseInput(getUserPlaylistsRequestSchema, request.body);
-    return withSpotify(request, spotifyFactory, async (spotify) => {
+    return withSpotify(request, spotifyClientResolver, async (spotify) => {
       const body = requireBody(
         await spotify.getUserPlaylists(userId, { limit, offset: offset * limit }),
         'user playlists page',
@@ -543,7 +554,7 @@ export function registerSpotifyRoutes(
 
   app.post('/api/spotify/searchArtists', async (request) => {
     const { query, options } = parseInput(searchRequestSchema, request.body);
-    return withSpotify(request, spotifyFactory, async (spotify) => {
+    return withSpotify(request, spotifyClientResolver, async (spotify) => {
       const body = requireBody(await spotify.searchArtists(query, options), 'artist search results');
       const artists = requirePage(requireField(body.artists, 'artists'), 'artist search results');
       artists.items.forEach((artist, index) => {
@@ -555,7 +566,7 @@ export function registerSpotifyRoutes(
 
   app.post('/api/spotify/searchTracks', async (request) => {
     const { query, options } = parseInput(searchRequestSchema, request.body);
-    return withSpotify(request, spotifyFactory, async (spotify) => {
+    return withSpotify(request, spotifyClientResolver, async (spotify) => {
       const body = requireBody(await spotify.searchTracks(query, options), 'track search results');
       const tracks = requirePage(requireField(body.tracks, 'tracks'), 'track search results');
       tracks.items.forEach((track, index) => {
@@ -566,7 +577,7 @@ export function registerSpotifyRoutes(
   });
 
   app.get('/api/spotify/categories', spotifyGetRouteOptions, async (request) => (
-    withSpotify(request, spotifyFactory, async (spotify) => {
+    withSpotify(request, spotifyClientResolver, async (spotify) => {
       const categories = await getAllPages(async (limit, offset) => (
         requirePage(
           requireField(
@@ -585,7 +596,7 @@ export function registerSpotifyRoutes(
 
   app.get('/api/spotify/categories/:categoryId(^.+$)', spotifyGetRouteOptions, async (request): Promise<SpotifyCategoryDetails> => {
     const { categoryId } = parseInput(categoryParamsSchema, request.params);
-    return withSpotify(request, spotifyFactory, async (spotify) => {
+    return withSpotify(request, spotifyClientResolver, async (spotify) => {
       const category = validateCategory(
         requireBody(await spotify.getCategory(categoryId), 'category detail'),
         'category detail',
@@ -613,12 +624,12 @@ export function registerSpotifyRoutes(
   });
 
   app.get('/api/spotify/genres', spotifyGetRouteOptions, async (request) => (
-    getGenres(request, spotifyFactory)
+    getGenres(request, spotifyClientResolver)
   ));
 
   app.get('/api/spotify/tracks/:trackId(^.+$)', spotifyGetRouteOptions, async (request) => {
     const { trackId } = parseInput(trackParamsSchema, request.params);
-    return withSpotify(request, spotifyFactory, async (spotify) => (
+    return withSpotify(request, spotifyClientResolver, async (spotify) => (
       validateTrackDetail(
         requireBody(await spotify.getTrack(trackId), 'track detail'),
         'track detail',
@@ -628,7 +639,7 @@ export function registerSpotifyRoutes(
 
   app.get('/api/spotify/artists/:artistId(^.+$)', spotifyGetRouteOptions, async (request): Promise<SpotifyArtistDetails> => {
     const { artistId } = parseInput(artistParamsSchema, request.params);
-    return withSpotify(request, spotifyFactory, async (spotify) => {
+    return withSpotify(request, spotifyClientResolver, async (spotify) => {
       const artist = validateArtistDetail(
         requireBody(await spotify.getArtist(artistId), 'artist detail'),
         'artist detail',
@@ -667,7 +678,7 @@ export function registerSpotifyRoutes(
 
   app.get('/api/spotify/users/:userId(^.+$)', spotifyGetRouteOptions, async (request): Promise<SpotifyUserDetails> => {
     const { userId } = parseInput(userParamsSchema, request.params);
-    return withSpotify(request, spotifyFactory, async (spotify) => {
+    return withSpotify(request, spotifyClientResolver, async (spotify) => {
       const user = validateUserDetail(
         requireBody(await spotify.getUser(userId), 'user detail'),
         'user detail',
@@ -686,7 +697,7 @@ export function registerSpotifyRoutes(
 
   app.get('/api/spotify/playlists/:playlistId(^.+$)', spotifyGetRouteOptions, async (request) => {
     const { playlistId } = parseInput(playlistParamsSchema, request.params);
-    return withSpotify(request, spotifyFactory, async (spotify) => (
+    return withSpotify(request, spotifyClientResolver, async (spotify) => (
       validatePlaylistDetail(
         requireBody(await spotify.getPlaylist(playlistId), 'playlist detail'),
         'playlist detail',
