@@ -7,8 +7,16 @@ import {
   RouterLoadingFallback,
   routePaths,
   routes,
-  temporarilyDeferredSpotifyRoutePaths,
 } from '../src/router';
+import {
+  artistLoader,
+  categoriesLoader,
+  categoryLoader,
+  genresLoader,
+  playlistLoader,
+  trackLoader,
+  userLoader,
+} from '../src/api/spotifyLoaders';
 import { renderWithRouter } from './render';
 
 afterEach(() => {
@@ -16,8 +24,6 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-
-const deferredSpotifyRoutePaths = Object.values(temporarilyDeferredSpotifyRoutePaths);
 
 describe('route table', () => {
   it('preserves the exact public path order', () => {
@@ -59,27 +65,23 @@ describe('route table', () => {
     expect(rootRoute?.HydrateFallback).toBe(RouterLoadingFallback);
   });
 
-  it.each(deferredSpotifyRoutePaths)(
-    'keeps %s as a temporary redirect without Task 8 loaders',
-    async (publicPath) => {
-      const childRoute = routes[0]?.children?.find(
-        route => route.path === publicPath.slice(1),
-      );
+  it.each([
+    ['/projects/spotify/artists/:artistId', artistLoader],
+    ['/projects/spotify/categories', categoriesLoader],
+    ['/projects/spotify/categories/:categoryId', categoryLoader],
+    ['/projects/spotify/genres/list', genresLoader],
+    ['/projects/spotify/playlists/:playlistId', playlistLoader],
+    ['/projects/spotify/tracks/:trackId', trackLoader],
+    ['/projects/spotify/users/:userId', userLoader],
+  ] as const)('wires %s to its API loader and lazy page', (publicPath, loader) => {
+    const childRoute = routes[0]?.children?.find(
+      route => route.path === publicPath.slice(1),
+    );
 
-      expect(childRoute?.loader).toBeUndefined();
-      expect(childRoute?.lazy).toBeUndefined();
-
-      const renderedPath = publicPath.replace(/:[^/]+/g, 'example');
-      const { router } = renderWithRouter(routes, {
-        initialEntries: [renderedPath],
-      });
-
-      await waitFor(() => {
-        expect(router.state.location.pathname).toBe('/projects');
-      });
-      expect(await screen.findByRole('heading', { name: 'Projects' })).toBeVisible();
-    },
-  );
+    expect(childRoute?.loader).toBe(loader);
+    expect(childRoute?.lazy).toBeTypeOf('function');
+    expect(childRoute?.element).toBeUndefined();
+  });
 });
 
 describe('memory router integration', () => {

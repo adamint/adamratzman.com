@@ -8,18 +8,16 @@ import { PaginatedSpotifyDisplay } from '../../../../components/projects/spotify
 import { SpotifyTrack } from '../../../../components/projects/spotify/views/SpotifyTrack';
 import { SpotifyEpisode } from '../../../../components/projects/spotify/views/SpotifyEpisode';
 import { PageTitle } from '../../../../components/meta/PageTitle';
-import { useParams } from 'react-router-dom';
+import { useLoaderData, useParams } from 'react-router-dom';
 import axios, { AxiosResponse } from 'axios';
-
-type SpotifyPlaylistViewRouteProps = {
-  playlist: SpotifyApi.PlaylistObjectFull
-}
+import { playlistLoader } from '../../../../api/spotifyLoaders';
 
 type SpotifyPlaylistViewRouteParams = {
   playlistId: string;
 }
 
-function SpotifyPlaylistViewRoute({ playlist }: SpotifyPlaylistViewRouteProps) {
+function SpotifyPlaylistViewRoute() {
+  const { playlist } = useLoaderData<typeof playlistLoader>();
   const { playlistId = '' } = useParams<SpotifyPlaylistViewRouteParams>();
   const [limitPerPage, setLimitPerPage] = useState<number>(10);
   const [pageOffset, setPageOffset] = useState<number>(0);

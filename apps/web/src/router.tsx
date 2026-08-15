@@ -5,6 +5,15 @@ import {
   type RouteObject,
 } from 'react-router-dom';
 import { AppShell } from './AppShell';
+import {
+  artistLoader,
+  categoriesLoader,
+  categoryLoader,
+  genresLoader,
+  playlistLoader,
+  trackLoader,
+  userLoader,
+} from './api/spotifyLoaders';
 
 type LazyPageModule = {
   default: ComponentType;
@@ -41,23 +50,6 @@ function createChildRoute({
   } as RouteObject;
 }
 
-export const temporarilyDeferredSpotifyRoutePaths = {
-  artist: '/projects/spotify/artists/:artistId',
-  categories: '/projects/spotify/categories',
-  category: '/projects/spotify/categories/:categoryId',
-  genres: '/projects/spotify/genres/list',
-  playlist: '/projects/spotify/playlists/:playlistId',
-  track: '/projects/spotify/tracks/:trackId',
-  user: '/projects/spotify/users/:userId',
-} as const;
-
-function temporarilyDeferredSpotifyRoute(publicPath: string): AppRouteSpec {
-  return {
-    publicPath,
-    element: <Navigate replace to="/projects" />,
-  };
-}
-
 const appRouteSpecs: AppRouteSpec[] = [
   { publicPath: '/', lazy: lazyPage(() => import('./routes/index')) },
   { publicPath: '/academics', lazy: lazyPage(() => import('./routes/academics')) },
@@ -71,21 +63,49 @@ const appRouteSpecs: AppRouteSpec[] = [
   { publicPath: '/projects/character-counter', lazy: lazyPage(() => import('./routes/projects/character-counter')) },
   { publicPath: '/projects/conversion/base-converter', lazy: lazyPage(() => import('./routes/projects/conversion/base-converter')) },
   { publicPath: '/projects/spotify', element: <Navigate replace to="/projects" /> },
-  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.artist),
+  {
+    publicPath: '/projects/spotify/artists/:artistId',
+    loader: artistLoader,
+    lazy: lazyPage(() => import('./routes/projects/spotify/artists/[artistId]')),
+  },
   { publicPath: '/projects/spotify/callback', lazy: lazyPage(() => import('./routes/projects/spotify/callback')) },
-  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.categories),
-  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.category),
+  {
+    publicPath: '/projects/spotify/categories',
+    loader: categoriesLoader,
+    lazy: lazyPage(() => import('./routes/projects/spotify/categories')),
+  },
+  {
+    publicPath: '/projects/spotify/categories/:categoryId',
+    loader: categoryLoader,
+    lazy: lazyPage(() => import('./routes/projects/spotify/categories/[categoryId]')),
+  },
   { publicPath: '/projects/spotify/generate-token', lazy: lazyPage(() => import('./routes/projects/spotify/generate-token')) },
-  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.genres),
+  {
+    publicPath: '/projects/spotify/genres/list',
+    loader: genresLoader,
+    lazy: lazyPage(() => import('./routes/projects/spotify/genres/list')),
+  },
   { publicPath: '/projects/spotify/mytop', lazy: lazyPage(() => import('./routes/projects/spotify/mytop')) },
-  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.playlist),
+  {
+    publicPath: '/projects/spotify/playlists/:playlistId',
+    loader: playlistLoader,
+    lazy: lazyPage(() => import('./routes/projects/spotify/playlists/[playlistId]')),
+  },
   { publicPath: '/projects/spotify/recommend', lazy: lazyPage(() => import('./routes/projects/spotify/recommend')) },
   {
     publicPath: '/projects/spotify/recommend/create-playlist',
     lazy: lazyPage(() => import('./routes/projects/spotify/recommend/create-playlist')),
   },
-  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.track),
-  temporarilyDeferredSpotifyRoute(temporarilyDeferredSpotifyRoutePaths.user),
+  {
+    publicPath: '/projects/spotify/tracks/:trackId',
+    loader: trackLoader,
+    lazy: lazyPage(() => import('./routes/projects/spotify/tracks/[trackId]')),
+  },
+  {
+    publicPath: '/projects/spotify/users/:userId',
+    loader: userLoader,
+    lazy: lazyPage(() => import('./routes/projects/spotify/users/[userId]')),
+  },
   { publicPath: '*', lazy: lazyPage(() => import('./routes/404')) },
 ];
 

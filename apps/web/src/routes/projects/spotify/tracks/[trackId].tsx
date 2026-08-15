@@ -4,12 +4,11 @@ import { ChakraRouterLink } from '../../../../components/utils/ChakraRouterLink'
 import { useColorModeColor } from '../../../../components/utils/useColorModeColor';
 import { reduceComponentsToString } from '../../../../components/utils/StringUtils';
 import { PageTitle } from '../../../../components/meta/PageTitle';
+import { useLoaderData } from 'react-router-dom';
+import { trackLoader } from '../../../../api/spotifyLoaders';
 
-type SpotifyTrackViewRouteProps = {
-  track: SpotifyApi.SingleTrackResponse;
-}
-
-function SpotifyTrackViewRoute({ track }: SpotifyTrackViewRouteProps) {
+function SpotifyTrackViewRoute() {
+  const { track } = useLoaderData<typeof trackLoader>();
   const colorModeColor = useColorModeColor();
 
   return <>

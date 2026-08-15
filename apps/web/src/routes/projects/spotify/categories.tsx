@@ -2,12 +2,11 @@ import { ProjectPage } from '../../../components/projects/ProjectPage';
 import { Box, Heading, Image, SimpleGrid, useBreakpointValue } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../components/utils/ChakraRouterLink';
 import { PageTitle } from '../../../components/meta/PageTitle';
+import { useLoaderData } from 'react-router-dom';
+import { categoriesLoader } from '../../../api/spotifyLoaders';
 
-type SpotifyViewAllCategoriesRouteProps = {
-  categories: SpotifyApi.CategoryObject[];
-}
-
-function SpotifyViewAllCategoriesRoute({ categories }: SpotifyViewAllCategoriesRouteProps) {
+function SpotifyViewAllCategoriesRoute() {
+  const { categories } = useLoaderData<typeof categoriesLoader>();
   const columnNumber = useBreakpointValue({base: 1, md: 3})
   return <>
     <PageTitle title="Spotify Categories" />

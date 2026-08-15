@@ -7,19 +7,16 @@ import React, { useState } from 'react';
 import { PaginatedSpotifyDisplay } from '../../../../components/projects/spotify/views/PaginatedSpotifyDisplay';
 import { SpotifyPlaylist } from '../../../../components/projects/spotify/views/SpotifyPlaylist';
 import { PageTitle } from '../../../../components/meta/PageTitle';
-import { useParams } from 'react-router-dom';
+import { useLoaderData, useParams } from 'react-router-dom';
 import axios, { AxiosResponse } from 'axios';
+import { userLoader } from '../../../../api/spotifyLoaders';
 
 type SpotifyUserViewRouteParams = {
   userId: string;
 }
 
-type SpotifyUserViewRouteProps = {
-  totalPlaylists: number;
-  user: SpotifyApi.UserProfileResponse
-}
-
-function SpotifyUserViewRoute({ totalPlaylists, user }: SpotifyUserViewRouteProps) {
+function SpotifyUserViewRoute() {
+  const { totalPlaylists, user } = useLoaderData<typeof userLoader>();
   const { userId = '' } = useParams<SpotifyUserViewRouteParams>();
   const [limitPerPage, setLimitPerPage] = useState<number>(10);
   const [pageOffset, setPageOffset] = useState<number>(0);
