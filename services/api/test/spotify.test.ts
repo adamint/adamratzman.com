@@ -461,6 +461,23 @@ describe('spotify routes', () => {
       },
     },
     {
+      label: 'user playlist null owner display names',
+      request: {
+        method: 'POST',
+        url: '/api/spotify/getUserPlaylists',
+        payload: { userId: 'user-1', limit: 20, offset: 0 },
+      },
+      arrange: (spotify) => {
+        spotify.getUserPlaylists.mockResolvedValue(
+          spotifyResponse<'getUserPlaylists'>({
+            items: [createPlaylistSummary({ owner: { id: 'user-1', display_name: null } })],
+            total: 1,
+            next: null,
+          }),
+        );
+      },
+    },
+    {
       label: 'user playlist descriptions',
       request: {
         method: 'POST',
@@ -627,6 +644,22 @@ describe('spotify routes', () => {
           spotifyResponse<'getPlaylistsForCategory'>({
             playlists: {
               items: [createPlaylistSummary({ tracks: {} })],
+              total: 1,
+              next: null,
+            },
+          }),
+        );
+      },
+    },
+    {
+      label: 'category playlist null owner display names',
+      request: { method: 'GET', url: '/api/spotify/categories/party' },
+      arrange: (spotify) => {
+        spotify.getCategory.mockResolvedValue(spotifyResponse<'getCategory'>(createCategory()));
+        spotify.getPlaylistsForCategory.mockResolvedValue(
+          spotifyResponse<'getPlaylistsForCategory'>({
+            playlists: {
+              items: [createPlaylistSummary({ owner: { id: 'user-1', display_name: null } })],
               total: 1,
               next: null,
             },
@@ -1377,9 +1410,10 @@ describe('spotify routes', () => {
 
   it('turns Spotify upstream failures into a safe 502 and logs a sanitized error projection', async () => {
     const { app, spotify } = createSpotifyApp();
-    const sentinel = 'top-secret-token';
+    const sentinel = 'TOPSECRETTOKEN';
     const upstreamError = Object.assign(new Error(`upstream exploded ${sentinel}`), {
-      code: 'SPOTIFY_UPSTREAM',
+      code: sentinel,
+      name: sentinel,
       secret: sentinel,
     });
     const logError = vi.fn();
@@ -1405,9 +1439,7 @@ describe('spotify routes', () => {
     });
     expect(logError).toHaveBeenCalledWith({
       err: {
-        name: 'Error',
-        code: 'SPOTIFY_UPSTREAM',
-        statusCode: undefined,
+        classification: 'spotify_request_failure',
       },
       method: 'GET',
       route: '/api/spotify/getAvailableGenreSeeds',
@@ -1418,12 +1450,13 @@ describe('spotify routes', () => {
   });
 
   it('turns spotify client factory status-code failures into a safe 502 and logs a sanitized error projection', async () => {
-    const sentinel = 'status-leak-token';
+    const sentinel = 'TOPSECRETTOKEN';
     const logError = vi.fn();
     const spotifyFactory = vi.fn(async (): Promise<SpotifyClient> => {
       await Promise.resolve();
       throw Object.assign(new Error(`factory boom ${sentinel}`), {
-        code: 'SPOTIFY_FACTORY',
+        code: sentinel,
+        name: sentinel,
         secret: sentinel,
         statusCode: 429,
       });
@@ -1451,8 +1484,7 @@ describe('spotify routes', () => {
     });
     expect(logError).toHaveBeenCalledWith({
       err: {
-        name: 'Error',
-        code: 'SPOTIFY_FACTORY',
+        classification: 'spotify_request_failure',
         statusCode: 429,
       },
       method: 'GET',
@@ -1462,6 +1494,56 @@ describe('spotify routes', () => {
     expect(response.body).not.toContain(sentinel);
     expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
     expect(JSON.stringify(logError.mock.calls)).not.toContain('factory boom');
+  });
+
+  it('keeps statusCode accessors from leaking into Spotify error logging', async () => {
+    const sentinel = 'TOPSECRETTOKEN';
+    const logError = vi.fn();
+    const spotifyFactory = vi.fn(async (): Promise<SpotifyClient> => {
+      await Promise.resolve();
+      const error = Object.assign(new Error(`factory boom ${sentinel}`), {
+        code: sentinel,
+        name: sentinel,
+        secret: sentinel,
+      });
+      Object.defineProperty(error, 'statusCode', {
+        get() {
+          throw new Error(`getter ${sentinel}`);
+        },
+      });
+      throw error;
+    });
+    const app = buildApp({ spotifyFactory });
+    apps.push(app);
+
+    app.addHook('onRequest', async (request) => {
+      await Promise.resolve();
+      Object.assign(request.log, { error: logError });
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/spotify/genres',
+    });
+
+    expect(spotifyFactory).toHaveBeenCalledOnce();
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'spotify_upstream_error',
+        message: 'Spotify could not complete the request.',
+      },
+    });
+    expect(logError).toHaveBeenCalledOnce();
+    expect(logError).toHaveBeenCalledWith({
+      err: {
+        classification: 'spotify_request_failure',
+      },
+      method: 'GET',
+      route: '/api/spotify/genres',
+    }, 'Spotify request failed');
+    expect(JSON.stringify(logError.mock.calls)).not.toContain(sentinel);
+    expect(response.body).not.toContain(sentinel);
   });
 
   it('returns a safe 500 when Spotify is not configured', async () => {
@@ -1495,9 +1577,7 @@ describe('spotify routes', () => {
       });
       expect(logError).toHaveBeenCalledWith({
         err: {
-          name: 'SpotifyConfigurationError',
-          code: 'spotify_not_configured',
-          statusCode: undefined,
+          classification: 'spotify_configuration_error',
         },
         method: 'GET',
         route: '/api/spotify/genres',

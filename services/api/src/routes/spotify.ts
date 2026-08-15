@@ -308,7 +308,7 @@ function validatePlaylistSummary(
   requireImageArray(response.images, description);
   const owner = requireObject(response.owner, `${description} owner`);
   requireString(owner.id, `${description} owner.id`);
-  requireOptionalString(owner.display_name, `${description} owner.display_name`);
+  requireString(owner.display_name, `${description} owner.display_name`);
   const tracks = requireObject(response.tracks, `${description} tracks`);
   requireNumber(tracks.total, `${description} tracks.total`);
   requireOptionalString(response.description, `${description} description`);
@@ -442,53 +442,36 @@ function validateRecommendationSeed(
   return response;
 }
 
-const safeErrorNames = new Set([
-  'Error',
-  'TypeError',
-  'RangeError',
-  'ReferenceError',
-  'SyntaxError',
-  'SpotifyConfigurationError',
-]);
-
-function readPrimitiveErrorProperty(
-  error: unknown,
-  key: 'code' | 'statusCode',
-) {
-  if (typeof error !== 'object' || error === null || !(key in error)) {
+function readSpotifyErrorStatusCode(error: unknown) {
+  if (typeof error !== 'object' || error === null) {
     return undefined;
   }
 
-  const value = (error as Record<'code' | 'statusCode', unknown>)[key];
-  if (key === 'statusCode' && typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
+  try {
+    const descriptor = Object.getOwnPropertyDescriptor(error, 'statusCode');
+    if (descriptor === undefined || !('value' in descriptor)) {
+      return undefined;
+    }
 
-  if (
-    key === 'code' &&
-    typeof value === 'string' &&
-    /^[A-Za-z0-9_]+$/u.test(value)
-  ) {
-    return value;
+    const statusCode: unknown = descriptor.value;
+    if (typeof statusCode === 'number' && Number.isFinite(statusCode)) {
+      return statusCode;
+    }
+  } catch {
+    return undefined;
   }
 
   return undefined;
 }
 
 function projectSpotifyError(error: unknown) {
-  const name = (
-    error instanceof Error &&
-    safeErrorNames.has(error.name)
-  )
-    ? error.name
-    : undefined;
-  const code = readPrimitiveErrorProperty(error, 'code');
-  const statusCode = readPrimitiveErrorProperty(error, 'statusCode');
+  const statusCode = readSpotifyErrorStatusCode(error);
 
   return {
-    name,
-    code,
-    statusCode,
+    classification: error instanceof SpotifyConfigurationError
+      ? 'spotify_configuration_error'
+      : 'spotify_request_failure',
+    ...(statusCode !== undefined ? { statusCode } : {}),
   };
 }
 
