@@ -220,6 +220,30 @@ describe('navigation primitives', () => {
     expect(await screen.findByRole('heading', { name: 'Destination page' })).toBeVisible();
   });
 
+  it('merges and de-duplicates rel tokens for internal links opened in a new tab', () => {
+    renderWithRouter([
+      {
+        path: '/',
+        Component: () => (
+          <ChakraProvider theme={theme}>
+            <ChakraRouterLink
+              href="/destination"
+              rel="nofollow NOOPENER nofollow"
+              target="_blank"
+            >
+              Internal with rel
+            </ChakraRouterLink>
+          </ChakraProvider>
+        ),
+      },
+    ]);
+
+    expect(screen.getByRole('link', { name: 'Internal with rel' })).toHaveAttribute(
+      'rel',
+      'nofollow NOOPENER noreferrer',
+    );
+  });
+
   it('renders protocol-relative Chakra links as normal anchors', () => {
     render(
       <ChakraProvider theme={theme}>

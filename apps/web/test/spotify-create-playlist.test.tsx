@@ -16,6 +16,7 @@ import SpotifyCreatePlaylistRoute from '../src/routes/projects/spotify/recommend
 import {
   CreateSpotifyPlaylistModal,
   getSafeSpotifyPlaylistUrl,
+  spotifyPendingPlaylistStorageKey,
 } from '../src/components/projects/spotify/playlist_generator/CreateSpotifyPlaylistModal';
 import type { SpotifyTokenInfo } from '../src/spotify-utils/auth/SpotifyAuthUtils';
 import { theme } from '../src/theme';
@@ -77,6 +78,7 @@ vi.mock('../src/components/utils/useNoShowBeforeRender', () => ({
 
 afterEach(() => {
   cleanup();
+  sessionStorage.clear();
   authMocks.useGuard.mockReset();
   spotifyStoreState.spotifyTokenInfo = loggedInSpotifyTokenInfo;
   vi.restoreAllMocks();
@@ -137,6 +139,18 @@ describe('recommended track ID parsing', () => {
     expect(parseRecommendedTrackIds(params)).toEqual({ kind: 'invalid' });
   });
 
+  it('rejects track IDs longer than 64 characters', () => {
+    expect(parseRecommendedTrackIds(
+      new URLSearchParams({ trackIds: 'a'.repeat(64) }),
+    )).toEqual({
+      kind: 'valid',
+      trackIds: ['a'.repeat(64)],
+    });
+    expect(parseRecommendedTrackIds(
+      new URLSearchParams({ trackIds: 'a'.repeat(65) }),
+    )).toEqual({ kind: 'invalid' });
+  });
+
   it('accepts zero IDs without alternate parameter names', () => {
     expect(parseRecommendedTrackIds(
       new URLSearchParams({ ids: 'alternate' }),
@@ -190,8 +204,8 @@ describe('playlist creation modal', () => {
         response: 'RAW CREATE SECRET',
         statusText: 'RAW CREATE STATUS',
       });
-      const addTracksToPlaylist = vi.fn();
-      renderModal({ addTracksToPlaylist, createPlaylist });
+      const replaceTracksInPlaylist = vi.fn();
+      renderModal({ createPlaylist, replaceTracksInPlaylist });
 
       submitPlaylist();
 
@@ -203,83 +217,149 @@ describe('playlist creation modal', () => {
       });
       expect(document.body).not.toHaveTextContent('RAW CREATE SECRET');
       expect(document.body).not.toHaveTextContent('RAW CREATE STATUS');
-      expect(addTracksToPlaylist).not.toHaveBeenCalled();
+      expect(replaceTracksInPlaylist).not.toHaveBeenCalled();
+      expect(sessionStorage.getItem(spotifyPendingPlaylistStorageKey)).toBeNull();
       expect(screen.getByRole('button', {
         name: 'Create Playlist',
       })).toBeEnabled();
     });
 
-    it('shows only the generic error and recovers after addTracksToPlaylist fails', async () => {
+    it('shows partial success and locks fields after track replacement fails', async () => {
       const createPlaylist = vi.fn().mockResolvedValue(createdPlaylist(
         'https://open.spotify.com/playlist/created',
       ));
-      const addTracksToPlaylist = vi.fn().mockRejectedValue({
-        response: 'RAW ADD SECRET',
-        statusText: 'RAW ADD STATUS',
+      const replaceTracksInPlaylist = vi.fn().mockImplementation(() => {
+        expect(sessionStorage.getItem(
+          spotifyPendingPlaylistStorageKey,
+        )).not.toBeNull();
+        return Promise.reject(Object.assign(new Error('RAW REPLACE SECRET'), {
+          response: 'RAW REPLACE SECRET',
+          statusText: 'RAW REPLACE STATUS',
+        }));
       });
-      renderModal({ addTracksToPlaylist, createPlaylist });
+      renderModal({ createPlaylist, replaceTracksInPlaylist });
 
-      submitPlaylist();
-
-      await waitFor(() => {
-        const errors = screen.getAllByText(
-          'Failed to create playlist. Please reload the page and try again',
-        );
-        expect(errors.at(-1)).toBeVisible();
+      submitPlaylist({
+        collaborative: true,
+        description: 'Recovered description',
       });
-      expect(document.body).not.toHaveTextContent('RAW ADD SECRET');
-      expect(document.body).not.toHaveTextContent('RAW ADD STATUS');
-      expect(addTracksToPlaylist).toHaveBeenCalledWith(
-        'created-playlist',
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Your playlist was created, but its tracks are not confirmed.',
+      );
+      expect(document.body).not.toHaveTextContent('RAW REPLACE SECRET');
+      expect(document.body).not.toHaveTextContent('RAW REPLACE STATUS');
+      expect(document.body).not.toHaveTextContent(
+        'Failed to create playlist. Please reload the page and try again',
+      );
+      expect(replaceTracksInPlaylist).toHaveBeenCalledWith(
+        'createdplaylist',
         ['spotify:track:first', 'spotify:track:second'],
       );
+      expect(readPendingPlaylistStorage()).toEqual({
+        formValues: {
+          playlistDescription: 'Recovered description',
+          playlistName: 'Created playlist',
+          playlistShouldBeCollaborative: true,
+          playlistShouldBePublic: false,
+        },
+        playlistId: 'createdplaylist',
+        spotifyUrl: 'https://open.spotify.com/playlist/created',
+        spotifyUserId: 'spotify-user',
+        trackUris: ['spotify:track:first', 'spotify:track:second'],
+      });
+      expect(screen.getByLabelText('Playlist name')).toBeDisabled();
+      expect(screen.getByLabelText('Playlist description')).toBeDisabled();
+      expect(screen.getByLabelText('Should playlist be public?')).toBeDisabled();
+      expect(screen.getByLabelText('Should playlist be collaborative?')).toBeDisabled();
       expect(screen.getByRole('button', {
-        name: 'Create Playlist',
+        name: 'Retry adding tracks',
       })).toBeEnabled();
     });
 
-    it('retries adding tracks without creating a second playlist', async () => {
+    it('retries exact replacement without creating a second playlist', async () => {
       const createPlaylist = vi.fn().mockResolvedValue(createdPlaylist(
         'https://open.spotify.com/playlist/created',
       ));
-      const addTracksToPlaylist = vi.fn()
-        .mockRejectedValueOnce(new Error('RAW FIRST ADD FAILURE'))
+      const replaceTracksInPlaylist = vi.fn()
+        .mockRejectedValueOnce(new Error('RAW FIRST REPLACE FAILURE'))
         .mockResolvedValueOnce({});
       vi.spyOn(window, 'open').mockImplementation(() => null);
-      renderModal({ addTracksToPlaylist, createPlaylist });
+      renderModal({ createPlaylist, replaceTracksInPlaylist });
 
       submitPlaylist();
 
       await waitFor(() => {
-        expect(addTracksToPlaylist).toHaveBeenCalledOnce();
+        expect(replaceTracksInPlaylist).toHaveBeenCalledOnce();
       });
-      expect(await screen.findByText(
-        'Failed to create playlist. Please reload the page and try again',
-      )).toBeVisible();
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Your playlist was created, but its tracks are not confirmed.',
+      );
 
-      submitPlaylist();
+      fireEvent.click(screen.getByRole('button', {
+        name: 'Retry adding tracks',
+      }));
 
       expect(await screen.findByText('Successfully created playlist.')).toBeVisible();
       expect(createPlaylist).toHaveBeenCalledOnce();
-      expect(addTracksToPlaylist).toHaveBeenCalledTimes(2);
-      expect(addTracksToPlaylist).toHaveBeenNthCalledWith(
+      expect(replaceTracksInPlaylist).toHaveBeenCalledTimes(2);
+      expect(replaceTracksInPlaylist).toHaveBeenNthCalledWith(
         1,
-        'created-playlist',
+        'createdplaylist',
         ['spotify:track:first', 'spotify:track:second'],
       );
-      expect(addTracksToPlaylist).toHaveBeenNthCalledWith(
+      expect(replaceTracksInPlaylist).toHaveBeenNthCalledWith(
         2,
-        'created-playlist',
+        'createdplaylist',
         ['spotify:track:first', 'spotify:track:second'],
       );
+      expect(sessionStorage.getItem(spotifyPendingPlaylistStorageKey)).toBeNull();
+    });
+
+    it('synchronously rejects re-entrant submits before disabled state commits', async () => {
+      const playlistRequest = deferred<SpotifyApi.CreatePlaylistResponse>();
+      const createPlaylist = vi.fn().mockReturnValue(playlistRequest.promise);
+      renderModal({
+        createPlaylist,
+        replaceTracksInPlaylist: vi.fn(),
+      });
+      fireEvent.change(screen.getByLabelText('Playlist name'), {
+        target: { value: 'Created playlist' },
+      });
+      const submitButton = screen.getByRole('button', {
+        name: 'Create Playlist',
+      });
+      const form = submitButton.closest('form');
+      if (!form) throw new Error('Expected the playlist form.');
+
+      act(() => {
+        form.dispatchEvent(new Event('submit', {
+          bubbles: true,
+          cancelable: true,
+        }));
+        form.dispatchEvent(new Event('submit', {
+          bubbles: true,
+          cancelable: true,
+        }));
+      });
+
+      await waitFor(() => {
+        expect(createPlaylist).toHaveBeenCalled();
+      });
+      expect(createPlaylist).toHaveBeenCalledOnce();
+
+      playlistRequest.reject(new Error('expected test failure'));
+      await act(async () => {
+        await playlistRequest.promise.catch(() => undefined);
+      });
     });
 
     it('prevents duplicate submission while loading and recovers after failure', async () => {
       const playlistRequest = deferred<SpotifyApi.CreatePlaylistResponse>();
       const createPlaylist = vi.fn().mockReturnValue(playlistRequest.promise);
       renderModal({
-        addTracksToPlaylist: vi.fn(),
         createPlaylist,
+        replaceTracksInPlaylist: vi.fn(),
       });
 
       const submitButton = submitPlaylist();
@@ -307,8 +387,8 @@ describe('playlist creation modal', () => {
       const playlistRequest = deferred<SpotifyApi.CreatePlaylistResponse>();
       const createPlaylist = vi.fn().mockReturnValue(playlistRequest.promise);
       const { disclosure } = renderModal({
-        addTracksToPlaylist: vi.fn(),
         createPlaylist,
+        replaceTracksInPlaylist: vi.fn(),
       });
 
       submitPlaylist();
@@ -321,7 +401,10 @@ describe('playlist creation modal', () => {
       expect(closeButtons.every(button => button.hasAttribute('disabled'))).toBe(true);
 
       closeButtons.forEach(button => fireEvent.click(button));
-      fireEvent.keyDown(document, { code: 'Escape', key: 'Escape' });
+      fireEvent.keyDown(screen.getByRole('dialog'), {
+        code: 'Escape',
+        key: 'Escape',
+      });
       const overlay = document.querySelector('.chakra-modal__overlay');
       if (!(overlay instanceof HTMLElement)) {
         throw new Error('Expected the modal overlay.');
@@ -338,11 +421,11 @@ describe('playlist creation modal', () => {
 
     it('opens a safe Spotify destination immediately and renders a fallback link', async () => {
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-      renderModal({
-        addTracksToPlaylist: vi.fn().mockResolvedValue({}),
+      const { setOpen } = renderModal({
         createPlaylist: vi.fn().mockResolvedValue(createdPlaylist(
           'https://open.spotify.com/playlist/created?si=one',
         )),
+        replaceTracksInPlaylist: vi.fn().mockResolvedValue({}),
       });
 
       submitPlaylist();
@@ -366,6 +449,203 @@ describe('playlist creation modal', () => {
       expect(screen.getByRole('link', {
         name: 'Open playlist on Spotify',
       })).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(sessionStorage.getItem(spotifyPendingPlaylistStorageKey)).toBeNull();
+
+      setOpen(false);
+      setOpen(true);
+      expect(screen.getByLabelText('Playlist name')).toHaveValue('');
+      expect(screen.getByLabelText('Playlist description')).toHaveValue('');
+      expect(screen.getByRole('link', {
+        name: 'Open playlist on Spotify',
+      })).toBeVisible();
+      expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(3);
+    });
+
+    it('keeps the persistent fallback when opening the safe destination throws', async () => {
+      vi.spyOn(window, 'open').mockImplementation(() => {
+        throw new Error('RAW WINDOW OPEN FAILURE');
+      });
+      renderModal({
+        createPlaylist: vi.fn().mockResolvedValue(createdPlaylist(
+          'https://open.spotify.com/playlist/created',
+        )),
+        replaceTracksInPlaylist: vi.fn().mockResolvedValue({}),
+      });
+
+      submitPlaylist();
+
+      expect(await screen.findByText('Successfully created playlist.')).toBeVisible();
+      expect(screen.getByRole('link', {
+        name: 'Open playlist on Spotify',
+      })).toHaveAttribute(
+        'href',
+        'https://open.spotify.com/playlist/created',
+      );
+      expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(3);
+      expect(document.body).not.toHaveTextContent('RAW WINDOW OPEN FAILURE');
+    });
+
+    it('keeps pending recovery across close and reopen', async () => {
+      const createPlaylist = vi.fn().mockResolvedValue(createdPlaylist(
+        'https://open.spotify.com/playlist/created',
+      ));
+      const replaceTracksInPlaylist = vi.fn().mockRejectedValue(new Error('lost response'));
+      const { disclosure, setOpen } = renderModal({
+        createPlaylist,
+        replaceTracksInPlaylist,
+      });
+
+      submitPlaylist({ description: 'Keep this value' });
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Your playlist was created, but its tracks are not confirmed.',
+      );
+
+      expect(screen.getAllByRole('button', { name: 'Close' }).every(
+        button => !button.hasAttribute('disabled'),
+      )).toBe(true);
+      fireEvent.keyDown(screen.getByRole('dialog'), {
+        code: 'Escape',
+        key: 'Escape',
+      });
+      expect(disclosure.onClose).toHaveBeenCalledOnce();
+      setOpen(false);
+      setOpen(true);
+
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Your playlist was created, but its tracks are not confirmed.',
+      );
+      expect(screen.getByLabelText('Playlist name')).toHaveValue('Created playlist');
+      expect(screen.getByLabelText('Playlist description')).toHaveValue('Keep this value');
+      expect(screen.getByLabelText('Playlist name')).toBeDisabled();
+      expect(createPlaylist).toHaveBeenCalledOnce();
+    });
+
+    it('restores pending recovery after remount and retries replacement only', async () => {
+      const firstCreatePlaylist = vi.fn().mockResolvedValue(createdPlaylist(
+        'https://open.spotify.com/playlist/created',
+      ));
+      const firstReplacement = vi.fn().mockRejectedValue(new Error('lost response'));
+      const firstView = renderModal({
+        createPlaylist: firstCreatePlaylist,
+        replaceTracksInPlaylist: firstReplacement,
+      });
+
+      submitPlaylist({ description: 'Reloaded description' });
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Your playlist was created, but its tracks are not confirmed.',
+      );
+      firstView.unmount();
+
+      const reloadedCreatePlaylist = vi.fn();
+      const reloadedReplacement = vi.fn().mockResolvedValue({});
+      vi.spyOn(window, 'open').mockImplementation(() => null);
+      renderModal({
+        createPlaylist: reloadedCreatePlaylist,
+        replaceTracksInPlaylist: reloadedReplacement,
+      });
+
+      expect(screen.getByLabelText('Playlist name')).toHaveValue('Created playlist');
+      expect(screen.getByLabelText('Playlist description')).toHaveValue('Reloaded description');
+      expect(screen.getByLabelText('Playlist name')).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', {
+        name: 'Retry adding tracks',
+      }));
+
+      expect(await screen.findByText('Successfully created playlist.')).toBeVisible();
+      expect(firstCreatePlaylist).toHaveBeenCalledOnce();
+      expect(reloadedCreatePlaylist).not.toHaveBeenCalled();
+      expect(reloadedReplacement).toHaveBeenCalledOnce();
+      expect(reloadedReplacement).toHaveBeenCalledWith(
+        'createdplaylist',
+        ['spotify:track:first', 'spotify:track:second'],
+      );
+    });
+
+    it.each([
+      ['malformed JSON', '{not json'],
+      ['malformed record', JSON.stringify({ playlistId: 'createdplaylist' })],
+      ['unsafe stored URL', JSON.stringify(pendingPlaylistRecord({
+        spotifyUrl: 'https://evil.example/playlist/created',
+      }))],
+    ])('clears %s pending storage safely', (_label, storedValue) => {
+      sessionStorage.setItem(spotifyPendingPlaylistStorageKey, storedValue);
+
+      expect(() => renderModal({
+        createPlaylist: vi.fn(),
+        replaceTracksInPlaylist: vi.fn(),
+      })).not.toThrow();
+
+      expect(sessionStorage.getItem(spotifyPendingPlaylistStorageKey)).toBeNull();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Playlist name')).toBeEnabled();
+    });
+
+    it.each([
+      ['another user', pendingPlaylistRecord({ spotifyUserId: 'another-user' })],
+      ['another URI order', pendingPlaylistRecord({
+        trackUris: ['spotify:track:second', 'spotify:track:first'],
+      })],
+    ])('clears pending storage scoped to %s', (_label, record) => {
+      sessionStorage.setItem(
+        spotifyPendingPlaylistStorageKey,
+        JSON.stringify(record),
+      );
+
+      renderModal({
+        createPlaylist: vi.fn(),
+        replaceTracksInPlaylist: vi.fn(),
+      });
+
+      expect(sessionStorage.getItem(spotifyPendingPlaylistStorageKey)).toBeNull();
+      expect(screen.getByLabelText('Playlist name')).toBeEnabled();
+      expect(screen.queryByRole('button', {
+        name: 'Retry adding tracks',
+      })).not.toBeInTheDocument();
+    });
+
+    it('clears pending recovery only when explicitly abandoned', () => {
+      sessionStorage.setItem(
+        spotifyPendingPlaylistStorageKey,
+        JSON.stringify(pendingPlaylistRecord()),
+      );
+      const { disclosure, setOpen } = renderModal({
+        createPlaylist: vi.fn(),
+        replaceTracksInPlaylist: vi.fn(),
+      });
+
+      fireEvent.click(screen.getByRole('button', {
+        name: 'Abandon playlist recovery',
+      }));
+
+      expect(sessionStorage.getItem(spotifyPendingPlaylistStorageKey)).toBeNull();
+      expect(disclosure.onClose).toHaveBeenCalledOnce();
+      setOpen(false);
+      setOpen(true);
+      expect(screen.getByLabelText('Playlist name')).toBeEnabled();
+      expect(screen.getByLabelText('Playlist name')).toHaveValue('');
+      expect(screen.getByRole('button', {
+        name: 'Create Playlist',
+      })).toBeEnabled();
+    });
+
+    it('stores no unsafe URL while partial recovery remains pending', async () => {
+      const replaceTracksInPlaylist = vi.fn().mockRejectedValue(new Error('replacement failed'));
+      renderModal({
+        createPlaylist: vi.fn().mockResolvedValue(createdPlaylist(
+          'https://evil.example/playlist/created',
+        )),
+        replaceTracksInPlaylist,
+      });
+
+      submitPlaylist();
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Your playlist was created, but its tracks are not confirmed.',
+      );
+      expect(readPendingPlaylistStorage()).not.toHaveProperty('spotifyUrl');
+      expect(screen.queryByRole('link', {
+        name: 'Open playlist on Spotify',
+      })).not.toBeInTheDocument();
     });
 
     it.each([
@@ -382,16 +662,16 @@ describe('playlist creation modal', () => {
       ['non-string', { url: 'https://open.spotify.com/playlist/created' }],
     ])('does not open unsafe %s playlist destinations', async (_label, destination) => {
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-      const addTracksToPlaylist = vi.fn().mockResolvedValue({});
+      const replaceTracksInPlaylist = vi.fn().mockResolvedValue({});
       renderModal({
-        addTracksToPlaylist,
         createPlaylist: vi.fn().mockResolvedValue(createdPlaylist(destination)),
+        replaceTracksInPlaylist,
       });
 
       submitPlaylist();
 
       await waitFor(() => {
-        expect(addTracksToPlaylist).toHaveBeenCalledOnce();
+        expect(replaceTracksInPlaylist).toHaveBeenCalledOnce();
       });
       expect(await screen.findByText('Successfully created playlist.')).toBeVisible();
       expect(getSafeSpotifyPlaylistUrl(destination)).toBeNull();
@@ -410,10 +690,10 @@ describe('playlist creation modal', () => {
     it('keeps success state but omits navigation for an unsafe destination', async () => {
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
       renderModal({
-        addTracksToPlaylist: vi.fn().mockResolvedValue({}),
         createPlaylist: vi.fn().mockResolvedValue(createdPlaylist(
           'https://evil.example/playlist/created',
         )),
+        replaceTracksInPlaylist: vi.fn().mockResolvedValue({}),
       });
 
       submitPlaylist();
@@ -459,6 +739,7 @@ describe('create-playlist route request lifecycle', () => {
       expect(getTracks).toHaveBeenCalledOnce();
       expect(getMe).toHaveBeenCalledOnce();
     });
+
     expect(getApi).toHaveBeenCalledOnce();
     expect(getTracks).toHaveBeenCalledWith(['first', 'second']);
 
@@ -687,11 +968,11 @@ function renderRoute(initialEntry: string) {
 }
 
 function renderModal({
-  addTracksToPlaylist,
   createPlaylist,
+  replaceTracksInPlaylist,
 }: {
-  addTracksToPlaylist: ReturnType<typeof vi.fn>;
   createPlaylist: ReturnType<typeof vi.fn>;
+  replaceTracksInPlaylist: ReturnType<typeof vi.fn>;
 }) {
   const disclosure = {
     getButtonProps: vi.fn(),
@@ -704,29 +985,52 @@ function renderModal({
   } as unknown as UseDisclosureReturn;
   const guardedSpotifyApi = {
     getApi: () => Promise.resolve({
-      addTracksToPlaylist,
       createPlaylist,
+      replaceTracksInPlaylist,
     } as never),
   };
 
-  const view = render(
+  const modal = () => (
     <ChakraProvider theme={theme}>
       <CreateSpotifyPlaylistModal
-        createPlaylistDisclosure={disclosure}
+        createPlaylistDisclosure={disclosure as unknown as UseDisclosureReturn}
         guardedSpotifyApi={guardedSpotifyApi}
         recommendedTracks={[track('first'), track('second')]}
         spotifyUserId='spotify-user'
       />
-    </ChakraProvider>,
+    </ChakraProvider>
   );
+  const view = render(modal());
+  const setOpen = (isOpen: boolean) => {
+    disclosure.isOpen = isOpen;
+    view.rerender(modal());
+  };
 
-  return { ...view, disclosure };
+  return {
+    ...view,
+    disclosure,
+    setOpen,
+  };
 }
 
-function submitPlaylist() {
+function submitPlaylist({
+  collaborative = false,
+  description = '',
+}: {
+  collaborative?: boolean;
+  description?: string;
+} = {}) {
   fireEvent.change(screen.getByLabelText('Playlist name'), {
     target: { value: 'Created playlist' },
   });
+  if (description) {
+    fireEvent.change(screen.getByLabelText('Playlist description'), {
+      target: { value: description },
+    });
+  }
+  if (collaborative) {
+    fireEvent.click(screen.getByLabelText('Should playlist be collaborative?'));
+  }
   const submitButton = screen.getByRole('button', {
     name: 'Create Playlist',
   });
@@ -741,8 +1045,45 @@ function createdPlaylist(
     external_urls: {
       spotify: spotifyUrl,
     },
-    id: 'created-playlist',
+    id: 'createdplaylist',
   } as SpotifyApi.CreatePlaylistResponse;
+}
+
+type PendingPlaylistRecord = {
+  formValues: {
+    playlistDescription: string;
+    playlistName: string;
+    playlistShouldBeCollaborative: boolean;
+    playlistShouldBePublic: boolean;
+  };
+  playlistId: string;
+  spotifyUrl?: string;
+  spotifyUserId: string;
+  trackUris: string[];
+};
+
+function pendingPlaylistRecord(
+  overrides: Partial<PendingPlaylistRecord> = {},
+): PendingPlaylistRecord {
+  return {
+    formValues: {
+      playlistDescription: 'Recovered description',
+      playlistName: 'Created playlist',
+      playlistShouldBeCollaborative: false,
+      playlistShouldBePublic: true,
+    },
+    playlistId: 'createdplaylist',
+    spotifyUrl: 'https://open.spotify.com/playlist/created',
+    spotifyUserId: 'spotify-user',
+    trackUris: ['spotify:track:first', 'spotify:track:second'],
+    ...overrides,
+  };
+}
+
+function readPendingPlaylistStorage() {
+  const storedValue = sessionStorage.getItem(spotifyPendingPlaylistStorageKey);
+  if (!storedValue) throw new Error('Expected pending playlist storage.');
+  return JSON.parse(storedValue) as Record<string, unknown>;
 }
 
 function mockSpotifyApi({

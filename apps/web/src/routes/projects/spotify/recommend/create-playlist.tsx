@@ -1,5 +1,5 @@
 import { SpotifyLogoutButton } from '../../../../spotify-utils/auth/SpotifyLogoutButton';
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { ProjectPage } from '../../../../components/projects/ProjectPage';
 import { RequireSpotifyScopesOrElseShowLogin } from '../../../../spotify-utils/auth/RequireSpotifyScopesOrElseShowLogin';
 import { SpotifyRouteComponent } from '../../../../components/projects/spotify/SpotifyRouteComponent';
@@ -115,7 +115,9 @@ function CreatePlaylistFromRecommendationsContent({
   const [spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo] = useSpotifyStore(state => [state.spotifyClientId, state.spotifyTokenInfo, state.setSpotifyTokenInfo]);
   const guardedSpotifyApi = useSpotifyWebApiGuardValidPkceToken(spotifyClientId, spotifyTokenInfo, setSpotifyTokenInfo);
   const guardedSpotifyApiRef = useRef(guardedSpotifyApi);
-  guardedSpotifyApiRef.current = guardedSpotifyApi;
+  useEffect(() => {
+    guardedSpotifyApiRef.current = guardedSpotifyApi;
+  }, [guardedSpotifyApi]);
   const location = useLocation();
   const noShowBeforeRender = useNoShowBeforeRender();
   const createPlaylistDisclosure = useDisclosure({ defaultIsOpen: false });

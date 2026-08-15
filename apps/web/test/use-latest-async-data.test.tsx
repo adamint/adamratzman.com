@@ -37,7 +37,7 @@ describe('useLatestAsyncData', () => {
     await waitFor(() => {
       expect(oldProducer).toHaveBeenCalledOnce();
     });
-    rerender({ producer: newProducer });
+    rerender({ keepPreviousData: false, producer: newProducer });
     await waitFor(() => {
       expect(newProducer).toHaveBeenCalledOnce();
     });
@@ -62,6 +62,55 @@ describe('useLatestAsyncData', () => {
     });
   });
 
+  it('keeps successful data visible while the next generation loads', async () => {
+    const newRequest = deferred<string>();
+    const oldProducer = vi.fn().mockResolvedValue('old');
+    const newProducer = vi.fn().mockReturnValue(newRequest.promise);
+    const { rerender, result } = renderLatest(oldProducer, true);
+
+    await waitFor(() => {
+      expect(result.current.data).toBe('old');
+    });
+    rerender({ keepPreviousData: true, producer: newProducer });
+    await waitFor(() => {
+      expect(newProducer).toHaveBeenCalledOnce();
+    });
+
+    expect(result.current).toEqual({
+      data: 'old',
+      error: false,
+      loading: true,
+    });
+
+    newRequest.resolve('new');
+    await waitFor(() => {
+      expect(result.current).toEqual({
+        data: 'new',
+        error: false,
+        loading: false,
+      });
+    });
+  });
+
+  it('clears retained data when the current generation fails', async () => {
+    const oldProducer = vi.fn().mockResolvedValue('old');
+    const newProducer = vi.fn().mockRejectedValue(new Error('current failure'));
+    const { rerender, result } = renderLatest(oldProducer, true);
+
+    await waitFor(() => {
+      expect(result.current.data).toBe('old');
+    });
+    rerender({ keepPreviousData: true, producer: newProducer });
+
+    await waitFor(() => {
+      expect(result.current).toEqual({
+        data: null,
+        error: true,
+        loading: false,
+      });
+    });
+  });
+
   it('ignores stale success after producer supersession', async () => {
     const oldRequest = deferred<string>();
     const oldProducer = vi.fn().mockReturnValue(oldRequest.promise);
@@ -71,7 +120,7 @@ describe('useLatestAsyncData', () => {
     await waitFor(() => {
       expect(oldProducer).toHaveBeenCalledOnce();
     });
-    rerender({ producer: newProducer });
+    rerender({ keepPreviousData: false, producer: newProducer });
     await waitFor(() => {
       expect(result.current.data).toBe('new');
     });
@@ -94,7 +143,7 @@ describe('useLatestAsyncData', () => {
     await waitFor(() => {
       expect(oldProducer).toHaveBeenCalledOnce();
     });
-    rerender({ producer: newProducer });
+    rerender({ keepPreviousData: false, producer: newProducer });
     await waitFor(() => {
       expect(result.current.data).toBe('new');
     });
@@ -154,12 +203,12 @@ describe('useLatestAsyncData', () => {
 
   it('resets data, error, and loading when the producer becomes null', async () => {
     const producer = vi.fn().mockResolvedValue('loaded');
-    const { rerender, result } = renderLatest(producer);
+    const { rerender, result } = renderLatest(producer, true);
 
     await waitFor(() => {
       expect(result.current.data).toBe('loaded');
     });
-    rerender({ producer: null });
+    rerender({ keepPreviousData: true, producer: null });
 
     await waitFor(() => {
       expect(result.current).toEqual({
@@ -208,11 +257,17 @@ describe('useLatestAsyncData', () => {
 
 function renderLatest<T>(
   producer: ((signal: AbortSignal) => Promise<T>) | null,
+  keepPreviousData = false,
 ) {
   return renderHook(
-    ({ producer: currentProducer }) => useLatestAsyncData(currentProducer),
+    ({
+      keepPreviousData: currentKeepPreviousData,
+      producer: currentProducer,
+    }) => useLatestAsyncData(currentProducer, {
+      keepPreviousData: currentKeepPreviousData,
+    }),
     {
-      initialProps: { producer },
+      initialProps: { keepPreviousData, producer },
       wrapper: StrictModeWrapper,
     },
   );

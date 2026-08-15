@@ -6,8 +6,13 @@ export type LatestAsyncData<T> = {
   loading: boolean;
 };
 
+export type LatestAsyncDataOptions = {
+  keepPreviousData?: boolean;
+};
+
 export function useLatestAsyncData<T>(
   producer: ((signal: AbortSignal) => Promise<T>) | null,
+  { keepPreviousData = false }: LatestAsyncDataOptions = {},
 ): LatestAsyncData<T> {
   const generationRef = useRef(0);
   const [state, setState] = useState<LatestAsyncData<T>>({
@@ -42,11 +47,11 @@ export function useLatestAsyncData<T>(
     }
 
     if (canUpdate()) {
-      setState({
-        data: null,
+      setState(previousState => ({
+        data: keepPreviousData ? previousState.data : null,
         error: false,
         loading: true,
-      });
+      }));
     }
 
     const timer = window.setTimeout(() => {
@@ -77,7 +82,7 @@ export function useLatestAsyncData<T>(
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [producer]);
+  }, [keepPreviousData, producer]);
 
   return state;
 }

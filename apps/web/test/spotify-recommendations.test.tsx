@@ -311,6 +311,168 @@ describe('Spotify recommendation request lifecycle', () => {
     })).not.toBeInTheDocument();
   });
 
+  it('keeps old recommendations visible while the debounced generation loads', async () => {
+    const finalResponse = deferred<Response>();
+    const fetchMock = vi.fn((
+      _input: RequestInfo | URL,
+      init: RequestInit = {},
+    ): Promise<Response> => (
+      recommendationSeed(init) === 'initial'
+        ? Promise.resolve(Response.json(
+          recommendationResponse('Initial Recommendation', 'initialtrack'),
+        ))
+        : finalResponse.promise
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+    const view = renderRecommendations(selectedTrack('initial'));
+
+    expect(await screen.findByRole('heading', {
+      name: 'Initial Recommendation',
+    })).toBeVisible();
+
+    vi.useFakeTimers();
+    view.rerender(recommendationTree(selectedTrack('final')));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    expect(screen.getByRole('heading', {
+      name: 'Initial Recommendation',
+    })).toBeVisible();
+    expect(screen.getByText(/Loading recommendations/u)).toBeVisible();
+
+    finalResponse.resolve(Response.json(
+      recommendationResponse('Final Recommendation', 'finaltrack'),
+    ));
+    await act(async () => {
+      await finalResponse.promise;
+    });
+    vi.useRealTimers();
+
+    expect(await screen.findByRole('heading', {
+      name: 'Final Recommendation',
+    })).toBeVisible();
+    expect(screen.queryByRole('heading', {
+      name: 'Initial Recommendation',
+    })).not.toBeInTheDocument();
+  });
+
+  it('clears old recommendations when all seeds are removed', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(
+      recommendationResponse('Initial Recommendation', 'initialtrack'),
+    )));
+    const view = renderRecommendations(selectedTrack('initial'));
+
+    expect(await screen.findByRole('heading', {
+      name: 'Initial Recommendation',
+    })).toBeVisible();
+
+    view.rerender(recommendationTree({}));
+
+    expect(screen.queryByRole('heading', {
+      name: 'Initial Recommendation',
+    })).not.toBeInTheDocument();
+  });
+
+  it('does not restore a cleared generation when seeds are quickly re-added', async () => {
+    const requestedSeeds: string[] = [];
+    vi.stubGlobal('fetch', vi.fn((
+      _input: RequestInfo | URL,
+      init: RequestInit = {},
+    ) => {
+      const seed = recommendationSeed(init);
+      if (!seed) throw new Error('Expected a recommendation seed.');
+      requestedSeeds.push(seed);
+      return Promise.resolve(Response.json(recommendationResponse(
+        seed === 'initial' ? 'Initial Recommendation' : 'Final Recommendation',
+        `${seed}track`,
+      )));
+    }));
+    const view = renderRecommendations(selectedTrack('initial'));
+
+    expect(await screen.findByRole('heading', {
+      name: 'Initial Recommendation',
+    })).toBeVisible();
+
+    vi.useFakeTimers();
+    view.rerender(recommendationTree({}));
+    expect(screen.queryByRole('heading', {
+      name: 'Initial Recommendation',
+    })).not.toBeInTheDocument();
+
+    view.rerender(recommendationTree(selectedTrack('final')));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(requestedSeeds).toEqual(['initial']);
+    expect(screen.queryByRole('heading', {
+      name: 'Initial Recommendation',
+    })).not.toBeInTheDocument();
+    expect(screen.getByText(/Loading recommendations/u)).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(requestedSeeds).toEqual(['initial', 'final']);
+    vi.useRealTimers();
+    expect(await screen.findByRole('heading', {
+      name: 'Final Recommendation',
+    })).toBeVisible();
+  });
+
+  it('clears old recommendations when the current generation fails', async () => {
+    const finalResponse = deferred<Response>();
+    const fetchMock = vi.fn((
+      _input: RequestInfo | URL,
+      init: RequestInit = {},
+    ): Promise<Response> => (
+      recommendationSeed(init) === 'initial'
+        ? Promise.resolve(Response.json(
+          recommendationResponse('Initial Recommendation', 'initialtrack'),
+        ))
+        : finalResponse.promise
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+    const view = renderRecommendations(selectedTrack('initial'));
+
+    expect(await screen.findByRole('heading', {
+      name: 'Initial Recommendation',
+    })).toBeVisible();
+
+    vi.useFakeTimers();
+    view.rerender(recommendationTree(selectedTrack('final')));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    finalResponse.reject(new Error('RAW CURRENT FAILURE'));
+    await act(async () => {
+      await finalResponse.promise.catch(() => undefined);
+      await Promise.resolve();
+    });
+    vi.useRealTimers();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We were unable to get track recommendations.',
+    );
+    expect(screen.queryByRole('heading', {
+      name: 'Initial Recommendation',
+    })).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('RAW CURRENT FAILURE');
+  });
+
   it('aborts and ignores an old recommendation response after seed changes', async () => {
     const oldRequest = deferred<Response>();
     let oldSignal: AbortSignal | undefined;

@@ -22,7 +22,7 @@ export function isSpotifyGenreList(value: unknown): value is string[] {
 }
 
 export function isSpotifyTrackId(value: unknown): value is string {
-  return typeof value === 'string' && /^[A-Za-z0-9]+$/u.test(value);
+  return typeof value === 'string' && /^[A-Za-z0-9]{1,64}$/u.test(value);
 }
 
 export function isSpotifyArtistSearchPage(

@@ -53,12 +53,18 @@ export function GetAndShowSpotifyTrackRecommendations({
     return recommendationOptions;
   }, [selectedObjects, selectedTrackAttributes]);
   const requestKey = JSON.stringify(options);
+  const hasSeeds = hasRecommendationSeeds(options);
   const debouncedOptions = useDebouncedRecommendationOptions(
     options,
     requestKey,
+    hasSeeds,
   );
-  const producer = useMemo(() => (
-    async (signal: AbortSignal): Promise<SpotifyRecommendationsResponse> => {
+  const waitingForDebounce = hasSeeds
+    && !hasRecommendationSeeds(debouncedOptions);
+  const producer = useMemo(() => {
+    if (!hasSeeds || !hasRecommendationSeeds(debouncedOptions)) return null;
+
+    return async (signal: AbortSignal): Promise<SpotifyRecommendationsResponse> => {
       const request: GetRecommendationsRequest = { options: debouncedOptions };
       const response = await fetchJson<unknown>(
         '/api/spotify/getRecommendations',
@@ -73,11 +79,16 @@ export function GetAndShowSpotifyTrackRecommendations({
       );
       if (!isSpotifyRecommendationsResponse(response)) throw new Error();
       return response;
-    }
-  ), [debouncedOptions]);
-  const { loading, data, error } = useLatestAsyncData(producer);
+    };
+  }, [debouncedOptions, hasSeeds]);
+  const { loading, data, error } = useLatestAsyncData(producer, {
+    keepPreviousData: true,
+  });
 
-  if (loading || !shouldShow) return <Box>Loading recommendations... <Spinner size='sm' /></Box>;
+  if (!hasSeeds) return null;
+  if (!shouldShow || waitingForDebounce || (loading && !data)) {
+    return <Box>Loading recommendations... <Spinner size='sm' /></Box>;
+  }
   else if (error || !data) return <Alert status='error'>
     <AlertIcon />
     <AlertTitle mr={2}>We were unable to get track recommendations.</AlertTitle>
@@ -94,6 +105,7 @@ export function GetAndShowSpotifyTrackRecommendations({
 
     return <>
       <Box>
+        {loading && <Box mb={3}>Loading recommendations... <Spinner size='sm' /></Box>}
         <Box mb={5}>
           <Heading size='mdx'>Recommended tracks ({tracks.length})</Heading>
           <ChakraRouterLink
@@ -119,6 +131,7 @@ export function GetAndShowSpotifyTrackRecommendations({
 function useDebouncedRecommendationOptions(
   options: SpotifyRecommendationOptions,
   requestKey: string,
+  enabled: boolean,
 ) {
   const [currentRequest, setCurrentRequest] = useState(() => ({
     options,
@@ -127,13 +140,23 @@ function useDebouncedRecommendationOptions(
 
   useEffect(() => {
     if (currentRequest.requestKey === requestKey) return;
+    if (!enabled) {
+      setCurrentRequest({ options, requestKey });
+      return;
+    }
 
     const timer = window.setTimeout(() => {
       setCurrentRequest({ options, requestKey });
     }, 350);
 
     return () => window.clearTimeout(timer);
-  }, [currentRequest.requestKey, options, requestKey]);
+  }, [currentRequest.requestKey, enabled, options, requestKey]);
 
   return currentRequest.options;
+}
+
+function hasRecommendationSeeds(options: SpotifyRecommendationOptions) {
+  return (options.seed_artists?.length ?? 0) > 0
+    || (options.seed_genres?.length ?? 0) > 0
+    || (options.seed_tracks?.length ?? 0) > 0;
 }

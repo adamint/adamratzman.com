@@ -11,23 +11,23 @@ type ChakraRouterLinkProps = {
 
 export const ChakraRouterLink = forwardRef<HTMLAnchorElement, ChakraRouterLinkProps>(
   ({ href, rel, target, ...rest }, ref) => {
+    const safeRel = target === '_blank'
+      ? mergeRelTokens(rel, ['noopener', 'noreferrer'])
+      : rel;
+
     if (href.startsWith('/') && !href.startsWith('//')) {
       return (
         <ChakraLink
           as={RouterLink}
           color="#149dcc"
           ref={ref}
-          rel={rel}
+          rel={safeRel}
           target={target}
           to={href}
           {...rest}
         />
       );
     }
-
-    const safeRel = target === '_blank'
-      ? mergeRelTokens(rel, ['noopener', 'noreferrer'])
-      : rel;
 
     return <ChakraLink
       color="#149dcc"

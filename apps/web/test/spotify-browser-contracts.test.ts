@@ -12,6 +12,7 @@ import {
   isSpotifyArtistSearchPage,
   isSpotifyGenreList,
   isSpotifyRecommendationsResponse,
+  isSpotifyTrackId,
   isSpotifyTrackSearchPage,
 } from '../src/api/spotifyBrowserValidation';
 
@@ -142,6 +143,18 @@ describe('Spotify browser response guards', () => {
       })).toBe(false);
     },
   );
+
+  it('bounds Spotify track IDs to 64 alphanumeric characters', () => {
+    expect(isSpotifyTrackId('a'.repeat(64))).toBe(true);
+    expect(isSpotifyTrackId('a'.repeat(65))).toBe(false);
+    expect(isSpotifyRecommendationsResponse({
+      ...recommendations,
+      tracks: [{
+        ...recommendationTrack,
+        id: 'a'.repeat(65),
+      }],
+    })).toBe(false);
+  });
 
   it.each([
     ['duration', { duration_ms: Number.NaN }],
