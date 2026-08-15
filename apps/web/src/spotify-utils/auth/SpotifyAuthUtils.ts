@@ -8,12 +8,13 @@ export interface PkceGuardedSpotifyWebApiJs {
 
 export type SetCodeVerifier = (newVerifier: string | null | undefined) => void;
 export type SetSpotifyTokenInfo = (newSpotifyTokenInfo: SpotifyTokenInfo | null) => void;
-export const spotifyStorageKey = 'spotify_token';
-export const spotifyVerifierStorageKey = 'spotify_code_verifier';
-export const spotifyStateStorageKey = 'spotify-state';
-
-const spotifyRedirectAfterAuthStorageKey = 'spotify_redirect_after_auth';
-const spotifyPkceCallbackCodeStorageKey = 'spotify_pkce_callback_code';
+export const spotifyAuthStorageKeys = {
+  token: 'spotify_token',
+  verifier: 'spotify_code_verifier',
+  state: 'spotify-state',
+  redirectAfterAuth: 'spotify_redirect_after_auth',
+  consumedCallbackCode: 'spotify_pkce_callback_code',
+} as const;
 const minimumSpotifyStateLength = 32;
 
 export type StoredSpotifyToken = {
@@ -93,7 +94,18 @@ function getSpotifyClientIdFromEnv() {
 }
 
 function removeStoredTokenOnly() {
-  localStorage.removeItem(spotifyStorageKey);
+  localStorage.removeItem(spotifyAuthStorageKeys.token);
+}
+
+function clearPendingAuthorizationTransaction() {
+  localStorage.removeItem(spotifyAuthStorageKeys.verifier);
+  localStorage.removeItem(spotifyAuthStorageKeys.state);
+  localStorage.removeItem(spotifyAuthStorageKeys.redirectAfterAuth);
+}
+
+function clearStoredTokenAndPendingAuthorizationTransaction() {
+  removeStoredTokenOnly();
+  clearPendingAuthorizationTransaction();
 }
 
 function getSpotifyTokenInfoFromToken(token: StoredSpotifyToken): PersistedSpotifyTokenInfo {
@@ -104,7 +116,7 @@ function getSpotifyTokenInfoFromToken(token: StoredSpotifyToken): PersistedSpoti
 }
 
 function getStoredTokenInfo(): PersistedSpotifyTokenInfo | null {
-  const storedValue = localStorage.getItem(spotifyStorageKey);
+  const storedValue = localStorage.getItem(spotifyAuthStorageKeys.token);
   if (!storedValue) {
     return null;
   }
@@ -129,8 +141,12 @@ function buildAuthorizationUrl(
   clientId: string,
   redirectUri: string,
   codeVerifier: string,
-  state: string | null,
+  state: string,
 ) {
+  if (!state) {
+    throw new Error('OAuth state must not be empty');
+  }
+
   return getCodeChallengeForCodeVerifier(codeVerifier).then(codeChallenge => {
     const url = new URL('https://accounts.spotify.com/authorize');
     url.searchParams.set('client_id', clientId);
@@ -139,9 +155,7 @@ function buildAuthorizationUrl(
     url.searchParams.set('code_challenge_method', 'S256');
     url.searchParams.set('code_challenge', codeChallenge);
 
-    if (state) {
-      url.searchParams.set('state', state);
-    }
+    url.searchParams.set('state', state);
 
     if (scopes.length > 0) {
       url.searchParams.set('scope', scopes.join(' '));
@@ -149,18 +163,6 @@ function buildAuthorizationUrl(
 
     return url.toString();
   });
-}
-
-function getRefreshSeedToken(refreshToken: string): StoredSpotifyToken {
-  const existingToken = getStoredTokenInfo()?.token;
-  return {
-    ...existingToken,
-    access_token: existingToken?.access_token ?? 'refresh-seed-token',
-    token_type: existingToken?.token_type ?? 'Bearer',
-    expires_in: existingToken?.expires_in ?? 0,
-    refresh_token: refreshToken,
-    scope: existingToken?.scope ?? '',
-  };
 }
 
 function mergeStoredToken(
@@ -207,7 +209,7 @@ async function requestSpotifyTokenRefresh(
     });
 
     if (!response.ok) {
-      SpotifyAuthUtils.clearToken();
+      clearStoredTokenAndPendingAuthorizationTransaction();
       return null;
     }
 
@@ -215,43 +217,43 @@ async function requestSpotifyTokenRefresh(
     const mergedToken = mergeStoredToken(responseBody, currentToken);
 
     if (!mergedToken) {
-      SpotifyAuthUtils.clearToken();
+      clearStoredTokenAndPendingAuthorizationTransaction();
       return null;
     }
 
     SpotifyAuthUtils.storeToken(mergedToken);
     return mergedToken;
   } catch {
-    SpotifyAuthUtils.clearToken();
+    clearStoredTokenAndPendingAuthorizationTransaction();
     return null;
   }
 }
 
 export const SpotifyAuthUtils = {
-  spotifyStorageKey,
-  spotifyVerifierStorageKey,
-  spotifyStateStorageKey,
+  spotifyStorageKey: spotifyAuthStorageKeys.token,
+  spotifyVerifierStorageKey: spotifyAuthStorageKeys.verifier,
+  spotifyStateStorageKey: spotifyAuthStorageKeys.state,
 
   storeVerifier(verifier: string) {
-    localStorage.setItem(spotifyVerifierStorageKey, verifier);
+    localStorage.setItem(spotifyAuthStorageKeys.verifier, verifier);
   },
   getVerifier() {
-    return localStorage.getItem(spotifyVerifierStorageKey) ?? '';
+    return localStorage.getItem(spotifyAuthStorageKeys.verifier) ?? '';
   },
   storeState(state: string) {
-    localStorage.setItem(spotifyStateStorageKey, state);
+    localStorage.setItem(spotifyAuthStorageKeys.state, state);
   },
   getState() {
-    return localStorage.getItem(spotifyStateStorageKey) ?? '';
+    return localStorage.getItem(spotifyAuthStorageKeys.state) ?? '';
   },
   clearAuthorizationTransaction() {
-    localStorage.removeItem(spotifyVerifierStorageKey);
-    localStorage.removeItem(spotifyStateStorageKey);
-    localStorage.removeItem(spotifyRedirectAfterAuthStorageKey);
-    localStorage.removeItem(spotifyPkceCallbackCodeStorageKey);
+    clearPendingAuthorizationTransaction();
   },
-  storeToken(token: StoredSpotifyToken) {
-    localStorage.setItem(spotifyStorageKey, JSON.stringify(getSpotifyTokenInfoFromToken(token)));
+  storeToken(token: unknown) {
+    const storedToken = tokenSchema.parse(token) as StoredSpotifyToken;
+    const tokenInfo = getSpotifyTokenInfoFromToken(storedToken);
+    localStorage.setItem(spotifyAuthStorageKeys.token, JSON.stringify(tokenInfo));
+    return tokenInfo;
   },
   getToken() {
     return getStoredTokenInfo()?.token ?? null;
@@ -271,8 +273,8 @@ export const SpotifyAuthUtils = {
       : null;
   },
   clearToken() {
-    removeStoredTokenOnly();
-    SpotifyAuthUtils.clearAuthorizationTransaction();
+    clearStoredTokenAndPendingAuthorizationTransaction();
+    localStorage.removeItem(spotifyAuthStorageKeys.consumedCallbackCode);
   },
   getRandomCode(length: number) {
     if (!globalThis.crypto?.getRandomValues) {
@@ -309,14 +311,9 @@ export function useSpotifyWebApiGuardValidPkceToken(
     async getApi(): Promise<SpotifyWebApi.SpotifyWebApiJs> {
       if (spotifyTokenInfo !== null) {
         if (spotifyTokenInfo.expiry < Date.now()) {
-          if (spotifyTokenInfo.token.refresh_token) {
-            const token = await doSpotifyPkceRefresh(clientId, spotifyTokenInfo.token.refresh_token, setSpotifyTokenInfo);
-            if (token) spotifyApi.setAccessToken(token.access_token);
-            else spotifyApi.setAccessToken(null);
-          } else {
-            setSpotifyTokenInfo(null);
-            spotifyApi.setAccessToken(null);
-          }
+          const token = await doSpotifyPkceRefresh(clientId, spotifyTokenInfo.token, setSpotifyTokenInfo);
+          if (token) spotifyApi.setAccessToken(token.access_token);
+          else spotifyApi.setAccessToken(null);
         } else spotifyApi.setAccessToken(spotifyTokenInfo.token.access_token);
       }
 
@@ -326,7 +323,7 @@ export function useSpotifyWebApiGuardValidPkceToken(
 }
 
 
-export async function getPkceAuthUrlFull(scopes: string[], clientId: string, redirectUri: string, codeVerifier: string, state: string | null): Promise<string> {
+export async function getPkceAuthUrlFull(scopes: string[], clientId: string, redirectUri: string, codeVerifier: string, state: string): Promise<string> {
   if (codeVerifier.length < 43 || codeVerifier.length > 128) throw new Error('Code verifier must be between 43..128 characters long');
   return buildAuthorizationUrl(scopes, clientId, redirectUri, codeVerifier, state);
 }
@@ -347,10 +344,10 @@ export function logoutOfSpotify() {
 
 export async function doSpotifyPkceRefresh(
   clientId: string,
-  refreshToken: string,
+  currentToken: StoredSpotifyToken,
   setSpotifyTokenInfo: SetSpotifyTokenInfo,
-): Promise<SpotifyToken | null> {
-  const refreshedToken = await requestSpotifyTokenRefresh(getRefreshSeedToken(refreshToken), clientId, SpotifyAuthUtils.getRedirectUri());
+): Promise<StoredSpotifyToken | null> {
+  const refreshedToken = await requestSpotifyTokenRefresh(currentToken, clientId, SpotifyAuthUtils.getRedirectUri());
 
   if (!refreshedToken) {
     setSpotifyTokenInfo(null);
@@ -365,22 +362,17 @@ export function saveTokenAndGetRedirectPath(
   token: SpotifyToken,
   setSpotifyTokenInfo: SetSpotifyTokenInfo,
 ) {
-  const tokenInfo: SpotifyTokenInfo = {
-    expiry: Date.now() + token.expires_in * 1000,
-    token,
-  };
-
-  localStorage.setItem(spotifyStorageKey, JSON.stringify(tokenInfo));
+  const tokenInfo = SpotifyAuthUtils.storeToken(token);
   setSpotifyTokenInfo(tokenInfo);
 
-  const pathToRedirectTo = localStorage.getItem(spotifyRedirectAfterAuthStorageKey);
-  localStorage.removeItem(spotifyRedirectAfterAuthStorageKey);
+  const pathToRedirectTo = localStorage.getItem(spotifyAuthStorageKeys.redirectAfterAuth);
+  localStorage.removeItem(spotifyAuthStorageKeys.redirectAfterAuth);
   return pathToRedirectTo;
 }
 
 export type SpotifyTokenInfo = {
   expiry: number;
-  token: SpotifyToken
+  token: StoredSpotifyToken
 }
 
 export type SpotifyToken = {

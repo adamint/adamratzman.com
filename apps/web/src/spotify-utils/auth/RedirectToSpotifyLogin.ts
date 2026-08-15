@@ -3,11 +3,10 @@ import {
   getPkceAuthUrlFull,
   isLocalAbsolutePath,
   type SetCodeVerifier,
+  spotifyAuthStorageKeys,
   SpotifyAuthUtils,
 } from './SpotifyAuthUtils';
 
-const spotifyRedirectAfterAuthStorageKey = 'spotify_redirect_after_auth';
-const spotifyPkceCallbackCodeStorageKey = 'spotify_pkce_callback_code';
 const minimumSpotifyStateLength = 32;
 
 export async function prepareSpotifyLoginRedirect(
@@ -24,10 +23,10 @@ export async function prepareSpotifyLoginRedirect(
     ? redirectPathAfter
     : '/projects/spotify';
 
-  localStorage.removeItem(spotifyPkceCallbackCodeStorageKey);
+  localStorage.removeItem(spotifyAuthStorageKeys.consumedCallbackCode);
   SpotifyAuthUtils.storeVerifier(codeVerifier);
   SpotifyAuthUtils.storeState(nextState);
-  localStorage.setItem(spotifyRedirectAfterAuthStorageKey, safeRedirectPath);
+  localStorage.setItem(spotifyAuthStorageKeys.redirectAfterAuth, safeRedirectPath);
   setCodeVerifier(codeVerifier);
 
   return getPkceAuthUrlFull(

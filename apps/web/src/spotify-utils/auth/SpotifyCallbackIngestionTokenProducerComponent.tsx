@@ -7,13 +7,11 @@ import {
   saveTokenAndGetRedirectPath,
   type SetCodeVerifier,
   type SetSpotifyTokenInfo,
+  spotifyAuthStorageKeys,
   SpotifyAuthUtils,
   SpotifyToken,
 } from './SpotifyAuthUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
-
-const spotifyRedirectAfterAuthStorageKey = 'spotify_redirect_after_auth';
-const spotifyPkceCallbackCodeStorageKey = 'spotify_pkce_callback_code';
 
 type SpotifyCallbackIngestionTokenProducerComponentProps = {
   clientId: string;
@@ -53,7 +51,7 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
           } else if (existingTokenInfo.expiry < Date.now()) {
             await doSpotifyPkceRefresh(
               clientId,
-              existingTokenInfo.token.refresh_token ?? '',
+              existingTokenInfo.token,
               setSpotifyTokenInfo,
             );
           } else {
@@ -128,18 +126,18 @@ export function SpotifyCallbackIngestionTokenProducerComponent({
 }
 
 function clearCallbackTransaction(setCodeVerifier: SetCodeVerifier) {
-  localStorage.removeItem(SpotifyAuthUtils.spotifyVerifierStorageKey);
-  localStorage.removeItem(SpotifyAuthUtils.spotifyStateStorageKey);
-  localStorage.removeItem(spotifyRedirectAfterAuthStorageKey);
+  localStorage.removeItem(spotifyAuthStorageKeys.verifier);
+  localStorage.removeItem(spotifyAuthStorageKeys.state);
+  localStorage.removeItem(spotifyAuthStorageKeys.redirectAfterAuth);
   setCodeVerifier(null);
 }
 
 function consumeCallbackCode(authCode: string) {
-  localStorage.setItem(spotifyPkceCallbackCodeStorageKey, JSON.stringify(authCode));
+  localStorage.setItem(spotifyAuthStorageKeys.consumedCallbackCode, JSON.stringify(authCode));
 }
 
 function getConsumedCallbackCode() {
-  const storedCode = localStorage.getItem(spotifyPkceCallbackCodeStorageKey);
+  const storedCode = localStorage.getItem(spotifyAuthStorageKeys.consumedCallbackCode);
   if (!storedCode) {
     return null;
   }

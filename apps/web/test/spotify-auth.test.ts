@@ -13,6 +13,7 @@ afterEach(() => {
 const {
   createPkceCodeVerifier,
   doSpotifyPkceRefresh,
+  getPkceAuthUrlFull,
   isLocalAbsolutePath,
   logoutOfSpotify,
   saveTokenAndGetRedirectPath,
@@ -137,11 +138,11 @@ describe('Spotify PKCE browser compatibility', () => {
   it('does not log refresh failures that may contain token details', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('token=private-value'));
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    const setSpotifyTokenInfo = vi.fn();
+    const setSpotifyTokenInfo = vi.fn<spotifyAuthModule.SetSpotifyTokenInfo>();
 
     await expect(doSpotifyPkceRefresh(
       'public-client-id',
-      'private-refresh-token',
+      createStoredToken({ refresh_token: 'private-refresh-token' }),
       setSpotifyTokenInfo,
     )).resolves.toBeNull();
 
@@ -149,31 +150,51 @@ describe('Spotify PKCE browser compatibility', () => {
     expect(setSpotifyTokenInfo).toHaveBeenCalledWith(null);
   });
 
-  it('defers malformed initial authorization token validation until persisted-token reads', () => {
+  it('merges refresh fields into the existing token without fabricated seed values', async () => {
+    const existingToken = createStoredToken();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      access_token: 'new-access-token',
+      token_type: 'Bearer',
+      expires_in: 1800,
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    const setSpotifyTokenInfo = vi.fn<spotifyAuthModule.SetSpotifyTokenInfo>();
+
+    await expect(doSpotifyPkceRefresh(
+      'public-client-id',
+      existingToken,
+      setSpotifyTokenInfo,
+    )).resolves.toEqual({
+      ...existingToken,
+      access_token: 'new-access-token',
+      expires_in: 1800,
+    });
+
+    const savedTokenInfo = setSpotifyTokenInfo.mock.calls[0]?.[0];
+    expect(savedTokenInfo?.expiry ?? 0).toBeGreaterThan(Date.now() - 1_000);
+    expect(savedTokenInfo?.token).toEqual({
+      ...existingToken,
+      access_token: 'new-access-token',
+      expires_in: 1800,
+    });
+  });
+
+  it('rejects malformed initial authorization tokens before persistence', () => {
     const authUtils = getSpotifyAuthUtils();
     const setSpotifyTokenInfo = vi.fn<spotifyAuthModule.SetSpotifyTokenInfo>();
 
     localStorage.setItem('spotify_redirect_after_auth', '/projects/spotify');
 
-    expect(saveTokenAndGetRedirectPath({
+    expect(() => saveTokenAndGetRedirectPath({
       access_token: 'new-access-token',
       token_type: 'Bearer',
       expires_in: 1800,
       scope: 'playlist-read-private user-top-read',
-    }, setSpotifyTokenInfo)).toBe('/projects/spotify');
+    }, setSpotifyTokenInfo)).toThrow();
 
-    expect(localStorage.getItem('spotify_redirect_after_auth')).toBeNull();
-    expect(localStorage.getItem(authUtils.spotifyStorageKey)).not.toBeNull();
-    const savedTokenInfo = setSpotifyTokenInfo.mock.calls[0]?.[0];
-    expect(savedTokenInfo).not.toBeNull();
-    expect(savedTokenInfo?.expiry ?? 0).toBeGreaterThan(Date.now() - 1_000);
-    expect(savedTokenInfo?.token).toEqual({
-      access_token: 'new-access-token',
-      token_type: 'Bearer',
-      expires_in: 1800,
-      scope: 'playlist-read-private user-top-read',
-    });
-    expect(authUtils.getToken()).toBeNull();
+    expect(setSpotifyTokenInfo).not.toHaveBeenCalled();
     expect(localStorage.getItem(authUtils.spotifyStorageKey)).toBeNull();
   });
 
@@ -213,6 +234,16 @@ describe('Spotify PKCE browser compatibility', () => {
     expect(firstState).not.toBe(secondState);
     expect(new URL(firstUrl).searchParams.get('state')).toBe(firstState);
     expect(new URL(secondUrl).searchParams.get('state')).toBe(secondState);
+  });
+
+  it('rejects an authorization URL without a non-empty state', async () => {
+    await expect(getPkceAuthUrlFull(
+      ['user-read-email'],
+      'spotify-client-id',
+      'https://example.com/callback',
+      'a'.repeat(43),
+      '',
+    )).rejects.toThrow('OAuth state must not be empty');
   });
 
   it('clears invalid persisted token JSON instead of throwing', () => {
@@ -300,7 +331,7 @@ describe('Spotify PKCE browser compatibility', () => {
     authUtils.storeVerifier('spotify-verifier');
     authUtils.storeState('spotify-state-value');
     localStorage.setItem('spotify_redirect_after_auth', '/projects/spotify');
-    localStorage.setItem('spotify_pkce_callback_code', 'callback-code');
+    localStorage.setItem('spotify_pkce_callback_code', JSON.stringify('callback-code'));
 
     await expect(authUtils.refreshToken(existingToken)).resolves.toBeNull();
 
@@ -308,10 +339,12 @@ describe('Spotify PKCE browser compatibility', () => {
     expect(localStorage.getItem(authUtils.spotifyVerifierStorageKey)).toBeNull();
     expect(localStorage.getItem(authUtils.spotifyStateStorageKey)).toBeNull();
     expect(localStorage.getItem('spotify_redirect_after_auth')).toBeNull();
-    expect(localStorage.getItem('spotify_pkce_callback_code')).toBeNull();
+    expect(localStorage.getItem('spotify_pkce_callback_code')).toBe(
+      JSON.stringify('callback-code'),
+    );
   });
 
-  it('clears stored auth data and returns null when refresh fails', async () => {
+  it('clears unusable auth data while preserving the callback replay marker when refresh fails', async () => {
     vi.stubEnv('VITE_SPOTIFY_CLIENT_ID', 'spotify-client-id');
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 401 }));
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -322,7 +355,7 @@ describe('Spotify PKCE browser compatibility', () => {
     authUtils.storeVerifier('spotify-verifier');
     authUtils.storeState('spotify-state-value');
     localStorage.setItem('spotify_redirect_after_auth', '/projects/spotify');
-    localStorage.setItem('spotify_pkce_callback_code', 'callback-code');
+    localStorage.setItem('spotify_pkce_callback_code', JSON.stringify('callback-code'));
 
     await expect(authUtils.refreshToken(existingToken)).resolves.toBeNull();
 
@@ -331,7 +364,9 @@ describe('Spotify PKCE browser compatibility', () => {
     expect(localStorage.getItem(authUtils.spotifyVerifierStorageKey)).toBeNull();
     expect(localStorage.getItem(authUtils.spotifyStateStorageKey)).toBeNull();
     expect(localStorage.getItem('spotify_redirect_after_auth')).toBeNull();
-    expect(localStorage.getItem('spotify_pkce_callback_code')).toBeNull();
+    expect(localStorage.getItem('spotify_pkce_callback_code')).toBe(
+      JSON.stringify('callback-code'),
+    );
   });
 
   it('clears token data plus verifier, state, and authorization transaction storage on logout', () => {

@@ -552,6 +552,35 @@ describe('navigation primitives', () => {
     expect(postSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects an invalid token exchange response without authenticating or navigating', async () => {
+    localStorage.setItem(
+      'spotify_redirect_after_auth',
+      '/contact?from=spotify#complete',
+    );
+    const postSpy = mockSpotifyTokenExchange({
+      refresh_token: undefined,
+    });
+    const { router, setSpotifyTokenInfo } = renderSpotifyCallback({
+      initialEntries: [
+        '/projects/spotify/callback?code=callback-code&state=callback-state',
+      ],
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in could not be completed',
+    );
+    expect(postSpy).toHaveBeenCalledTimes(1);
+    expect(setSpotifyTokenInfo).not.toHaveBeenCalled();
+    expect(localStorage.getItem('spotify_token')).toBeNull();
+    expect(localStorage.getItem('spotify_pkce_callback_code')).toBe(
+      JSON.stringify('callback-code'),
+    );
+    expect(localStorage.getItem('spotify_code_verifier')).toBeNull();
+    expect(localStorage.getItem('spotify-state')).toBeNull();
+    expect(localStorage.getItem('spotify_redirect_after_auth')).toBeNull();
+    expect(router.state.location.pathname).toBe('/projects/spotify/callback');
+  });
+
   it('rejects a mismatched callback state without exchanging the code', async () => {
     const postSpy = vi.spyOn(axios, 'post');
     const { setCodeVerifier } = renderSpotifyCallback({
@@ -583,6 +612,31 @@ describe('navigation primitives', () => {
     expect(postSpy).not.toHaveBeenCalled();
     expect(localStorage.getItem('spotify_code_verifier')).toBeNull();
     expect(localStorage.getItem('spotify-state')).toBeNull();
+    expect(setCodeVerifier).toHaveBeenCalledWith(null);
+  });
+
+  it('rejects matching callback state when the verifier is absent', async () => {
+    localStorage.setItem('spotify-state', 'callback-state');
+    localStorage.setItem('spotify_redirect_after_auth', '/contact');
+    const postSpy = vi.spyOn(axios, 'post');
+    const { setCodeVerifier } = renderSpotifyCallback({
+      codeVerifier: null,
+      initialEntries: [
+        '/projects/spotify/callback?code=callback-code&state=callback-state',
+      ],
+      seedTransaction: false,
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Spotify sign-in could not be completed',
+    );
+    expect(postSpy).not.toHaveBeenCalled();
+    expect(localStorage.getItem('spotify_code_verifier')).toBeNull();
+    expect(localStorage.getItem('spotify-state')).toBeNull();
+    expect(localStorage.getItem('spotify_redirect_after_auth')).toBeNull();
+    expect(localStorage.getItem('spotify_pkce_callback_code')).toBe(
+      JSON.stringify('callback-code'),
+    );
     expect(setCodeVerifier).toHaveBeenCalledWith(null);
   });
 
@@ -676,7 +730,7 @@ function collectSourceFiles(directory: string): string[] {
   });
 }
 
-function mockSpotifyTokenExchange() {
+function mockSpotifyTokenExchange(overrides: Record<string, unknown> = {}) {
   return vi.spyOn(axios, 'post').mockResolvedValue({
     data: {
       access_token: 'access-token',
@@ -684,16 +738,19 @@ function mockSpotifyTokenExchange() {
       refresh_token: 'refresh-token',
       scope: 'user-top-read',
       token_type: 'Bearer',
+      ...overrides,
     },
   });
 }
 
 function renderSpotifyCallback({
+  codeVerifier = 'code-verifier',
   initialEntries,
   initialIndex = 0,
   spotifyProjectLoader,
   seedTransaction = true,
 }: {
+  codeVerifier?: string | null;
   initialEntries: string[];
   initialIndex?: number;
   spotifyProjectLoader?: RouteObject['loader'];
@@ -712,7 +769,7 @@ function renderSpotifyCallback({
       Component: () => (
         <SpotifyCallbackIngestionTokenProducerComponent
           clientId="client-id"
-          codeVerifier="code-verifier"
+          codeVerifier={codeVerifier ?? undefined}
           redirectUri="https://example.com/projects/spotify/callback"
           setCodeVerifier={setCodeVerifier}
           setSpotifyTokenInfo={setSpotifyTokenInfo}
