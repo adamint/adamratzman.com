@@ -1,9 +1,14 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Box, Flex, Spinner } from '@chakra-ui/react';
-import Pagination from '@choc-ui/paginator';
 import { TimeRange } from '../../../utils/SpotifyTypes';
 import { SpotifyPagination } from '../../../utils/SpotifyApiPaginationHelper';
 import { useNavigate } from 'react-router-dom';
+import {
+  AccessiblePagination,
+  normalizePageSize,
+} from './AccessiblePagination';
+
+const SPOTIFY_PAGE_SIZES = [10, 20, 25, 50];
 
 type PaginatedSpotifyDisplayProps<DataType extends SpotifyPagination<ChildType>, ChildType> = {
   dataProducer: (
@@ -32,6 +37,9 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
                                                                                                   }: PaginatedSpotifyDisplayProps<DataType, ChildType>) {
   const navigate = useNavigate();
   const generationRef = useRef(0);
+  const focusAfterRequestRef = useRef(false);
+  const focusCompletedGenerationRef = useRef<number | null>(null);
+  const resultsRegionRef = useRef<HTMLDivElement>(null);
   const [{ data, loading, error }, setRequestState] = useState<{
     data: DataType | null;
     error: boolean;
@@ -45,6 +53,9 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
   useEffect(() => {
     const controller = new AbortController();
     const generation = ++generationRef.current;
+    const shouldFocusAfterSuccess = focusAfterRequestRef.current;
+    focusAfterRequestRef.current = false;
+    focusCompletedGenerationRef.current = null;
     let active = true;
     setRequestState({
       data: null,
@@ -63,6 +74,9 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
             return;
           }
 
+          focusCompletedGenerationRef.current = shouldFocusAfterSuccess
+            ? generation
+            : null;
           setRequestState({
             data: nextData,
             error: false,
@@ -100,6 +114,17 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
     };
   }, [dataProducer, limitPerPage, navigate, pageOffset, timeRange]);
 
+  useEffect(() => {
+    if (
+      data
+      && !loading
+      && focusCompletedGenerationRef.current === generationRef.current
+    ) {
+      focusCompletedGenerationRef.current = null;
+      resultsRegionRef.current?.focus();
+    }
+  }, [data, loading]);
+
   if (error) return null;
 
   if (loading) {
@@ -116,15 +141,37 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
 
   if (!data) return null;
 
-  function handleOnShowSizeChange(currentPage: number | undefined, size: number | undefined) {
-    setLimitPerPage(normalizePageSize(size));
+  function handlePageSizeChange(size: number) {
+    const normalizedSize = normalizePageSize(size);
+    if (normalizedSize === limitPerPage && pageOffset === 0) {
+      return;
+    }
+
+    focusAfterRequestRef.current = true;
+    setLimitPerPage(normalizedSize);
     setPageOffset(0);
+  }
+
+  function handlePageChange(page: number) {
+    const nextPageOffset = Math.max(0, page - 1);
+    if (nextPageOffset === pageOffset) {
+      return;
+    }
+
+    focusAfterRequestRef.current = true;
+    setPageOffset(nextPageOffset);
   }
 
   const items = data.items.filter(filterNotNull);
 
   return <>
-    <Box mb={5}>
+    <Box
+      aria-label='Spotify results'
+      mb={5}
+      ref={resultsRegionRef}
+      role='region'
+      tabIndex={-1}
+    >
       {items.map(item => childDataMapper(item))}
     </Box>
     <Box>
@@ -134,16 +181,13 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
         alignItems='center'
         justifyContent='center'
       >
-        <Pagination
-          colorScheme='blue'
-          current={pageOffset + 1}
-          total={data.total}
-          showSizeChanger
-          paginationProps={{ display: 'flex' }}
+        <AccessiblePagination
+          allowedPageSizes={SPOTIFY_PAGE_SIZES}
+          currentPage={pageOffset + 1}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
           pageSize={limitPerPage}
-          pageSizeOptions={[10, 20, 25, 50]}
-          onShowSizeChange={handleOnShowSizeChange}
-          onChange={newPage => setPageOffset(newPage ? newPage - 1 : 0)}
+          totalItems={data.total}
         />
       </Flex>
     </Box>
@@ -156,13 +200,4 @@ function isAbortError(error: unknown) {
     && Reflect.get(error, 'name') === 'AbortError';
 }
 
-export function normalizePageSize(value: unknown) {
-  if (typeof value !== 'number' && typeof value !== 'string') {
-    return 10;
-  }
-
-  const size = Number(value);
-  return Number.isFinite(size) && Number.isInteger(size) && size > 0
-    ? size
-    : 10;
-}
+export { normalizePageSize } from './AccessiblePagination';

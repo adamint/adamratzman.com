@@ -14,6 +14,7 @@ import SpotifyPlaylistViewRoute from '../src/routes/projects/spotify/playlists/[
 import type { SpotifyPlaylistDetails } from '../src/api/spotifyLoaderTypes';
 import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
+import { expectNoAxeViolations } from './a11y';
 import axios from 'axios';
 
 type PageItem = {
@@ -23,6 +24,191 @@ type PageItem = {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+});
+
+describe('Accessible Spotify pagination', () => {
+  it('renders named native controls without focusing the initial results', async () => {
+    const dataProducer = vi.fn().mockResolvedValue(page('current'));
+    const { container } = renderPaginator(dataProducer);
+
+    const results = await screen.findByRole('region', {
+      name: 'Spotify results',
+    });
+    const pagination = screen.getByRole('navigation', {
+      name: 'Spotify results pages',
+    });
+    const previousButton = screen.getByRole('button', {
+      name: 'Previous page',
+    });
+    const nextButton = screen.getByRole('button', {
+      name: 'Next page',
+    });
+    const pageSize = screen.getByRole('combobox', {
+      name: 'Results per page',
+    });
+
+    expect(results).toHaveAttribute('tabindex', '-1');
+    expect(results).not.toHaveFocus();
+    expect(pagination).toBeVisible();
+    expect(screen.getByRole('status', {
+      name: 'Pagination status',
+    })).toHaveTextContent('Page 1 of 5');
+    expect(previousButton).toBeDisabled();
+    expect(nextButton).toBeEnabled();
+    expect(pageSize).toHaveValue('10');
+    expect(screen.getAllByRole('option').map(option => option.textContent))
+      .toEqual(['10', '20', '25', '50']);
+
+    await expectNoAxeViolations(container);
+  });
+
+  it('keeps an empty result set on page one with navigation disabled', async () => {
+    const dataProducer = vi.fn().mockResolvedValue(page('empty', 0));
+
+    renderPaginator(dataProducer);
+
+    expect(await screen.findByRole('status', {
+      name: 'Pagination status',
+    })).toHaveTextContent('Page 1 of 1');
+    expect(screen.getByRole('button', {
+      name: 'Previous page',
+    })).toBeDisabled();
+    expect(screen.getByRole('button', {
+      name: 'Next page',
+    })).toBeDisabled();
+  });
+
+  it('moves between pages without requesting an out-of-range offset', async () => {
+    const dataProducer = vi.fn((
+      _limit: number,
+      offset: number,
+    ) => Promise.resolve(page(`page-${offset + 1}`, 20)));
+
+    renderPaginator(dataProducer);
+
+    expect(await screen.findByText('page-1')).toBeVisible();
+    const previousButton = screen.getByRole('button', {
+      name: 'Previous page',
+    });
+    fireEvent.click(previousButton);
+    expect(dataProducer).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Next page',
+    }));
+    expect(await screen.findByText('page-2')).toBeVisible();
+    expect(dataProducer.mock.calls[1]?.[1]).toBe(1);
+
+    const nextButton = screen.getByRole('button', {
+      name: 'Next page',
+    });
+    expect(nextButton).toBeDisabled();
+    fireEvent.click(nextButton);
+    expect(dataProducer).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Previous page',
+    }));
+    await waitFor(() => {
+      expect(dataProducer).toHaveBeenCalledTimes(3);
+    });
+    expect(dataProducer.mock.calls[2]?.[1]).toBe(0);
+    expect(await screen.findByText('page-1')).toBeVisible();
+  });
+
+  it('focuses results only after a requested page finishes loading', async () => {
+    const nextPage = deferred<ReturnType<typeof page>>();
+    const dataProducer = vi.fn((
+      _limit: number,
+      offset: number,
+    ) => offset === 0
+      ? Promise.resolve(page('first'))
+      : nextPage.promise);
+
+    renderPaginator(dataProducer);
+
+    const initialResults = await screen.findByRole('region', {
+      name: 'Spotify results',
+    });
+    expect(initialResults).not.toHaveFocus();
+
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Next page',
+    }));
+    await waitFor(() => {
+      expect(dataProducer).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByRole('status', {
+      name: 'Loading Spotify results',
+    })).toBeVisible();
+    expect(screen.queryByRole('region', {
+      name: 'Spotify results',
+    })).not.toBeInTheDocument();
+
+    nextPage.resolve(page('second'));
+    const nextResults = await screen.findByRole('region', {
+      name: 'Spotify results',
+    });
+    expect(nextResults).toHaveFocus();
+  });
+
+  it('does not transfer pending focus to a superseding time-range request', async () => {
+    const requestedPage = deferred<ReturnType<typeof page>>();
+    const externalPage = deferred<ReturnType<typeof page>>();
+    let requestCount = 0;
+    let requestedPageSignal: AbortSignal | undefined;
+    const dataProducer = vi.fn((
+      _limit: number,
+      _offset: number,
+      signal: AbortSignal,
+    ) => {
+      requestCount += 1;
+      if (requestCount === 1) {
+        return Promise.resolve(page('initial'));
+      }
+
+      if (requestCount === 2) {
+        requestedPageSignal = signal;
+        return requestedPage.promise;
+      }
+
+      return externalPage.promise;
+    });
+
+    renderPaginator(dataProducer, { showTimeRangeChange: true });
+
+    const initialResults = await screen.findByRole('region', {
+      name: 'Spotify results',
+    });
+    expect(initialResults).not.toHaveFocus();
+
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Next page',
+    }));
+    await waitFor(() => {
+      expect(dataProducer).toHaveBeenCalledTimes(2);
+    });
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Change time range',
+    }));
+    await waitFor(() => {
+      expect(dataProducer).toHaveBeenCalledTimes(3);
+    });
+    expect(requestedPageSignal?.aborted).toBe(true);
+
+    externalPage.resolve(page('external'));
+    const externalResults = await screen.findByRole('region', {
+      name: 'Spotify results',
+    });
+    expect(externalResults).not.toHaveFocus();
+
+    requestedPage.resolve(page('stale'));
+    await act(async () => {
+      await requestedPage.promise;
+    });
+    expect(screen.getByText('external')).toBeVisible();
+    expect(externalResults).not.toHaveFocus();
+  });
 });
 
 describe('Spotify pagination request lifecycle', () => {
@@ -245,23 +431,31 @@ describe('Spotify pagination request lifecycle', () => {
     })).toBeVisible();
   });
 
-  it('coerces Choc page-size values before requesting the next page', async () => {
+  it('coerces native page-size values and focuses after the request succeeds', async () => {
+    const resizedPage = deferred<ReturnType<typeof page>>();
     const dataProducer = vi.fn((
       limit: number,
       offset: number,
       signal: AbortSignal,
     ) => {
-      void limit;
       void offset;
       void signal;
-      return Promise.resolve(page('sized'));
+      return limit === 10
+        ? Promise.resolve(page('initial size'))
+        : resizedPage.promise;
     });
 
     renderPaginator(dataProducer);
 
-    expect(await screen.findByText('sized')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: '10 / page' }));
-    fireEvent.click(await screen.findByRole('menuitemradio', { name: '20 / page' }));
+    const initialResults = await screen.findByRole('region', {
+      name: 'Spotify results',
+    });
+    expect(initialResults).not.toHaveFocus();
+    fireEvent.change(screen.getByRole('combobox', {
+      name: 'Results per page',
+    }), {
+      target: { value: '20' },
+    });
 
     await waitFor(() => {
       expect(dataProducer).toHaveBeenCalledTimes(2);
@@ -269,6 +463,18 @@ describe('Spotify pagination request lifecycle', () => {
     expect(dataProducer.mock.calls[1]?.[0]).toBe(20);
     expect(typeof dataProducer.mock.calls[1]?.[0]).toBe('number');
     expect(dataProducer.mock.calls[1]?.[1]).toBe(0);
+    expect(screen.getByRole('status', {
+      name: 'Loading Spotify results',
+    })).toBeVisible();
+    expect(screen.queryByRole('region', {
+      name: 'Spotify results',
+    })).not.toBeInTheDocument();
+
+    resizedPage.resolve(page('resized'));
+    const resizedResults = await screen.findByRole('region', {
+      name: 'Spotify results',
+    });
+    expect(resizedResults).toHaveFocus();
   });
 
   it.each([undefined, null, '', 0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
@@ -436,6 +642,7 @@ type RenderPaginatorOptions = {
   initialEntries?: string[];
   initialIndex?: number;
   showNextGeneration?: boolean;
+  showTimeRangeChange?: boolean;
 };
 
 function renderCard(card: ReactNode) {
@@ -461,6 +668,7 @@ function renderPaginator(
     initialEntries = ['/paging'],
     initialIndex = 0,
     showNextGeneration = false,
+    showTimeRangeChange = false,
   }: RenderPaginatorOptions = {},
 ) {
   return renderWithRouter([
@@ -471,6 +679,7 @@ function renderPaginator(
         <PaginatorHarness
           dataProducer={dataProducer}
           showNextGeneration={showNextGeneration}
+          showTimeRangeChange={showTimeRangeChange}
         />
       ),
     },
@@ -487,6 +696,7 @@ function renderPaginator(
 function PaginatorHarness({
   dataProducer,
   showNextGeneration,
+  showTimeRangeChange,
 }: {
   dataProducer: (
     limit: number,
@@ -494,14 +704,21 @@ function PaginatorHarness({
     signal: AbortSignal,
   ) => Promise<ReturnType<typeof page>>;
   showNextGeneration: boolean;
+  showTimeRangeChange: boolean;
 }) {
   const [limitPerPage, setLimitPerPage] = useState(10);
   const [pageOffset, setPageOffset] = useState(0);
+  const [timeRange, setTimeRange] = useState<'short_term' | 'medium_term'>('short_term');
 
   return <>
     {showNextGeneration && (
       <button type="button" onClick={() => setPageOffset(1)}>
         Load next generation
+      </button>
+    )}
+    {showTimeRangeChange && (
+      <button type="button" onClick={() => setTimeRange('medium_term')}>
+        Change time range
       </button>
     )}
     <PaginatedSpotifyDisplay<ReturnType<typeof page>, PageItem>
@@ -512,14 +729,15 @@ function PaginatorHarness({
       pageOffset={pageOffset}
       setLimitPerPage={setLimitPerPage}
       setPageOffset={setPageOffset}
+      timeRange={timeRange}
     />
   </>;
 }
 
-function page(id: string) {
+function page(id: string, total = 50) {
   return {
     items: [{ id }] satisfies PageItem[],
-    total: 50,
+    total,
   };
 }
 
