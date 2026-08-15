@@ -9,11 +9,18 @@ export function buildNextQuery(search: string, params: Query) {
   const searchParams = new URLSearchParams(search);
 
   for (const [key, value] of searchParams.entries()) {
-    if (nextQuery[key] !== undefined) {
+    const existingValue = nextQuery[key];
+    if (params[key] !== undefined) {
       continue;
     }
 
-    nextQuery[key] = value;
+    if (existingValue === undefined) {
+      nextQuery[key] = value;
+    } else if (Array.isArray(existingValue)) {
+      nextQuery[key] = [...existingValue, value];
+    } else {
+      nextQuery[key] = [existingValue, value];
+    }
   }
 
   return nextQuery;

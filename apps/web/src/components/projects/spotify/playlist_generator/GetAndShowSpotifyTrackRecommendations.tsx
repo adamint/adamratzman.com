@@ -25,7 +25,11 @@ interface RecommendationReturn {
   seeds: SpotifyApi.RecommendationsSeedObject[];
 }
 
-async function getRecommendations(options: any): Promise<RecommendationReturn | null> {
+type RecommendationOptions = GetRecommendationsRequest['options'];
+
+async function getRecommendations(
+  options: RecommendationOptions | null,
+): Promise<RecommendationReturn | null> {
   if (!options) return null;
   const recommendationsResponse = (await axios.post<GetRecommendationsRequest, AxiosResponse<SpotifyApi.RecommendationsFromSeedsResponse>>(
       '/api/spotify/getRecommendations',
@@ -53,16 +57,21 @@ export function GetAndShowSpotifyTrackRecommendations({
                                                         selectedTrackAttributes,
                                                       }: GetAndShowSpotifyTrackRecommendationsProps) {
   const shouldShow = useNoShowBeforeRender();
-  const [options, setOptions] = useState<any | null>(null);
+  const [options, setOptions] = useState<RecommendationOptions | null>(null);
   const {
     loading,
     data,
     error,
-  } = useData(getRecommendationsFunctionDebounced, [options], [options], true);
+  } = useData<RecommendationReturn | null, unknown>(
+    getRecommendationsFunctionDebounced,
+    [options],
+    [options],
+    true,
+  );
 
   useDeepCompareEffect(() => {
     const selectedObjectKeys = Object.keys(selectedObjects);
-    const recommendationOptions: any = {
+    const recommendationOptions: RecommendationOptions = {
       seed_genres: selectedObjectKeys.filter(uri => uri.startsWith('spotify:genre:')).map(uri => uri.replace('spotify:genre:', '')),
       seed_artists: selectedObjectKeys.filter(uri => uri.startsWith('spotify:artist:')).map(uri => uri.replace('spotify:artist:', '')),
       seed_tracks: selectedObjectKeys.filter(uri => uri.startsWith('spotify:track:')).map(uri => uri.replace('spotify:track:', '')),
@@ -74,7 +83,7 @@ export function GetAndShowSpotifyTrackRecommendations({
     setOptions(recommendationOptions);
   }, [selectedObjects, selectedTrackAttributes]);
 
-  async function handleCreateYourPlaylistButtonClicked() {
+  function handleCreateYourPlaylistButtonClicked() {
     window.open(
       `/projects/spotify/recommend/create-playlist?trackIds=${data!.tracks.map(track => track.id).join(',')}`,
       '_blank',
@@ -85,7 +94,7 @@ export function GetAndShowSpotifyTrackRecommendations({
   else if (error || !data) return <Alert status='error'>
     <AlertIcon />
     <AlertTitle mr={2}>We were unable to get track recommendations.</AlertTitle>
-    <AlertDescription>{error?.status_text ?? error?.response}</AlertDescription>
+    <AlertDescription>Please try again.</AlertDescription>
   </Alert>;
   else {
     const { tracks, seeds } = data;
@@ -99,7 +108,7 @@ export function GetAndShowSpotifyTrackRecommendations({
           </Accordion>
         </Box>
         <Box>
-          {tracks.map(track => <SpotifyTrack track={track as SpotifyApi.TrackObjectFull} openInNewTab mb={3}
+          {tracks.map(track => <SpotifyTrack track={track} openInNewTab mb={3}
                                              key={track.id} />)}
         </Box>
       </Box>

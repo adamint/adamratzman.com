@@ -3,13 +3,15 @@ import { Heading, Image } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../../../../components/utils/ChakraRouterLink';
 import { SpotifyPlaylist } from '../../../../components/projects/spotify/views/SpotifyPlaylist';
 import Head from 'next/head';
+import { useLoaderData } from 'react-router-dom';
+import { loadSpotifyCategoryRouteData } from '../../../../api/spotifyLoaders';
 
-type SpotifyCategoryViewRouteProps = {
-  category: SpotifyApi.SingleCategoryResponse;
-  categoryPlaylists: SpotifyApi.PagingObject<SpotifyApi.PlaylistObjectSimplified>
-}
-
-function SpotifyCategoryViewRoute({ category, categoryPlaylists }: SpotifyCategoryViewRouteProps) {
+function SpotifyCategoryViewRoute() {
+  const loaderData = useLoaderData<typeof loadSpotifyCategoryRouteData>();
+  if (loaderData instanceof Response) {
+    return null;
+  }
+  const { category, categoryPlaylists } = loaderData;
   return <>
     <Head>
       <title>Spotify Category {category.name}</title>

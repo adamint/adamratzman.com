@@ -11,21 +11,21 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import React, { useEffect, useState } from 'react';
-import * as ReactConsoleEmulator from 'react-console-emulator';
 import { skills } from '../home/TechnicalSkillsSection';
 import { currentProjects, pastProjects, Project } from '../../pages/portfolio';
 
 type TerminalComponent = typeof import('react-console-emulator').default;
-type TerminalModule = typeof ReactConsoleEmulator & {
+type TerminalModule = {
   default?: unknown;
   'module.exports'?: unknown;
 };
+type LoadTerminalModule = () => Promise<TerminalModule>;
 
 function isTerminalComponent(value: unknown): value is TerminalComponent {
   return typeof value === 'function';
 }
 
-export function resolveConsoleTerminal(module: TerminalModule = ReactConsoleEmulator) {
+export function resolveConsoleTerminal(module: TerminalModule) {
   if (isTerminalComponent(module.default)) {
     return module.default;
   }
@@ -42,17 +42,37 @@ export function resolveConsoleTerminal(module: TerminalModule = ReactConsoleEmul
     return moduleExportsDefault;
   }
 
-  throw new TypeError('react-console-emulator did not expose a React component.');
+  return null;
 }
 
-const Terminal = resolveConsoleTerminal();
+export async function loadConsoleTerminal(
+  loadModule: LoadTerminalModule = () => import('react-console-emulator'),
+) {
+  try {
+    return resolveConsoleTerminal(await loadModule());
+  } catch {
+    return null;
+  }
+}
 
 export function ConsoleComponent() {
   const [shouldShow, setShouldShow] = useState<boolean>(false);
+  const [Terminal, setTerminal] = useState<TerminalComponent | null>(null);
   const shouldRenderConsole = useBreakpointValue({ base: false, md: true });
 
   useEffect(() => {
     setShouldShow(localStorage.getItem('show_console') !== 'false');
+
+    let isMounted = true;
+    void loadConsoleTerminal().then((terminal) => {
+      if (isMounted && terminal) {
+        setTerminal(() => terminal);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   function handleCloseConsole() {
@@ -96,7 +116,7 @@ export function ConsoleComponent() {
     },
   };
 
-  if (!shouldShow || !shouldRenderConsole) return null;
+  if (!shouldShow || !shouldRenderConsole || !Terminal) return null;
 
   return <VStack position='fixed' bottom={0} right={0} width={500} alignItems='unset' bgColor='#212121'>
     <Accordion allowToggle>

@@ -5,20 +5,20 @@ import { useColorModeColor } from '../../../../components/utils/useColorModeColo
 import { reduceComponentsToString } from '../../../../components/utils/StringUtils';
 import { SpotifyTrack } from '../../../../components/projects/spotify/views/SpotifyTrack';
 import Head from 'next/head';
+import { useLoaderData } from 'react-router-dom';
+import { loadSpotifyArtistRouteData } from '../../../../api/spotifyLoaders';
 
-type SpotifyArtistViewRouteProps = {
-  artistTopTracks: SpotifyApi.ArtistsTopTracksResponse;
-  artist: SpotifyApi.SingleArtistResponse;
-  relatedArtists: SpotifyApi.ArtistObjectFull[];
-  artistAlbums: SpotifyApi.ArtistsAlbumsResponse
-}
-
-function SpotifyArtistViewRoute({
-                                  artist,
-                                  artistTopTracks,
-                                  artistAlbums,
-                                  relatedArtists,
-                                }: SpotifyArtistViewRouteProps) {
+function SpotifyArtistViewRoute() {
+  const loaderData = useLoaderData<typeof loadSpotifyArtistRouteData>();
+  if (loaderData instanceof Response) {
+    return null;
+  }
+  const {
+    artist,
+    artistTopTracks,
+    artistAlbums,
+    relatedArtists,
+  } = loaderData;
   const colorModeColor = useColorModeColor();
 
   return <>

@@ -10,16 +10,26 @@ import { SpotifyEpisode } from '../../../../components/projects/spotify/views/Sp
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import axios, { AxiosResponse } from 'axios';
-
-type SpotifyPlaylistViewRouteProps = {
-  playlist: SpotifyApi.PlaylistObjectFull
-}
+import { useLoaderData } from 'react-router-dom';
+import { loadSpotifyPlaylistRouteData } from '../../../../api/spotifyLoaders';
 
 type SpotifyPlaylistViewRouteParams = {
   playlistId: string;
 }
 
-function SpotifyPlaylistViewRoute({ playlist }: SpotifyPlaylistViewRouteProps) {
+function hasPlaylistTrack(child: unknown): child is SpotifyApi.PlaylistTrackObject {
+  return typeof child === 'object'
+    && child !== null
+    && 'track' in child
+    && child.track !== null;
+}
+
+function SpotifyPlaylistViewRoute() {
+  const loaderData = useLoaderData<typeof loadSpotifyPlaylistRouteData>();
+  if (loaderData instanceof Response) {
+    return null;
+  }
+  const { playlist } = loaderData;
   const router = useRouter();
   const { playlistId } = router.query as SpotifyPlaylistViewRouteParams;
   const [limitPerPage, setLimitPerPage] = useState<number>(10);
@@ -69,7 +79,7 @@ function SpotifyPlaylistViewRoute({ playlist }: SpotifyPlaylistViewRouteProps) {
         <Heading mb={2} size='md' variant='semiLight'><b>Playlist Tracks</b> ({playlist.tracks.total})</Heading>
         <PaginatedSpotifyDisplay dataProducer={getPlaylistTracks}
                                  childDataMapper={childDataMapper}
-                                 filterNotNull={child => !!child.track}
+                                 filterNotNull={hasPlaylistTrack}
                                  limitPerPage={limitPerPage}
                                  setLimitPerPage={setLimitPerPage}
                                  pageOffset={pageOffset}

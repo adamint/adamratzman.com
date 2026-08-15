@@ -13,7 +13,7 @@ const pkceCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123
 
 export function createPkceCodeVerifier(
   length: number = 128,
-  cryptoApi: Pick<Crypto, 'getRandomValues'> | undefined = globalThis.crypto,
+  cryptoApi: Pick<Crypto, 'getRandomValues'> | null = globalThis.crypto,
 ) {
   if (length < 43 || length > 128) {
     throw new Error('Code verifier must be between 43..128 characters long');
@@ -118,10 +118,8 @@ export async function doSpotifyPkceRefresh(
     const pkceResponse = await axios.post<URLSearchParams, AxiosResponse<SpotifyToken>>('https://accounts.spotify.com/api/token', params);
     const token = pkceResponse.data;
     saveTokenAndGetRedirectPath(token, setSpotifyTokenInfo);
-    console.log('refreshed token via pkce');
     return token;
-  } catch (e) {
-    console.log(e);
+  } catch {
     setSpotifyTokenInfo(null);
     logoutOfSpotify();
     return null;

@@ -18,15 +18,6 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "next": [
-        "src/compat/next/index.ts"
-      ],
-      "next/app": [
-        "src/compat/next/app.ts"
-      ],
-      "next/document": [
-        "src/compat/next/document.tsx"
-      ],
       "next/dynamic": [
         "src/compat/next/dynamic.tsx"
       ],

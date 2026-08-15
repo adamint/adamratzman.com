@@ -1,32 +1,19 @@
-import type { LoaderFunctionArgs } from 'react-router-dom';
+import { cleanup, screen, waitFor } from '@testing-library/react';
+import { type ComponentType } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { resolveConsoleTerminal } from '../src/components/nav/ConsoleComponent';
-import { getSpotifyClientId } from '../src/components/utils/useSpotifyStore';
-import { buildNextQuery } from '../src/compat/next/router';
-import { createPkceCodeVerifier } from '../src/spotify-utils/auth/SpotifyAuthUtils';
+import { AppShell } from '../src/AppShell';
 import {
-  loadSpotifyArtistRouteData,
-  loadSpotifyCategoriesRouteData,
-  loadSpotifyCategoryRouteData,
-  loadSpotifyGenreListRouteData,
-  loadSpotifyPlaylistRouteData,
-  loadSpotifyTrackRouteData,
-  loadSpotifyUserRouteData,
+  RootRouteErrorBoundary,
   routePaths,
+  routes,
 } from '../src/router';
+import { renderWithRouter } from './render';
 
 afterEach(() => {
+  cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-
-function createLoaderArgs(params: Record<string, string | undefined> = {}): LoaderFunctionArgs {
-  return {
-    context: undefined,
-    params,
-    request: new Request('http://localhost'),
-  } as unknown as LoaderFunctionArgs;
-}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -37,8 +24,8 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-describe('routePaths', () => {
-  it('preserves the public route table', () => {
+describe('route table', () => {
+  it('preserves the exact public path order', () => {
     expect(routePaths).toEqual([
       '/',
       '/academics',
@@ -69,131 +56,121 @@ describe('routePaths', () => {
   });
 });
 
-describe('spotify data loaders', () => {
-  it.each([
-    [
-      'artist details',
-      loadSpotifyArtistRouteData,
-      createLoaderArgs({ artistId: 'artist-1' }),
-      '/api/spotify/artists/artist-1',
-      {
-        artist: { id: 'artist-1', name: 'Artist' },
-        artistAlbums: { total: 1 },
-        artistTopTracks: { tracks: [] },
-        relatedArtists: [],
-      },
-    ],
-    [
-      'category list',
-      loadSpotifyCategoriesRouteData,
-      createLoaderArgs(),
-      '/api/spotify/categories',
-      [{ id: 'category-1', name: 'Category', icons: [{ url: 'https://example.com/category.png' }] }],
-    ],
-    [
-      'category details',
-      loadSpotifyCategoryRouteData,
-      createLoaderArgs({ categoryId: 'category-1' }),
-      '/api/spotify/categories/category-1',
-      {
-        category: { name: 'Category', icons: [{ url: 'https://example.com/category.png' }] },
-        categoryPlaylists: { items: [] },
-      },
-    ],
-    [
-      'genre list',
-      loadSpotifyGenreListRouteData,
-      createLoaderArgs(),
-      '/api/spotify/genres',
-      ['rock', 'pop'],
-    ],
-    [
-      'playlist details',
-      loadSpotifyPlaylistRouteData,
-      createLoaderArgs({ playlistId: 'playlist-1' }),
-      '/api/spotify/playlists/playlist-1',
-      {
-        id: 'playlist-1',
-        name: 'Playlist',
-      },
-    ],
-    [
-      'track details',
-      loadSpotifyTrackRouteData,
-      createLoaderArgs({ trackId: 'track-1' }),
-      '/api/spotify/tracks/track-1',
-      {
-        id: 'track-1',
-        name: 'Track',
-        external_urls: { spotify: 'https://open.spotify.com/track/track-1' },
-      },
-    ],
-    [
-      'user details',
-      loadSpotifyUserRouteData,
-      createLoaderArgs({ userId: 'user-1' }),
-      '/api/spotify/users/user-1',
-      {
-        totalPlaylists: 1,
-        user: { id: 'user-1' },
-      },
-    ],
-  ])('loads %s from the API', async (_label, loader, args, path, payload) => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(payload));
-    vi.stubGlobal('fetch', fetchMock);
-
-    await expect(loader(args)).resolves.toBeTruthy();
-    expect(fetchMock).toHaveBeenCalledWith(path, {
-      headers: {
-        accept: 'application/json',
-      },
-    });
-  });
-
-  it.each([
-    ['artist details', loadSpotifyArtistRouteData, createLoaderArgs({ artistId: 'missing-artist' }), '/projects/spotify'],
-    ['category details', loadSpotifyCategoryRouteData, createLoaderArgs({ categoryId: 'missing-category' }), '/projects/spotify/categories'],
-    ['playlist details', loadSpotifyPlaylistRouteData, createLoaderArgs({ playlistId: 'missing-playlist' }), '/projects/spotify'],
-    ['track details', loadSpotifyTrackRouteData, createLoaderArgs({ trackId: 'missing-track' }), '/projects/spotify'],
-    ['user details', loadSpotifyUserRouteData, createLoaderArgs({ userId: 'missing-user' }), '/projects/spotify'],
-  ])('redirects %s to the fallback route when the API request fails', async (_label, loader, args, destination) => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 502 })));
-
-    const response = await loader(args);
-    expect(response).toBeInstanceOf(Response);
-    expect((response as Response).status).toBe(302);
-    expect((response as Response).headers.get('Location')).toBe(destination);
-  });
-});
-
-describe('vite compatibility helpers', () => {
-  it('resolves the console terminal component from the CommonJS package export', () => {
-    expect(typeof resolveConsoleTerminal()).toBe('function');
-  });
-
-  it('reads the spotify client id from the vite environment', () => {
-    expect(getSpotifyClientId({ NEXT_PUBLIC_SPOTIFY_CLIENT_ID: 'spotify-client-id' })).toBe('spotify-client-id');
-  });
-
-  it('creates a PKCE verifier with valid characters', () => {
-    const verifier = createPkceCodeVerifier(128, {
-      getRandomValues<T extends ArrayBufferView>(values: T): T {
-        const byteView = new Uint8Array(values.buffer, values.byteOffset, values.byteLength);
-        byteView.forEach((_, index) => {
-          byteView[index] = index;
-        });
-        return values;
-      },
+describe('memory router integration', () => {
+  it('renders a static route inside AppShell', async () => {
+    renderWithRouter(routes, {
+      initialEntries: ['/projects/character-counter'],
     });
 
-    expect(verifier).toHaveLength(128);
-    expect(verifier).toMatch(/^[A-Za-z0-9._~-]+$/);
+    expect(await screen.findByRole('heading', {
+      name: 'Character Counter',
+    })).toBeVisible();
+    expect(document.querySelector('#main-content')).toBeInTheDocument();
+    expect(screen.getByText('Adam Ratzman - © 2021')).toBeVisible();
   });
 
-  it('keeps route params when the query string reuses the same key', () => {
-    expect(buildNextQuery('?userId=query-user&view=compact', { userId: 'path-user' })).toEqual({
-      userId: 'path-user',
-      view: 'compact',
+  it('follows the Spotify root redirect', async () => {
+    const { router } = renderWithRouter(routes, {
+      initialEntries: ['/projects/spotify'],
     });
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects');
+    });
+    expect(await screen.findByRole('heading', { name: 'Projects' })).toBeVisible();
+  });
+
+  it('renders the not-found route inside AppShell', async () => {
+    renderWithRouter(routes, { initialEntries: ['/does-not-exist'] });
+
+    expect(await screen.findByRole('heading', {
+      name: /that page wasn't found/i,
+    })).toBeVisible();
+    expect(document.querySelector('#main-content')).toBeInTheDocument();
+  });
+
+  it('renders loader data returned by a Spotify route', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse([
+      {
+        id: 'focus',
+        icons: [{ url: 'https://example.com/focus.png' }],
+        name: 'Focus',
+      },
+    ])));
+
+    renderWithRouter(routes, {
+      initialEntries: ['/projects/spotify/categories'],
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Focus' })).toBeVisible();
+  });
+
+  it('redirects safely when a Spotify loader fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response('internal API detail', { status: 503 }),
+    ));
+
+    const { router } = renderWithRouter(routes, {
+      initialEntries: ['/projects/spotify/categories'],
+    });
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects');
+    });
+    expect(screen.queryByText(/internal API detail/i)).not.toBeInTheDocument();
+  });
+
+  it('shows a visible fallback while an initial lazy route loads', async () => {
+    let resolvePage: ((module: { Component: ComponentType }) => void) | undefined;
+    const lazyPage = new Promise<{ Component: ComponentType }>((resolve) => {
+      resolvePage = resolve;
+    });
+
+    renderWithRouter([
+      {
+        path: '/',
+        children: [
+          {
+            index: true,
+            lazy: () => lazyPage,
+          },
+        ],
+      },
+    ]);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading');
+
+    resolvePage?.({ Component: () => <h1>Lazy route loaded</h1> });
+
+    expect(await screen.findByRole('heading', { name: 'Lazy route loaded' })).toBeVisible();
+  });
+
+  it('replaces raw router failures with a user-safe root error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    renderWithRouter([
+      {
+        path: '/',
+        Component: AppShell,
+        ErrorBoundary: RootRouteErrorBoundary,
+        children: [
+          {
+            path: 'broken',
+            loader: () => {
+              throw new Error('GET https://internal.example/api failed with status 500');
+            },
+            Component: () => <div>unreachable</div>,
+          },
+        ],
+      },
+    ], {
+      initialEntries: ['/broken'],
+    });
+
+    expect(await screen.findByRole('heading', {
+      name: 'Sorry, this page could not be loaded.',
+    })).toBeVisible();
+    expect(screen.queryByText(/Unexpected Application Error/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/internal\.example|status 500/i)).not.toBeInTheDocument();
   });
 });

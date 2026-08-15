@@ -34,7 +34,7 @@ export function SpotifyLoginButton({
   useEffect(() => {
     const savedCodeVerifier = localStorage.getItem('spotify_code_verifier');
     if (codeVerifier !== savedCodeVerifier) setCodeVerifier(savedCodeVerifier);
-  }, [codeVerifier, setCodeVerifier]);
+  }, []);
 
 
   async function handleClickLoginButton() {

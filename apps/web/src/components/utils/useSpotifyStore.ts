@@ -10,9 +10,16 @@ interface SpotifyStore {
   spotifyRedirectUri: () => string;
 }
 
-export function getSpotifyClientId(env?: { NEXT_PUBLIC_SPOTIFY_CLIENT_ID?: string }) {
-  const viteEnv = env ?? (import.meta.env as { NEXT_PUBLIC_SPOTIFY_CLIENT_ID?: string });
-  return viteEnv.NEXT_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
+type SpotifyClientEnvironment = {
+  NEXT_PUBLIC_SPOTIFY_CLIENT_ID?: string;
+  VITE_SPOTIFY_CLIENT_ID?: string;
+};
+
+export function getSpotifyClientId(env?: SpotifyClientEnvironment) {
+  const viteEnv = env ?? (import.meta.env as SpotifyClientEnvironment);
+  return viteEnv.VITE_SPOTIFY_CLIENT_ID
+    ?? viteEnv.NEXT_PUBLIC_SPOTIFY_CLIENT_ID
+    ?? '';
 }
 
 export const useSpotifyStore = create<SpotifyStore>(set => ({

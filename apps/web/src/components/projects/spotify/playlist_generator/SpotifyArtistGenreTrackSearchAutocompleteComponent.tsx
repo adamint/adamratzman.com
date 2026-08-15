@@ -11,12 +11,12 @@ import {
   AutoCompleteTag,
 } from '@choc-ui/chakra-autocomplete';
 import type { SearchRequest } from '@adamratzman/contracts';
-import { AutocompleteOption, AutocompleteType, SelectedObjects } from '../../../../pages/projects/spotify/recommend';
+import { AutocompleteOption, SelectedObjects } from '../../../../pages/projects/spotify/recommend';
 import axios, { AxiosResponse } from 'axios';
 
 type SpotifyArtistGenreTrackSearchAutocompleteComponentProps = {
   selectedObjects: SelectedObjects;
-  setSelectedObjects: Function;
+  setSelectedObjects: (selectedObjects: SelectedObjects) => void;
 }
 
 async function handleInputChange(event: React.ChangeEvent<HTMLInputElement>, setInputText: (query: string) => void, searchAndFilterResults: (query: string) => Promise<void>) {
@@ -32,7 +32,7 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
   const [inputText, setInputText] = useState('');
   const [allAvailableGenreSeeds, setAllAvailableGenreSeeds] = useState<string[]>([]);
   const [allAutocompleteOptions, setAllAutocompleteOptions] = useState<AutocompleteOption[]>([]);
-  const [tagToRemove, setTagToRemove] = useState<null | any>(null);
+  const [tagToRemove, setTagToRemove] = useState<{ onRemove: () => void } | null>(null);
 
   useEffect(() => {
     if (tagToRemove) {
@@ -42,10 +42,9 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
   }, [tagToRemove, selectedObjects]);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       setAllAvailableGenreSeeds((await axios.get<string[]>('/api/spotify/getAvailableGenreSeeds')).data);
     })();
-    // eslint-disable-next-line
   }, []);
 
   async function searchAndFilterResults(query: string) {
@@ -54,18 +53,16 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
       return;
     }
 
-    const genrePromise = async () => {
-      return allAvailableGenreSeeds.filter(genreSeed => genreSeed.includes(query.toLowerCase())).map((genreSeed: string) => {
-        return {
-          uri: `spotify:genre:${genreSeed}`,
-          text: genreSeed,
-          additionalText: null,
-          obj: genreSeed,
-          textMapper: () => <><b>{genreSeed}</b></>,
-          type: 'genre',
-        };
-      });
-    };
+    const genres: AutocompleteOption[] = allAvailableGenreSeeds
+      .filter(genreSeed => genreSeed.includes(query.toLowerCase()))
+      .map((genreSeed: string) => ({
+        uri: `spotify:genre:${genreSeed}`,
+        text: genreSeed,
+        additionalText: undefined,
+        obj: genreSeed,
+        textMapper: () => <><b>{genreSeed}</b></>,
+        type: 'genre',
+      }));
 
     const trackPromise = async () => {
       const tracks = (await axios.post<SearchRequest, AxiosResponse<SpotifyApi.PagingObject<SpotifyApi.TrackObjectFull>>>(
@@ -106,7 +103,7 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
       });
     };
 
-    const [genres, tracks, artists] = await Promise.all([genrePromise(), trackPromise(), artistPromise()]);
+    const [tracks, artists] = await Promise.all([trackPromise(), artistPromise()]);
 
     const allFoundObjects = [...tracks, ...artists, ...genres];
 
@@ -120,7 +117,7 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
     setAllAutocompleteOptions(searchResultItems);
   }
 
-  function getAutocompleteItem(option: AutocompleteOption, groupId: AutocompleteType) {
+  function getAutocompleteItem(option: AutocompleteOption) {
     return <AutoCompleteItem
       key={`autocomplete-spotify-option-${option.uri}`}
       value={option}>
@@ -137,7 +134,7 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
       }
     });
     setSelectedObjects(newSelectedObjects);
-    setInputText("")
+    setInputText('');
   }
 
   let topResults: AutocompleteOption[];
@@ -149,31 +146,40 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
 
   const trackGroup = [
     <AutoCompleteGroupTitle key='group-key'><b><u>Tracks</u></b></AutoCompleteGroupTitle>,
-    ...topResults.filter(option => option.type === 'track').map(option => getAutocompleteItem(option, 'track')),
+    ...topResults.filter(option => option.type === 'track').map(option => getAutocompleteItem(option)),
   ];
 
   const artistGroup = [
     <AutoCompleteGroupTitle key='group-key'><b><u>Artists</u></b></AutoCompleteGroupTitle>,
-    ...topResults.filter(option => option.type === 'artist').map(option => getAutocompleteItem(option, 'artist')),
+    ...topResults.filter(option => option.type === 'artist').map(option => getAutocompleteItem(option)),
   ];
 
   const genreGroup = [
     <AutoCompleteGroupTitle key='group-key'><b><u>Genres</u></b></AutoCompleteGroupTitle>,
-    ...topResults.filter(option => option.type === 'genre').map(option => getAutocompleteItem(option, 'genre')),
+    ...topResults.filter(option => option.type === 'genre').map(option => getAutocompleteItem(option)),
   ];
 
-  return <AutoComplete filter={(query, optionValue) => {
-    return allAutocompleteOptions.some(opt => opt.uri === optionValue);
+  return <AutoComplete filter={(_query: string, optionValue: unknown) => {
+    return typeof optionValue === 'string'
+      && allAutocompleteOptions.some(opt => opt.uri === optionValue);
   }}
                        multiple
-                       onChange={handleAutocompleteSelectedValuesChange}>
+                       onChange={(values: unknown) => {
+                         if (Array.isArray(values) && values.every(value => typeof value === 'string')) {
+                           handleAutocompleteSelectedValuesChange(values);
+                         }
+                       }}>
     <AutoCompleteInput variant='filled' placeholder='Enter a Spotify track, artist, or genre...' autoFocus
                        value={inputText}
-                       onChange={async e => await handleInputChange(e, setInputText, searchAndFilterResults)}>
-      {({ tags }) => {
+                       onChange={e => {
+                         void handleInputChange(e, setInputText, searchAndFilterResults);
+                       }}>
+      {({ tags }: { tags: Array<{ label: unknown; onRemove: () => void }> }) => {
         return tags.map(tag => {
           const uri = tag.label;
-          const optionObj = selectedObjects[uri];
+          if (typeof uri !== 'string') return null;
+          const selectedUri = uri;
+          const optionObj = selectedObjects[selectedUri];
           if (!optionObj) return null;
           let bgColor;
           if (optionObj.type === 'genre') bgColor = 'teal.400';
@@ -182,14 +188,14 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
 
           function onRemoveTag() {
             const newSelectedObjects = { ...selectedObjects };
-            delete newSelectedObjects[uri];
+            delete newSelectedObjects[selectedUri];
             setSelectedObjects(newSelectedObjects);
-            setTagToRemove(tag);
+            setTagToRemove({ onRemove: tag.onRemove });
           }
 
           return <AutoCompleteTag
-            key={uri}
-            // @ts-ignore
+            key={selectedUri}
+            // @ts-expect-error The compatibility package accepts React nodes at runtime but types this as string.
             label={optionObj.textMapper()}
             onRemove={onRemoveTag}
             bgColor={bgColor}

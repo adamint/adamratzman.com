@@ -1,5 +1,4 @@
 import { ProjectPage } from '../../../../components/projects/ProjectPage';
-import { SpotifyLogoutButton } from '../../../../spotify-utils/auth/SpotifyLogoutButton';
 import React, { useState } from 'react';
 import { SpotifyArtistGenreTrackSearchAutocompleteComponent } from '../../../../components/projects/spotify/playlist_generator/SpotifyArtistGenreTrackSearchAutocompleteComponent';
 import { Heading, Text } from '@chakra-ui/react';
@@ -7,7 +6,6 @@ import { ChakraRouterLink } from '../../../../components/utils/ChakraRouterLink'
 import { SpotifyTrackAttributeSelectorComponent } from '../../../../components/projects/spotify/playlist_generator/SpotifyTrackAttributeSelectorComponent';
 import { TrackAttribute } from '../../../../components/projects/spotify/TrackAttribute';
 import { SpotifyGenerateAndShowPlaylistRecommendationsComponent } from '../../../../components/projects/spotify/playlist_generator/SpotifyGenerateAndShowPlaylistRecommendationsComponent';
-import { useSpotifyStore } from '../../../../components/utils/useSpotifyStore';
 import Head from 'next/head';
 
 export interface SelectedObjects {
@@ -20,7 +18,7 @@ export type AutocompleteOption = {
   uri: string;
   text: string;
   additionalText?: string;
-  obj: any;
+  obj: unknown;
   textMapper: () => React.ReactElement,
   type: AutocompleteType
 }
@@ -35,8 +33,6 @@ export type SelectedTrackAttribute = {
 }
 
 function SpotifyPlaylistGeneratorRoute() {
-  const [, , setSpotifyTokenInfo] = useSpotifyStore(state => [state.spotifyClientId, state.spotifyTokenInfo, state.setSpotifyTokenInfo]);
-
   const [selectedObjects, setSelectedObjects] = useState<SelectedObjects>({});
   const [selectedTrackAttributes, setSelectedTrackAttributes] = useState<SelectedTrackAttribute[]>([]);
 

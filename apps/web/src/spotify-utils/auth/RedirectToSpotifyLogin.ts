@@ -24,7 +24,7 @@ export function RedirectToSpotifyLogin({
     void (async () => {
       await redirectToSpotifyLogin(codeVerifier, redirectPathAfter, setCodeVerifier, scopes, clientId, redirectUri, state);
     })();
-  }, [clientId, codeVerifier, redirectPathAfter, redirectUri, scopes, setCodeVerifier, state]);
+  }, []);
 
   return null;
 }

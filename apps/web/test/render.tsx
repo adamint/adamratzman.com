@@ -6,6 +6,7 @@ import {
   type RouteObject,
 } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
+import { RouterLoadingFallback } from '../src/router';
 
 type RenderWithRouterOptions = {
   initialEntries?: string[];
@@ -19,7 +20,12 @@ export function renderWithRouter(
     initialIndex = 0,
   }: RenderWithRouterOptions = {},
 ) {
-  const router = createMemoryRouter(routes, {
+  const routesWithFallback = routes.map((route, index) => (
+    index === 0 && !route.HydrateFallback
+      ? { ...route, HydrateFallback: RouterLoadingFallback }
+      : route
+  ));
+  const router = createMemoryRouter(routesWithFallback, {
     initialEntries,
     initialIndex,
   });
