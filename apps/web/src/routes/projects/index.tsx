@@ -60,7 +60,7 @@ type ProjectCategoryProps = {
 
 function ProjectCategory({ title, children }: ProjectCategoryProps) {
   return <Box mb={5}>
-    <Heading size='xl' variant='semiLight' mb={2}>{title}</Heading>
+    <Heading as='h2' size='xl' variant='semiLight' mb={2}>{title}</Heading>
     {children}
   </Box>;
 }

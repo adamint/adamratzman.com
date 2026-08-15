@@ -1,6 +1,10 @@
 import { createIcon } from '@chakra-ui/react';
 
 export const ArizonaWildcatIcon = createIcon({
+  defaultProps: {
+    'aria-hidden': true,
+    focusable: false,
+  },
   displayName: 'Arizona Wildcat',
   viewBox: '0 0 232.79 252',
   path: <svg xmlns='http://www.w3.org/2000/svg' height='232.79' width='252' viewBox='0 0 252 232.79'>

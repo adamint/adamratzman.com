@@ -2,7 +2,6 @@ import {
   Box,
   Center,
   Flex,
-  Heading,
   HStack,
   Icon,
   IconButton,
@@ -38,13 +37,13 @@ const navbarLinks: NavbarLink[] = [
   { title: 'Education', path: '/academics' },
   {
     title: 'GitHub',
-    icon: <Icon as={FaGithub} w={30} h={30} />,
+    icon: <Icon aria-hidden focusable={false} as={FaGithub} w={30} h={30} />,
     notOnSite: true,
     path: 'https://github.com/adamint',
   },
   {
     title: 'Contact Me',
-    icon: <Icon as={FaRegPaperPlane} w={30} h={30} />,
+    icon: <Icon aria-hidden focusable={false} as={FaRegPaperPlane} w={30} h={30} />,
     path: '/contact',
   },
 ];
@@ -53,15 +52,15 @@ const navbarLinks: NavbarLink[] = [
 export function Navbar() {
   const shouldUseDrawer = useBreakpointValue({ base: true, md: false });
 
-  if (shouldUseDrawer) {
-    return <MobileNavbar />;
-  } else {
-    return <Flex mx='auto' w='90%' mt={10} mb={7}>
-      <Logo />
-      <Spacer />
-      <NavbarLinks />
-    </Flex>;
-  }
+  return <Box as="nav" aria-label="Primary navigation">
+    {shouldUseDrawer
+      ? <MobileNavbar />
+      : <Flex mx='auto' w='90%' mt={10} mb={7}>
+          <Logo />
+          <Spacer />
+          <NavbarLinks />
+        </Flex>}
+  </Box>;
 }
 
 function MobileNavbar() {
@@ -90,7 +89,7 @@ function MobileNavbar() {
                       as="a"
                       href={link.path}
                       key={link.path}
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       target="_blank"
                     >
                       <HStack color={colorModeColor}>
@@ -114,7 +113,7 @@ function MobileNavbar() {
                   ))}
               <MenuItem onClick={toggleColorMode}>
                 <Box as="span" mr={1}>Switch theme</Box>
-                <SwitchIcon />
+                <SwitchIcon aria-hidden focusable={false} />
               </MenuItem>
             </MenuList>
           </>
@@ -128,8 +127,8 @@ function Logo() {
   const colorModeColor = useColorModeColor();
 
   return <Center>
-    <Link as={NavLink} color={colorModeColor} to="/">
-      <Heading size='sm' fontWeight={700} fontFamily="'Rubik', sans-serif">Adam Ratzman</Heading>
+    <Link as={NavLink} color={colorModeColor} data-navigation-link textDecoration="none" to="/">
+      <Box as="span" fontSize="sm" fontWeight={700} fontFamily="'Rubik', sans-serif">Adam Ratzman</Box>
     </Link>
   </Center>;
 }
@@ -139,9 +138,9 @@ function NavbarLinks() {
 
   const innerLinkContent = (link: NavbarLink) => <HStack>
     {link.icon && <Box mx={1}>{link.icon}</Box>}
-    <Heading size='sm' fontWeight={500} fontFamily="'Rubik', sans-serif">
+    <Box as="span" fontSize="sm" fontWeight={500} fontFamily="'Rubik', sans-serif">
       {link.title}
-    </Heading>
+    </Box>
   </HStack>;
 
   return <HStack>
@@ -151,15 +150,17 @@ function NavbarLinks() {
           ? (
               <Link
                 color={colorModeColor}
+                data-navigation-link
                 href={link.path}
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 target="_blank"
+                textDecoration="none"
               >
                 {innerLinkContent(link)}
               </Link>
             )
           : (
-              <Link as={NavLink} color={colorModeColor} end to={link.path}>
+              <Link as={NavLink} color={colorModeColor} data-navigation-link end textDecoration="none" to={link.path}>
                 {innerLinkContent(link)}
               </Link>
             )}

@@ -2,15 +2,14 @@ import { Box, Center, HStack, Icon, Link, Text } from '@chakra-ui/react';
 import { FaLinkedinIn  } from 'react-icons/fa';
 import { BiEnvelope } from 'react-icons/bi';
 import { FiGithub } from 'react-icons/fi';
-import { useColorModeColor } from '../utils/useColorModeColor';
 
 export function Footer() {
   return <Box my={5}>
     <Center mb={2}>
       <HStack spacing={2} color='gray.600' textAlign='center'>
-        <FooterLink icon={FaLinkedinIn} link='https://linkedin.com/in/aratzman' />
-        <FooterLink icon={FiGithub} link='https://github.com/adamint' />
-        <FooterLink icon={BiEnvelope} link='mailto:adam@adamratzman.com' />
+        <FooterLink accessibleName='Adam Ratzman on LinkedIn' icon={FaLinkedinIn} link='https://linkedin.com/in/aratzman' />
+        <FooterLink accessibleName='Adam Ratzman on GitHub' icon={FiGithub} link='https://github.com/adamint' />
+        <FooterLink accessibleName='Email Adam Ratzman' icon={BiEnvelope} link='mailto:adam@adamratzman.com' />
       </HStack>
     </Center>
 
@@ -19,14 +18,13 @@ export function Footer() {
 }
 
 type FooterLinkProps = {
+  accessibleName: string;
   icon: any;
   link: string
 }
 
-function FooterLink({ icon, link }: FooterLinkProps) {
-  const colorModeColor = useColorModeColor();
-
-  return <Link href={link} color={colorModeColor}>
-    <Icon as={icon} w={25} h={25} />
+function FooterLink({ accessibleName, icon, link }: FooterLinkProps) {
+  return <Link aria-label={accessibleName} href={link}>
+    <Icon aria-hidden focusable={false} as={icon} w={25} h={25} />
   </Link>;
 }

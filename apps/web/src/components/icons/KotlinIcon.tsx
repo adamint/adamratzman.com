@@ -2,7 +2,7 @@ import { Icon } from '@chakra-ui/react';
 import { IconProps } from '@chakra-ui/icon';
 
 export function KotlinIcon(props: IconProps) {
-  return <Icon viewBox='0 0 500 500' {...props}>
+  return <Icon aria-hidden focusable={false} viewBox='0 0 500 500' {...props}>
     <style type='text/css'>{'\n\t.st0{fill:url(#SVGID_1_);}\n'}</style>
     <g id='Logotypes'>
       <g>

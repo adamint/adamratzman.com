@@ -435,6 +435,18 @@ describe('navigation primitives', () => {
     expect(await screen.findByRole('link', {
       name: 'Online Projects',
     })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('navigation', {
+      name: 'Primary navigation',
+    })).toBeVisible();
+    expect(screen.queryByRole('heading', {
+      name: 'Adam Ratzman',
+    })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', {
+      name: 'Online Projects',
+    })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', {
+      name: 'GitHub',
+    })).toHaveAttribute('rel', 'noopener noreferrer');
 
     await act(async () => {
       await router.navigate('/projects/calculator');

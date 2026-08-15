@@ -1,6 +1,10 @@
 import { createIcon } from '@chakra-ui/react';
 
 export const ReactIcon = createIcon({
+  defaultProps: {
+    'aria-hidden': true,
+    focusable: false,
+  },
   displayName: 'React logo',
   viewBox: '0 0 841.9 595.3',
   path: <svg version='1.1' id='Layer_2_1_' x='0px' y='0px' viewBox='0 0 841.9 595.3'

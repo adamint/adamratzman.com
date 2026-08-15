@@ -1,6 +1,5 @@
-import { AspectRatio, Box, Center, Heading, Text } from '@chakra-ui/react';
+import { AspectRatio, Box, Center, Heading, Text, useColorModeValue } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../components/utils/ChakraRouterLink';
-import randomColor from 'randomcolor';
 import { PageTitle } from '../components/meta/PageTitle';
 
 type NotFoundRouteProps = {
@@ -9,14 +8,14 @@ type NotFoundRouteProps = {
 }
 
 function NotFoundRoute({ goBackPathName, goBackPath }: NotFoundRouteProps) {
-  const backgroundColor = randomColor({ luminosity: 'light' });
+  const backgroundColor = useColorModeValue('blue.50', 'gray.700');
 
   return <>
     <PageTitle title="404 Not Found" />
     <Center mb={5} py={15} backgroundColor={backgroundColor}>
       <Box>
         <Box mb={10}>
-          <Heading fontSize='2.5rem' variant='light' mb={1}>Oh no, that page wasn&apos;t found.</Heading>
+          <Heading as='h1' fontSize='2.5rem' variant='light' mb={1}>Oh no, that page wasn&apos;t found.</Heading>
           <Text variant='bold'>{(goBackPath && goBackPathName) ? <>Maybe try going back to <ChakraRouterLink
             href={goBackPath}>{goBackPathName}</ChakraRouterLink>?</> : <>Looks like you need some help:</>}</Text>
         </Box>

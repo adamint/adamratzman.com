@@ -1,6 +1,10 @@
 import { createIcon } from '@chakra-ui/react';
 
 export const IuTridentIcon = createIcon({
+  defaultProps: {
+    'aria-hidden': true,
+    focusable: false,
+  },
   displayName: 'IU Trident',
   viewBox: '0 0 20 25',
   path: <polygon

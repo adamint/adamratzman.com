@@ -1,6 +1,10 @@
 import { createIcon } from '@chakra-ui/react';
 
 export const JavaIcon = createIcon({
+  defaultProps: {
+    'aria-hidden': true,
+    focusable: false,
+  },
   displayName: 'Java Logo',
   viewBox: '0 0 64 64',
   path: <svg width='64' height='64' viewBox='0 0 32 32'>

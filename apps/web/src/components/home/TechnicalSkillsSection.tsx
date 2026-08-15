@@ -13,13 +13,14 @@ export const skills: Map<string, string[]> = new Map([
 export function TechnicalSkillsSection() {
   return <TitledSection title='Technical Skills'>
     <Box mb={3}>
-      {Array.from(skills.entries()).map((entry) => <>
-        <Heading size='md' mb={1} key={entry[0]}>{entry[0]}:</Heading> <Text fontSize="lg">{entry[1].join(", ")}</Text>
-      </>)}
+      {Array.from(skills.entries()).map((entry) => <Box key={entry[0]} mb={2}>
+        <Heading as='h3' size='md' mb={1}>{entry[0]}:</Heading>
+        <Text fontSize="lg">{entry[1].join(", ")}</Text>
+      </Box>)}
     </Box>
     <Text>This website was <ChakraRouterLink target='_blank'
                                              href='https://github.com/adamint/adamratzman.com'>created</ChakraRouterLink> using
-      TypeScript <Icon as={SiTypescript} /><Box as='span' mr={1}>,</Box> React <Icon as={SiReact} />
-      <Box as='span' mr={1}>,</Box> and Chakra UI <Icon as={SiChakraui} />.</Text>
+      TypeScript <Icon aria-hidden focusable={false} as={SiTypescript} /><Box as='span' mr={1}>,</Box> React <Icon aria-hidden focusable={false} as={SiReact} />
+      <Box as='span' mr={1}>,</Box> and Chakra UI <Icon aria-hidden focusable={false} as={SiChakraui} />.</Text>
   </TitledSection>;
 }

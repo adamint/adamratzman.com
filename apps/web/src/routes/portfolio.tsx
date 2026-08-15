@@ -58,12 +58,12 @@ export function PortfolioRoute() {
   return <>
     <PageTitle title="My Portfolio" />
     <Box mb={10}>
-      <Heading fontSize='2.5rem' variant='light' mb={3}>Here are just some of the things I&apos;ve done.</Heading>
+      <Heading as='h1' fontSize='2.5rem' variant='light' mb={3}>Here are just some of the things I&apos;ve done.</Heading>
     </Box>
 
     <TitledSection title='Selected Projects' pb={5}>
       <Box mb={15}>
-        <Heading size='mdx' variant='light' mb={2}>current projects</Heading>
+        <Heading as='h3' size='mdx' variant='light' mb={2}>current projects</Heading>
         {currentProjects.map(project => <PortfolioProject key={project.title}
                                                           title={project.title}
                                                           url={project.url}
@@ -71,7 +71,7 @@ export function PortfolioRoute() {
                                                           categories={project.categories} />)}
       </Box>
       <Box>
-        <Heading size='mdx' variant='light' mb={2}>past projects</Heading>
+        <Heading as='h3' size='mdx' variant='light' mb={2}>past projects</Heading>
         {pastProjects.map(project => <PortfolioProject key={project.title}
                                                        title={project.title}
                                                        url={project.url}
@@ -93,7 +93,7 @@ type PortfolioRouteProps = {
 
 function PortfolioProject({ title, url, description, categories, ...rest }: PortfolioRouteProps & BoxProps) {
   return <Box {...rest} mb={3}>
-    <Heading size='md' variant='semibold'><Link href={url}>{title}</Link></Heading>
+    <Heading as='h4' size='md' variant='semibold'><Link href={url}>{title}</Link></Heading>
     <Text fontSize={17}>{description}</Text>
     <Text fontSize={17}><b>Categories: </b> {categories.join(', ')}</Text>
   </Box>;

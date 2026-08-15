@@ -1,4 +1,4 @@
-import { Box, BoxProps, Flex, Heading, Spacer, Spinner, useBreakpointValue } from '@chakra-ui/react';
+import { Box, BoxProps, Heading, Spacer, Spinner, Text } from '@chakra-ui/react';
 import { ChakraRouterLink } from '../utils/ChakraRouterLink';
 import React from 'react';
 
@@ -23,11 +23,11 @@ export function ProjectPage({
   return <Box {...rest}>
     <Box mb={5}>
       <Box>
-        <Heading fontSize='2.5rem' variant='semiLight'
+        <Heading as='h1' fontSize='2.5rem' variant='semiLight'
                  mb={marginBelowHeadingOverride ? marginBelowHeadingOverride : 2}>{projectTitle}</Heading>
-        <Heading size='md' variant='light'>{descriptionOverride ? descriptionOverride : <>Not what you&apos;re looking
+        <Text fontSize='xl' variant='light'>{descriptionOverride ? descriptionOverride : <>Not what you&apos;re looking
           for?
-          Go back to the <ChakraRouterLink href='/projects'>projects page →</ChakraRouterLink></>}</Heading>
+          Go back to the <ChakraRouterLink href='/projects'>projects page →</ChakraRouterLink></>}</Text>
       </Box>
       <Spacer />
       <Box>

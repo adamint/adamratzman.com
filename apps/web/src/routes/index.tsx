@@ -35,7 +35,7 @@ function HomeRoute() {
   return <>
     <PageTitle title="Home" />
     <Box mb={5}>
-      <Heading fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpanWithTooltip
+      <Heading as='h1' fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpanWithTooltip
         tooltip='You thought there was going to be something here, didn&apos;t you?'>Adam
         Ratzman</DashedSpanWithTooltip>, a
         software engineer at Microsoft.</Heading>

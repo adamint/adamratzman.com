@@ -54,7 +54,7 @@ function BaseConverterRoute() {
 
   return <ProjectPage projectTitle='Base Conversion Tool' isLoading={false}>
     <PageTitle title="Spotify Genres" />
-    <Heading size='lg' mb={5}>I want to convert...</Heading>
+    <Heading as='h2' size='lg' mb={5}>I want to convert...</Heading>
 
     <FormControl isRequired mb={3}>
       <FormLabel>Enter number</FormLabel>

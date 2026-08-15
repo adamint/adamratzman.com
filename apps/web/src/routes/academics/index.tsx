@@ -14,7 +14,7 @@ function AcademicsPage() {
   >
     <PageTitle title="My education" />
 
-    <Heading size='lg' mb={4}>My degrees</Heading>
+    <Heading as='h2' size='lg' mb={4}>My degrees</Heading>
     <EducationBox degree={bachelorsDegree} path='/academics/bachelors' />
     <EducationBox degree={mastersDegree} path='/academics/masters' />
     <EducationBox degree={mbaDegree} path='/academics/mba' />
@@ -28,7 +28,7 @@ type EducationBoxProps = {
 
 function EducationBox({ degree, path }: EducationBoxProps) {
   return <Box mb={2}>
-    <Heading size='md'>
+    <Heading as='h3' size='md'>
       <ChakraRouterLink href={path}>
         <span>{degree.degreeKind} in {degree.degreeField}</span>
       </ChakraRouterLink>

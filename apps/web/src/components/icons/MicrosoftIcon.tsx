@@ -1,6 +1,10 @@
 import { createIcon } from '@chakra-ui/react';
 
 export const MicrosoftIcon = createIcon({
+  defaultProps: {
+    'aria-hidden': true,
+    focusable: false,
+  },
   displayName: 'Microsoft Corporation',
   viewBox: '0 0 23 23',
   path: <svg>
