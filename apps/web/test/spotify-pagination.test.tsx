@@ -1,5 +1,6 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -51,7 +52,7 @@ describe('Accessible Spotify pagination', () => {
     expect(results).not.toHaveFocus();
     expect(pagination).toBeVisible();
     expect(screen.getByRole('status', {
-      name: 'Pagination status',
+      name: 'Page 1 of 5',
     })).toHaveTextContent('Page 1 of 5');
     expect(previousButton).toBeDisabled();
     expect(nextButton).toBeEnabled();
@@ -68,7 +69,7 @@ describe('Accessible Spotify pagination', () => {
     renderPaginator(dataProducer);
 
     expect(await screen.findByRole('status', {
-      name: 'Pagination status',
+      name: 'Page 1 of 1',
     })).toHaveTextContent('Page 1 of 1');
     expect(screen.getByRole('button', {
       name: 'Previous page',
@@ -116,6 +117,36 @@ describe('Accessible Spotify pagination', () => {
     expect(await screen.findByText('page-1')).toBeVisible();
   });
 
+  it('reconciles a shrinking total to the last valid offset before showing results', async () => {
+    let offsetOneRequests = 0;
+    const dataProducer = vi.fn((
+      _limit: number,
+      offset: number,
+    ) => {
+      if (offset === 0) return Promise.resolve(page('page-1', 50));
+      if (offset === 2) return Promise.resolve(page('out-of-range', 15));
+
+      offsetOneRequests += 1;
+      return Promise.resolve(offsetOneRequests === 1
+        ? page('page-2', 50)
+        : page('last-valid-page', 15));
+    });
+
+    renderPaginator(dataProducer);
+
+    expect(await screen.findByText('page-1')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(await screen.findByText('page-2')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+
+    expect(await screen.findByText('last-valid-page')).toBeVisible();
+    expect(screen.queryByText('out-of-range')).not.toBeInTheDocument();
+    expect(dataProducer.mock.calls.map(call => call[1])).toEqual([0, 1, 2, 1]);
+    expect(screen.getByRole('status', {
+      name: 'Page 2 of 2',
+    })).toHaveTextContent('Page 2 of 2');
+  });
+
   it('focuses results only after a requested page finishes loading', async () => {
     const nextPage = deferred<ReturnType<typeof page>>();
     const dataProducer = vi.fn((
@@ -138,9 +169,7 @@ describe('Accessible Spotify pagination', () => {
     await waitFor(() => {
       expect(dataProducer).toHaveBeenCalledTimes(2);
     });
-    expect(screen.getByRole('status', {
-      name: 'Loading Spotify results',
-    })).toBeVisible();
+    expectLoadingStatus();
     expect(screen.queryByRole('region', {
       name: 'Spotify results',
     })).not.toBeInTheDocument();
@@ -150,6 +179,35 @@ describe('Accessible Spotify pagination', () => {
       name: 'Spotify results',
     });
     expect(nextResults).toHaveFocus();
+  });
+
+  it('does not steal focus from another live control while a requested page loads', async () => {
+    const user = userEvent.setup();
+    const nextPage = deferred<ReturnType<typeof page>>();
+    const dataProducer = vi.fn((
+      _limit: number,
+      offset: number,
+    ) => offset === 0
+      ? Promise.resolve(page('first'))
+      : nextPage.promise);
+
+    renderPaginator(dataProducer, { showNextGeneration: true });
+
+    await screen.findByText('first');
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    await waitFor(() => {
+      expect(dataProducer).toHaveBeenCalledTimes(2);
+    });
+
+    const persistentControl = screen.getByRole('button', {
+      name: 'Load next generation',
+    });
+    await user.click(persistentControl);
+    expect(persistentControl).toHaveFocus();
+
+    nextPage.resolve(page('second'));
+    expect(await screen.findByText('second')).toBeVisible();
+    expect(persistentControl).toHaveFocus();
   });
 
   it('does not transfer pending focus to a superseding time-range request', async () => {
@@ -241,15 +299,11 @@ describe('Spotify pagination request lifecycle', () => {
     await waitFor(() => {
       expect(dataProducer).toHaveBeenCalledOnce();
     });
-    expect(screen.getByRole('status', {
-      name: 'Loading Spotify results',
-    })).toBeVisible();
+    expectLoadingStatus();
 
     currentPage.resolve(page('current'));
     expect(await screen.findByText('current')).toBeVisible();
-    expect(screen.queryByRole('status', {
-      name: 'Loading Spotify results',
-    })).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading Spotify results')).not.toBeInTheDocument();
   });
 
   it('keeps loading owned by the newest request generation', async () => {
@@ -275,16 +329,12 @@ describe('Spotify pagination request lifecycle', () => {
       await oldPage.promise;
     });
 
-    expect(screen.getByRole('status', {
-      name: 'Loading Spotify results',
-    })).toBeVisible();
+    expectLoadingStatus();
     expect(screen.queryByText('old')).not.toBeInTheDocument();
 
     currentPage.resolve(page('current'));
     expect(await screen.findByText('current')).toBeVisible();
-    expect(screen.queryByRole('status', {
-      name: 'Loading Spotify results',
-    })).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading Spotify results')).not.toBeInTheDocument();
   });
 
   it('aborts and ignores a superseded slow response', async () => {
@@ -463,9 +513,7 @@ describe('Spotify pagination request lifecycle', () => {
     expect(dataProducer.mock.calls[1]?.[0]).toBe(20);
     expect(typeof dataProducer.mock.calls[1]?.[0]).toBe('number');
     expect(dataProducer.mock.calls[1]?.[1]).toBe(0);
-    expect(screen.getByRole('status', {
-      name: 'Loading Spotify results',
-    })).toBeVisible();
+    expectLoadingStatus();
     expect(screen.queryByRole('region', {
       name: 'Spotify results',
     })).not.toBeInTheDocument();
@@ -739,6 +787,13 @@ function page(id: string, total = 50) {
     items: [{ id }] satisfies PageItem[],
     total,
   };
+}
+
+function expectLoadingStatus() {
+  const status = screen.getByRole('status');
+  expect(status).toBeVisible();
+  expect(status).toHaveTextContent('Loading Spotify results');
+  expect(status).not.toHaveAttribute('aria-label');
 }
 
 function deferred<T>() {

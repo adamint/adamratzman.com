@@ -37,6 +37,37 @@ const HELP_OUTPUT = [
   'help - List available commands',
 ].join('\n');
 
+export const CONSOLE_CONTROL_COLORS = {
+  light: {
+    primary: {
+      background: 'blue.700',
+      border: 'blue.900',
+      foreground: 'white',
+      hoverBackground: 'blue.800',
+    },
+    secondary: {
+      background: 'white',
+      border: 'gray.300',
+      foreground: 'gray.900',
+      hoverBackground: 'gray.100',
+    },
+  },
+  dark: {
+    primary: {
+      background: 'blue.300',
+      border: 'blue.50',
+      foreground: 'gray.900',
+      hoverBackground: 'blue.200',
+    },
+    secondary: {
+      background: 'gray.100',
+      border: 'gray.300',
+      foreground: 'gray.900',
+      hoverBackground: 'white',
+    },
+  },
+} as const;
+
 type ConsoleCommandResult = {
   output: string;
   shouldClose: boolean;
@@ -101,9 +132,18 @@ export function ConsoleComponent() {
   const [isOpen, setIsOpen] = useState<boolean | null>(null);
   const [commandLine, setCommandLine] = useState('');
   const [history, setHistory] = useState<ConsoleHistoryEntry[]>([]);
+  const commandInputRef = useRef<HTMLInputElement>(null);
   const openButtonRef = useRef<HTMLButtonElement>(null);
   const panelBackground = useColorModeValue('gray.900', 'gray.800');
   const panelBorder = useColorModeValue('gray.700', 'gray.600');
+  const primaryControlColors = useColorModeValue(
+    CONSOLE_CONTROL_COLORS.light.primary,
+    CONSOLE_CONTROL_COLORS.dark.primary,
+  );
+  const secondaryControlColors = useColorModeValue(
+    CONSOLE_CONTROL_COLORS.light.secondary,
+    CONSOLE_CONTROL_COLORS.dark.secondary,
+  );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_CONSOLE_QUERY);
@@ -123,8 +163,19 @@ export function ConsoleComponent() {
   }, []);
 
   function openConsole() {
+    const openingTrigger = openButtonRef.current;
     localStorage.setItem('show_console', 'true');
     setIsOpen(true);
+    window.requestAnimationFrame(() => {
+      const activeElement = document.activeElement;
+      if (
+        activeElement === document.body
+        || activeElement === openingTrigger
+        || !activeElement?.isConnected
+      ) {
+        commandInputRef.current?.focus();
+      }
+    });
   }
 
   function closeConsole() {
@@ -158,8 +209,12 @@ export function ConsoleComponent() {
   if (!isOpen) {
     return (
       <Button
+        _hover={{ bg: primaryControlColors.hoverBackground }}
+        bg={primaryControlColors.background}
         bottom={4}
-        colorScheme="blue"
+        borderColor={primaryControlColors.border}
+        borderWidth="1px"
+        color={primaryControlColors.foreground}
         onClick={openConsole}
         position="fixed"
         ref={openButtonRef}
@@ -198,10 +253,13 @@ export function ConsoleComponent() {
             Interactive site console
           </Heading>
           <Button
-            colorScheme="whiteAlpha"
+            _hover={{ bg: secondaryControlColors.hoverBackground }}
+            bg={secondaryControlColors.background}
+            borderColor={secondaryControlColors.border}
+            borderWidth="1px"
+            color={secondaryControlColors.foreground}
             onClick={closeConsole}
             size="xs"
-            variant="outline"
           >
             Close interactive site console
           </Button>
@@ -245,11 +303,21 @@ export function ConsoleComponent() {
                 bg="white"
                 color="gray.900"
                 onChange={event => setCommandLine(event.target.value)}
+                ref={commandInputRef}
                 size="sm"
                 value={commandLine}
               />
             </FormControl>
-            <Button colorScheme="blue" flexShrink={0} size="sm" type="submit">
+            <Button
+              _hover={{ bg: primaryControlColors.hoverBackground }}
+              bg={primaryControlColors.background}
+              borderColor={primaryControlColors.border}
+              borderWidth="1px"
+              color={primaryControlColors.foreground}
+              flexShrink={0}
+              size="sm"
+              type="submit"
+            >
               Run command
             </Button>
           </HStack>

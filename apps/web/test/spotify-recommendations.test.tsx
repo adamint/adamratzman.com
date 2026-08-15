@@ -266,10 +266,12 @@ describe('Spotify recommendation request lifecycle', () => {
     const view = renderRecommendations(selectedTrack('seed'));
 
     const status = await screen.findByRole('status');
+    expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(status).toHaveAttribute('aria-live', 'polite');
     expect(status).toHaveTextContent(
       'Loading recommendations...',
     );
+    expectVisualLoadingIsHiddenFromAssistiveTechnology();
 
     view.unmount();
   });
@@ -417,6 +419,10 @@ describe('Spotify recommendation request lifecycle', () => {
     expect(await screen.findByRole('heading', {
       name: 'Initial Recommendation',
     })).toBeVisible();
+    const announcement = screen.getByRole('status');
+    expect(announcement).toHaveTextContent(
+      '1 Spotify recommendations loaded.',
+    );
 
     vi.useFakeTimers();
     view.rerender(recommendationTree(selectedTrack('final')));
@@ -431,7 +437,10 @@ describe('Spotify recommendation request lifecycle', () => {
     expect(screen.getByRole('heading', {
       name: 'Initial Recommendation',
     })).toBeVisible();
-    expect(screen.getByText(/Loading recommendations/u)).toBeVisible();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(screen.getByRole('status')).toBe(announcement);
+    expect(announcement).toHaveTextContent('Loading recommendations...');
+    expectVisualLoadingIsHiddenFromAssistiveTechnology();
 
     finalResponse.resolve(Response.json(
       recommendationResponse('Final Recommendation', 'finaltrack'),
@@ -444,6 +453,10 @@ describe('Spotify recommendation request lifecycle', () => {
     expect(await screen.findByRole('heading', {
       name: 'Final Recommendation',
     })).toBeVisible();
+    expect(screen.getByRole('status')).toBe(announcement);
+    expect(announcement).toHaveTextContent(
+      '1 Spotify recommendations loaded.',
+    );
     expect(screen.queryByRole('heading', {
       name: 'Initial Recommendation',
     })).not.toBeInTheDocument();
@@ -500,7 +513,10 @@ describe('Spotify recommendation request lifecycle', () => {
     expect(screen.queryByRole('heading', {
       name: 'Initial Recommendation',
     })).not.toBeInTheDocument();
-    expect(screen.getByText(/Loading recommendations/u)).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Loading recommendations...',
+    );
+    expectVisualLoadingIsHiddenFromAssistiveTechnology();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     await act(async () => {
@@ -851,6 +867,12 @@ function trackSearchResult(name: string, id: string) {
     name,
     uri: `spotify:track:${id}`,
   };
+}
+
+function expectVisualLoadingIsHiddenFromAssistiveTechnology() {
+  expect(screen.getAllByText('Loading recommendations...').some(element => (
+    element.closest('[aria-hidden="true"]') !== null
+  ))).toBe(true);
 }
 
 function renderRecommendations(selectedObjects: SelectedObjects) {

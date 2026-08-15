@@ -1383,7 +1383,7 @@ describe('Spotify paginated route IDs', () => {
       await waitFor(() => {
         expect(postRecords).toHaveLength(1);
       });
-      fireEvent.click(screen.getByRole('button', { name: '2' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
       await waitFor(() => {
         expect(postRecords).toHaveLength(2);
       });
@@ -1442,8 +1442,9 @@ describe('Spotify paginated route IDs', () => {
     await waitFor(() => {
       expect(postBodies).toHaveLength(1);
     });
-    fireEvent.click(screen.getByRole('button', { name: '10 / page' }));
-    fireEvent.click(await screen.findByRole('menuitemradio', { name: '20 / page' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Results per page' }), {
+      target: { value: '20' },
+    });
     await waitFor(() => {
       expect(postBodies).toHaveLength(2);
     });

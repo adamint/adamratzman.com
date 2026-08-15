@@ -1,5 +1,6 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -9,6 +10,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  CONSOLE_CONTROL_COLORS,
   ConsoleComponent,
   executeConsoleCommand,
 } from '../src/components/nav/ConsoleComponent';
@@ -196,6 +198,86 @@ describe('accessible site console', () => {
     expect(localStorage.getItem('show_console')).toBe('false');
   });
 
+  it('moves focus from the removed launcher to the command input after opening', async () => {
+    const user = userEvent.setup();
+    const requestAnimationFrame = stubDeferredRequestAnimationFrame();
+    localStorage.setItem('show_console', 'false');
+    renderConsole({ desktop: true });
+
+    const openButton = await screen.findByRole('button', {
+      name: 'Open interactive site console',
+    });
+    requestAnimationFrame.mockClear();
+    await user.click(openButton);
+
+    const input = await screen.findByRole('textbox', {
+      name: 'Console command',
+    });
+    expect(requestAnimationFrame).toHaveBeenCalledOnce();
+    expect(input).not.toHaveFocus();
+
+    act(() => {
+      requestAnimationFrame.mock.calls[0]?.[0](0);
+    });
+
+    expect(input).toHaveFocus();
+  });
+
+  it('does not steal focus when the user moves to another control while opening', async () => {
+    const user = userEvent.setup();
+    const requestAnimationFrame = stubDeferredRequestAnimationFrame();
+    localStorage.setItem('show_console', 'false');
+    stubMedia(true);
+
+    render(
+      <ChakraProvider theme={theme}>
+        <button type='button'>Persistent control</button>
+        <ConsoleComponent />
+      </ChakraProvider>,
+    );
+
+    const openButton = await screen.findByRole('button', {
+      name: 'Open interactive site console',
+    });
+    requestAnimationFrame.mockClear();
+    await user.click(openButton);
+    const persistentControl = screen.getByRole('button', {
+      name: 'Persistent control',
+    });
+    await user.click(persistentControl);
+    expect(requestAnimationFrame).toHaveBeenCalledOnce();
+
+    act(() => {
+      requestAnimationFrame.mock.calls[0]?.[0](0);
+    });
+
+    expect(persistentControl).toHaveFocus();
+  });
+
+  it.each(Object.entries(CONSOLE_CONTROL_COLORS))(
+    'uses bounded, AA-contrast console controls in %s mode',
+    (_colorMode, colors) => {
+      expect(colors.primary.border).toBeTruthy();
+      expect(colors.secondary.border).toBeTruthy();
+      expectColorPairToMeetAa(
+        colors.primary.foreground,
+        colors.primary.background,
+      );
+      expectColorPairToMeetAa(
+        colors.primary.foreground,
+        colors.primary.hoverBackground,
+      );
+      expectColorPairToMeetAa(
+        colors.secondary.foreground,
+        colors.secondary.background,
+      );
+      expectColorPairToMeetAa(
+        colors.secondary.foreground,
+        colors.secondary.hoverBackground,
+      );
+    },
+  );
+
   it('returns focus to the persistent trigger after the close button is used', async () => {
     const user = userEvent.setup();
     const requestAnimationFrame = stubRequestAnimationFrame();
@@ -303,6 +385,66 @@ function stubRequestAnimationFrame() {
   });
   vi.stubGlobal('requestAnimationFrame', requestAnimationFrame);
   return requestAnimationFrame;
+}
+
+function stubDeferredRequestAnimationFrame() {
+  const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+    void callback;
+    return 1;
+  });
+  vi.stubGlobal('requestAnimationFrame', requestAnimationFrame);
+  return requestAnimationFrame;
+}
+
+function expectColorPairToMeetAa(foreground: string, background: string) {
+  expect(contrastRatio(
+    resolveThemeColor(foreground),
+    resolveThemeColor(background),
+  )).toBeGreaterThanOrEqual(4.5);
+}
+
+function resolveThemeColor(token: string) {
+  const colors = theme.colors as Record<string, string | Record<string, string>>;
+  const [palette, shade] = token.split('.');
+  const paletteColor = colors[palette ?? token];
+  const color = shade && paletteColor && typeof paletteColor !== 'string'
+    ? paletteColor[shade]
+    : paletteColor;
+
+  if (typeof color !== 'string') {
+    throw new Error(`Unknown theme color: ${token}`);
+  }
+
+  return color;
+}
+
+function contrastRatio(foreground: string, background: string) {
+  const foregroundLuminance = relativeLuminance(foreground);
+  const backgroundLuminance = relativeLuminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance(hexColor: string) {
+  const channels = hexColor
+    .slice(1)
+    .match(/.{2}/gu)
+    ?.map(channel => Number.parseInt(channel, 16) / 255)
+    .map(channel => (
+      channel <= 0.03928
+        ? channel / 12.92
+        : ((channel + 0.055) / 1.055) ** 2.4
+    ));
+
+  if (!channels || channels.length !== 3) {
+    throw new Error(`Expected a six-digit hex color, received: ${hexColor}`);
+  }
+
+  return (0.2126 * channels[0])
+    + (0.7152 * channels[1])
+    + (0.0722 * channels[2]);
 }
 
 function formatProjects(projects: Project[]) {

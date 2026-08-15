@@ -207,7 +207,6 @@ function PuppyPopover() {
   return <Popover>
     <PopoverTrigger>
       <Button
-        aria-label='Show Ben the labradoodle'
         borderBottom={`1px dashed ${colorModeColor}`}
         borderRadius={0}
         color='current'
@@ -231,7 +230,7 @@ function PuppyPopover() {
       <PopoverContent role='dialog' aria-label='Ben the labradoodle'>
         <PopoverArrow />
         <PopoverCloseButton />
-        <Box as='header' borderBottomWidth='1px' fontWeight='semibold' px={3} py={2}>
+        <Box borderBottomWidth='1px' fontWeight='semibold' px={3} py={2}>
           Ben, 2
         </Box>
         <PopoverBody><Image src='/ben.jpg' alt='Ben the labradoodle!'/></PopoverBody>

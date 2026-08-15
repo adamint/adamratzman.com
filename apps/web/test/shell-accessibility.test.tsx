@@ -283,9 +283,35 @@ describe('site shell accessibility', () => {
       level: 1,
       name: /Hi\. I'm Adam Ratzman, a software engineer at Microsoft\./i,
     });
-    const puppyTrigger = screen.getByText('puppy');
+    const puppyTrigger = screen.getByRole('button', { name: 'puppy' });
 
+    expect(puppyTrigger).toHaveAccessibleName('puppy');
     expect(getComputedStyle(puppyTrigger).textDecoration).toBe('none');
+  });
+
+  it('opens the puppy dialog from the keyboard without adding another banner', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(routes, { initialEntries: ['/'] });
+
+    const puppyTrigger = await screen.findByRole('button', { name: 'puppy' });
+    puppyTrigger.focus();
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('dialog', {
+      name: 'Ben the labradoodle',
+    })).toBeVisible();
+    expect(screen.getAllByRole('banner')).toHaveLength(1);
+    await expectNoAxeViolations(document.body);
+
+    const closeButton = screen.getByRole('button', { name: 'Close' });
+    closeButton.focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', {
+        name: 'Ben the labradoodle',
+      })).not.toBeInTheDocument();
+    });
+    expect(puppyTrigger).toHaveFocus();
   });
 
   it('removes decoration from Spotify artwork links but not text links', () => {

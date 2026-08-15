@@ -1,6 +1,13 @@
 import { Box, Button, Tooltip } from '@chakra-ui/react';
 import { useColorModeColor } from './useColorModeColor';
-import React from 'react';
+import React, {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
+
+const TOOLTIP_CLOSE_DELAY_MS = 100;
 
 type DashedSpanProps = {
   children: React.ReactNode;
@@ -9,11 +16,74 @@ type DashedSpanProps = {
 
 export function DashedSpanWithTooltip({ children, tooltip } : DashedSpanProps) {
   const colorModeColor = useColorModeColor();
+  const generatedTooltipId = useId();
+  const tooltipContentId = `tooltip-${generatedTooltipId}`;
+  const [isOpen, setIsOpen] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+  const overlayHoveredRef = useRef(false);
+  const triggerHoveredRef = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  function clearCloseTimer() {
+    if (closeTimerRef.current === null) return;
+    window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
+  }
+
+  function openTooltip() {
+    clearCloseTimer();
+    setIsOpen(true);
+  }
+
+  function closeTooltip() {
+    clearCloseTimer();
+    setIsOpen(false);
+  }
+
+  function scheduleClose() {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
+      if (
+        triggerHoveredRef.current
+        || overlayHoveredRef.current
+        || document.activeElement === triggerRef.current
+      ) {
+        return;
+      }
+
+      setIsOpen(false);
+    }, TOOLTIP_CLOSE_DELAY_MS);
+  }
+
+  useEffect(() => () => clearCloseTimer(), []);
 
   if (!tooltip) return <DashedSpan>{children}</DashedSpan>;
 
-  return <Tooltip label={tooltip}>
+  return <Tooltip
+    closeDelay={0}
+    closeOnClick={false}
+    closeOnEsc={false}
+    closeOnPointerDown={false}
+    id={generatedTooltipId}
+    isOpen={isOpen}
+    label={tooltip}
+    onClose={scheduleClose}
+    onOpen={openTooltip}
+    onPointerEnter={() => {
+      overlayHoveredRef.current = true;
+      openTooltip();
+    }}
+    onPointerLeave={() => {
+      overlayHoveredRef.current = false;
+      scheduleClose();
+    }}
+    openDelay={0}
+    pointerEvents='auto'
+  >
     <Button
+      aria-controls={tooltipContentId}
+      aria-expanded={isOpen}
       borderBottom={`1px dashed ${colorModeColor}`}
       borderRadius={0}
       color='inherit'
@@ -24,8 +94,25 @@ export function DashedSpanWithTooltip({ children, tooltip } : DashedSpanProps) {
       height='auto'
       lineHeight='inherit'
       minW={0}
+      onBlur={scheduleClose}
+      onClick={openTooltip}
+      onFocus={openTooltip}
+      onKeyDown={event => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        closeTooltip();
+      }}
+      onPointerEnter={() => {
+        triggerHoveredRef.current = true;
+        openTooltip();
+      }}
+      onPointerLeave={() => {
+        triggerHoveredRef.current = false;
+      }}
       p={0}
+      ref={triggerRef}
       textDecoration='none'
+      type='button'
       verticalAlign='baseline'
       variant='link'
       _hover={{ textDecoration: 'none' }}

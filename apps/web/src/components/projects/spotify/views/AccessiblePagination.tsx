@@ -63,7 +63,7 @@ export function AccessiblePagination({
       Previous
     </Button>
     <Text
-      aria-label='Pagination status'
+      aria-label={`Page ${displayedPage} of ${totalPages}`}
       aria-live='polite'
       role='status'
     >

@@ -1,14 +1,16 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DashedSpanWithTooltip } from '../src/components/utils/DashedSpanWithTooltip';
 import CharacterCounterRoute, { countWords } from '../src/routes/projects/character-counter';
 import BaseConverterRoute from '../src/routes/projects/conversion/base-converter';
@@ -20,6 +22,7 @@ import { renderWithRouter } from './render';
 afterEach(() => {
   cleanup();
   document.title = '';
+  vi.useRealTimers();
 });
 
 describe('keyboard-accessible triggers', () => {
@@ -45,8 +48,55 @@ describe('keyboard-accessible triggers', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
       'Keyboard tooltip',
     );
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    await user.keyboard('{Enter}');
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'Keyboard tooltip',
+    );
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+    fireEvent.pointerEnter(trigger, { pointerType: 'mouse' });
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'Keyboard tooltip',
+    );
     expect(screen.getByText('Plain dashed text').tagName).toBe('SPAN');
     expect(screen.getByText('Plain dashed text').closest('button')).toBeNull();
+  });
+
+  it('keeps the tooltip open while the pointer moves onto its overlay', async () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <DashedSpanWithTooltip tooltip="Hoverable tooltip">
+          Hover trigger
+        </DashedSpanWithTooltip>
+      </ChakraProvider>,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Hover trigger' });
+    fireEvent.pointerEnter(trigger, { pointerType: 'mouse' });
+    const tooltip = await screen.findByRole('tooltip');
+
+    fireEvent.pointerLeave(trigger, { pointerType: 'mouse' });
+    fireEvent.pointerEnter(tooltip, { pointerType: 'mouse' });
+    await act(async () => {
+      await new Promise(resolve => window.setTimeout(resolve, 350));
+    });
+    expect(screen.getByRole('tooltip')).toBeVisible();
+
+    fireEvent.pointerLeave(tooltip, { pointerType: 'mouse' });
+    await waitFor(() => {
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
   });
 
   it.each([
@@ -61,7 +111,7 @@ describe('keyboard-accessible triggers', () => {
       name: /Hi\. I'm Adam Ratzman, a software engineer at Microsoft\./i,
     });
     const trigger = screen.getByRole('button', {
-      name: 'Show Ben the labradoodle',
+      name: 'puppy',
     });
     trigger.focus();
 
@@ -81,7 +131,7 @@ describe('character counter accessibility', () => {
     expect(countWords('one\ttwo\nthree\u00a0four')).toBe(4);
   });
 
-  it('labels text input and announces character information', () => {
+  it('labels text input and updates visible character information immediately', () => {
     renderProjectRoute(<CharacterCounterRoute />);
 
     expect(screen.getByRole('heading', {
@@ -93,19 +143,57 @@ describe('character counter accessibility', () => {
       name: 'Text information',
     })).toBeVisible();
     const input = screen.getByRole('textbox', { name: 'Text to analyze' });
+    const information = screen.getByRole('heading', {
+      level: 2,
+      name: 'Text information',
+    }).parentElement as HTMLElement;
     const status = screen.getByRole('status');
 
     expect(input).toHaveAttribute('id', 'text-to-analyze');
     expect(status).toHaveAttribute('aria-live', 'polite');
     expect(status).toHaveAttribute('aria-atomic', 'true');
-
-    fireEvent.change(input, { target: { value: ' \t\n\u00a0' } });
-    expect(status).toHaveTextContent('Words: 0');
+    expect(status).toHaveTextContent('0 characters, 0 words.');
+    expect(within(status).queryByRole('heading')).not.toBeInTheDocument();
 
     fireEvent.change(input, {
       target: { value: 'one\ttwo\nthree\u00a0four' },
     });
-    expect(status).toHaveTextContent('Words: 4');
+    expect(within(information).getByText('Characters:').closest('p')).toHaveTextContent(
+      'Characters: 18',
+    );
+    expect(within(information).getByText('Words:').closest('p')).toHaveTextContent(
+      'Words: 4',
+    );
+    expect(status).toHaveTextContent('0 characters, 0 words.');
+  });
+
+  it('debounces a concise character-count announcement across rapid input', () => {
+    vi.useFakeTimers();
+    renderProjectRoute(<CharacterCounterRoute />);
+
+    const input = screen.getByRole('textbox', { name: 'Text to analyze' });
+    const status = screen.getByRole('status');
+
+    fireEvent.change(input, { target: { value: 'o' } });
+    act(() => {
+      void vi.advanceTimersByTime(300);
+    });
+    fireEvent.change(input, { target: { value: 'one' } });
+    act(() => {
+      void vi.advanceTimersByTime(300);
+    });
+    fireEvent.change(input, { target: { value: 'one two' } });
+
+    expect(status).toHaveTextContent('0 characters, 0 words.');
+    act(() => {
+      void vi.advanceTimersByTime(499);
+    });
+    expect(status).toHaveTextContent('0 characters, 0 words.');
+
+    act(() => {
+      void vi.advanceTimersByTime(1);
+    });
+    expect(status).toHaveTextContent('7 characters, 2 words.');
   });
 
   it('has no axe violations', async () => {
@@ -173,6 +261,61 @@ describe('base converter accessibility', () => {
     expect(status).toHaveAttribute('aria-live', 'polite');
     expect(status).toHaveTextContent('Result: 255');
   });
+
+  it('remains idle for empty or whitespace-only input after both bases are selected', async () => {
+    const user = userEvent.setup();
+    renderProjectRoute(<BaseConverterRoute />);
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'From base' }),
+      '10',
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'To base' }),
+      '2',
+    );
+    const numberInput = screen.getByRole('textbox', {
+      name: 'Number to convert',
+    });
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    fireEvent.change(numberInput, { target: { value: ' \t\n' } });
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['+ff', '16', '10', '255'],
+    ['-ff', '16', '10', '-255'],
+    ['vv', '32', '10', '1023'],
+    ['9007199254740993', '10', '16', '20000000000001'],
+  ])(
+    'converts signed and arbitrary-precision value %s from base %s to base %s',
+    async (value, from, to, expected) => {
+      const user = userEvent.setup();
+      renderProjectRoute(<BaseConverterRoute />);
+
+      await user.selectOptions(
+        screen.getByRole('combobox', { name: 'From base' }),
+        from,
+      );
+      await user.selectOptions(
+        screen.getByRole('combobox', { name: 'To base' }),
+        to,
+      );
+      fireEvent.change(screen.getByRole('textbox', {
+        name: 'Number to convert',
+      }), { target: { value } });
+
+      expect(screen.getByRole('status')).toHaveTextContent(
+        `Result: ${expected}`,
+      );
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    },
+  );
 
   it('has no axe violations', async () => {
     const { container } = renderProjectRoute(<BaseConverterRoute />);

@@ -449,9 +449,7 @@ describe('Spotify route authentication', () => {
       await currentTracks.promise;
     });
     await waitFor(() => {
-      expect(screen.queryByRole('status', {
-        name: 'Loading Spotify results',
-      })).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading Spotify results')).not.toBeInTheDocument();
     });
   });
 
@@ -508,9 +506,7 @@ describe('Spotify route authentication', () => {
       await currentTracks.promise;
     });
     await waitFor(() => {
-      expect(screen.queryByRole('status', {
-        name: 'Loading Spotify results',
-      })).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading Spotify results')).not.toBeInTheDocument();
     });
   });
 
@@ -575,7 +571,7 @@ describe('Spotify route authentication', () => {
     await waitFor(() => {
       expect(getMyTopTracks).toHaveBeenCalledOnce();
     });
-    fireEvent.click(await screen.findByRole('button', { name: '2' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Next page' }));
     await waitFor(() => {
       expect(getMyTopTracks).toHaveBeenCalledTimes(2);
     });
@@ -667,10 +663,10 @@ function renderMyTopRoute() {
 }
 
 function expectCurrentLoadingSpinner() {
-  const status = screen.getByRole('status', {
-    name: 'Loading Spotify results',
-  });
+  const status = screen.getByRole('status');
   expect(status).toBeVisible();
+  expect(status).toHaveTextContent('Loading Spotify results');
+  expect(status).not.toHaveAttribute('aria-label');
   expect(status.querySelector('.chakra-spinner')).toBeInTheDocument();
   expect(document.querySelectorAll('.chakra-spinner')).toHaveLength(1);
 }

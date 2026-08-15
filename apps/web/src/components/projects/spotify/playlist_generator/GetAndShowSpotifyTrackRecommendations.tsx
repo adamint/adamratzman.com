@@ -84,21 +84,18 @@ export function GetAndShowSpotifyTrackRecommendations({
   const { loading, data, error } = useLatestAsyncData(producer, {
     keepPreviousData: true,
   });
+  const isLoadingRecommendations = !shouldShow || waitingForDebounce || loading;
 
   if (!hasSeeds) return null;
-  if (!shouldShow || waitingForDebounce || (loading && !data)) {
-    return <Box role='status' aria-live='polite' aria-atomic='true'>
-      Loading recommendations... <Spinner size='sm' />
-    </Box>;
-  }
-  else if (error || !data) return <Alert role='alert' status='error'>
+  if (error || (!isLoadingRecommendations && !data)) return <Alert role='alert' status='error'>
     <AlertIcon />
     <AlertDescription>
       We were unable to load Spotify recommendations. Please try again.
     </AlertDescription>
   </Alert>;
   else {
-    const { tracks, seeds } = data;
+    const tracks = data?.tracks ?? [];
+    const seeds = data?.seeds ?? [];
     const searchParams = new URLSearchParams();
     tracks.forEach(track => searchParams.append('trackIds', track.id));
     const playlistPath = '/projects/spotify/recommend/create-playlist';
@@ -106,36 +103,40 @@ export function GetAndShowSpotifyTrackRecommendations({
       ? `${playlistPath}?${searchParams.toString()}`
       : playlistPath;
 
-    return <>
-      <Box>
-        {loading && <Box role='status'
-                         aria-live='polite'
-                         aria-atomic='true'
-                         mb={3}>
-          Loading recommendations... <Spinner size='sm' />
-        </Box>}
-        <VisuallyHidden role='status' aria-live='polite' aria-atomic='true'>
-          {tracks.length} Spotify recommendations loaded.
-        </VisuallyHidden>
-        <Box mb={5}>
-          <Heading size='mdx'>Recommended tracks ({tracks.length})</Heading>
-          <ChakraRouterLink
-            href={playlistUrl}
-            rel='noopener noreferrer'
-            target='_blank'
-          >
-            Create your playlist (requires Spotify login) →
-          </ChakraRouterLink>
-          <Accordion allowToggle mt={2}>
-            {seeds.map((seed, index) => <SeedView key={seed.id} index={index} seedSource={seed} />)}
-          </Accordion>
-        </Box>
+    return <Box>
+      <VisuallyHidden role='status' aria-live='polite' aria-atomic='true'>
+        {isLoadingRecommendations
+          ? 'Loading recommendations...'
+          : `${tracks.length} Spotify recommendations loaded.`}
+      </VisuallyHidden>
+      {isLoadingRecommendations && <Box
+        aria-hidden='true'
+        mb={data ? 3 : 0}
+      >
+        Loading recommendations... <Spinner aria-hidden='true' size='sm' />
+      </Box>}
+      {data && (
         <Box>
-          {tracks.map(track => <SpotifyTrack track={track} openInNewTab mb={3}
-                                             key={track.id} />)}
+          <Box mb={5}>
+            <Heading size='mdx'>Recommended tracks ({tracks.length})</Heading>
+            <ChakraRouterLink
+              href={playlistUrl}
+              rel='noopener noreferrer'
+              target='_blank'
+            >
+              Create your playlist (requires Spotify login) →
+            </ChakraRouterLink>
+            <Accordion allowToggle mt={2}>
+              {seeds.map((seed, index) => <SeedView key={seed.id} index={index} seedSource={seed} />)}
+            </Accordion>
+          </Box>
+          <Box>
+            {tracks.map(track => <SpotifyTrack track={track} openInNewTab mb={3}
+                                               key={track.id} />)}
+          </Box>
         </Box>
-      </Box>
-    </>;
+      )}
+    </Box>;
   }
 }
 

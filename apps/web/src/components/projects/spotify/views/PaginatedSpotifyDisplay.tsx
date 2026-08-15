@@ -1,5 +1,10 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Box, Flex, Spinner } from '@chakra-ui/react';
+import {
+  Box,
+  Flex,
+  Spinner,
+  VisuallyHidden,
+} from '@chakra-ui/react';
 import { TimeRange } from '../../../utils/SpotifyTypes';
 import { SpotifyPagination } from '../../../utils/SpotifyApiPaginationHelper';
 import { useNavigate } from 'react-router-dom';
@@ -74,6 +79,19 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
             return;
           }
 
+          const normalizedTotal = Number.isFinite(nextData.total)
+            ? Math.max(0, nextData.total)
+            : 0;
+          const lastValidPageOffset = Math.max(
+            0,
+            Math.ceil(normalizedTotal / normalizePageSize(limitPerPage)) - 1,
+          );
+          if (pageOffset > lastValidPageOffset) {
+            focusAfterRequestRef.current = shouldFocusAfterSuccess;
+            setPageOffset(lastValidPageOffset);
+            return;
+          }
+
           focusCompletedGenerationRef.current = shouldFocusAfterSuccess
             ? generation
             : null;
@@ -121,7 +139,15 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
       && focusCompletedGenerationRef.current === generationRef.current
     ) {
       focusCompletedGenerationRef.current = null;
-      resultsRegionRef.current?.focus();
+      const activeElement = document.activeElement;
+      if (
+        activeElement === null
+        || activeElement === document.body
+        || activeElement === document.documentElement
+        || !activeElement.isConnected
+      ) {
+        resultsRegionRef.current?.focus();
+      }
     }
   }, [data, loading]);
 
@@ -130,12 +156,14 @@ export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<Child
   if (loading) {
     return <Flex
       alignItems='center'
-      aria-label='Loading Spotify results'
+      aria-atomic='true'
+      aria-live='polite'
       justifyContent='center'
       py={8}
       role='status'
     >
       <Spinner aria-hidden='true' color='blue.500' size='lg' />
+      <VisuallyHidden>Loading Spotify results</VisuallyHidden>
     </Flex>;
   }
 

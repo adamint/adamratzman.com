@@ -17,6 +17,7 @@ import { ProjectPage } from '../../../components/projects/ProjectPage';
 
 const validBases: number[] = [];
 for (let i = 2; i <= 32; i++) validBases.push(i);
+const supportedDigits = '0123456789abcdefghijklmnopqrstuv';
 
 type Conversion = {
   kind: 'error';
@@ -58,7 +59,7 @@ function BaseConverterRoute() {
       <Select id='base-to-convert-from'
               maxW='400px'
               value={baseToConvertFrom ?? 'select'} onChange={e => {
-        if (e.target.value !== 'select') setBaseToConvertFrom(parseInt(e.target.value));
+        if (e.target.value !== 'select') setBaseToConvertFrom(Number(e.target.value));
         else setBaseToConvertFrom(null);
       }
       }>
@@ -72,7 +73,7 @@ function BaseConverterRoute() {
       <Select id='base-to-convert-to'
               maxW='400px'
               value={baseToConvertTo ?? 'select'} onChange={e => {
-        if (e.target.value !== 'select') setBaseToConvertTo(parseInt(e.target.value));
+        if (e.target.value !== 'select') setBaseToConvertTo(Number(e.target.value));
         else setBaseToConvertTo(null);
       }
       }>
@@ -108,20 +109,34 @@ function convertNumber(
   if (!baseToConvertFrom || !baseToConvertTo) return null;
 
   const trimmedValue = value.trim();
-  const digits = trimmedValue.replace(/^[+-]/u, '');
-  const hasInvalidDigit = !digits || [...digits.toLowerCase()].some(character => {
-    const digit = Number.parseInt(character, 36);
-    return Number.isNaN(digit) || digit >= baseToConvertFrom;
-  });
-  if (hasInvalidDigit) return { kind: 'error' };
+  if (!trimmedValue) return null;
+  if (!isSupportedBase(baseToConvertFrom) || !isSupportedBase(baseToConvertTo)) {
+    return { kind: 'error' };
+  }
 
-  const number = Number.parseInt(trimmedValue, baseToConvertFrom);
-  if (Number.isNaN(number)) return { kind: 'error' };
+  const isNegative = trimmedValue.startsWith('-');
+  const digits = /^[+-]/u.test(trimmedValue)
+    ? trimmedValue.slice(1)
+    : trimmedValue;
+  if (!digits) return { kind: 'error' };
 
-  return {
-    kind: 'success',
-    result: number.toString(baseToConvertTo),
-  };
+  let number = BigInt(0);
+  for (const character of digits.toLowerCase()) {
+    const digit = supportedDigits.indexOf(character);
+    if (digit < 0 || digit >= baseToConvertFrom) {
+      return { kind: 'error' };
+    }
+
+    number = (number * BigInt(baseToConvertFrom)) + BigInt(digit);
+  }
+
+  if (isNegative) number = -number;
+
+  return { kind: 'success', result: number.toString(baseToConvertTo) };
+}
+
+function isSupportedBase(base: number) {
+  return Number.isInteger(base) && base >= 2 && base <= 32;
 }
 
 export default BaseConverterRoute;
