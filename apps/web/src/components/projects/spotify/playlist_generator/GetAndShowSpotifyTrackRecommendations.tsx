@@ -3,7 +3,7 @@ import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { useState } from 'react';
 import type { GetRecommendationsRequest } from '@adamratzman/contracts';
 import { useData } from '../../../utils/useData';
-import { SelectedObjects, SelectedTrackAttribute } from '../../../../pages/projects/spotify/recommend';
+import { SelectedObjects, SelectedTrackAttribute } from '../../../../routes/projects/spotify/recommend';
 import axios, { AxiosResponse } from 'axios';
 import { useNoShowBeforeRender } from '../../../utils/useNoShowBeforeRender';
 import {

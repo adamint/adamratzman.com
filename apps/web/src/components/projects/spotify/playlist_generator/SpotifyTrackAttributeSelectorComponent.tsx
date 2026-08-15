@@ -7,7 +7,7 @@ import {
   AutoCompleteTag,
 } from '@choc-ui/chakra-autocomplete';
 import { Box, Heading } from '@chakra-ui/react';
-import { SelectedTrackAttribute } from '../../../../pages/projects/spotify/recommend';
+import { SelectedTrackAttribute } from '../../../../routes/projects/spotify/recommend';
 import React from 'react';
 import { SetTrackAttributeValueAndTypeComponent } from './SetTrackAttributeValueAndTypeComponent';
 
@@ -72,4 +72,3 @@ export function SpotifyTrackAttributeSelectorComponent({
     </Box>}
   </Box>;
 }
-

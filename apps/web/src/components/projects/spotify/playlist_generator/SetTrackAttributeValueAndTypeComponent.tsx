@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Heading, HStack, Select, Slider, SliderFilledTrack, SliderThumb, SliderTrack } from '@chakra-ui/react';
 import { TrackAttributeType } from '../TrackAttribute';
-import { SelectedTrackAttribute } from '../../../../pages/projects/spotify/recommend';
+import { SelectedTrackAttribute } from '../../../../routes/projects/spotify/recommend';
 
 type SetTrackAttributeValueAndTypeComponentProps = {
   selectedAttribute: SelectedTrackAttribute;

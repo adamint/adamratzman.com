@@ -11,7 +11,7 @@ import {
   AutoCompleteTag,
 } from '@choc-ui/chakra-autocomplete';
 import type { SearchRequest } from '@adamratzman/contracts';
-import { AutocompleteOption, SelectedObjects } from '../../../../pages/projects/spotify/recommend';
+import { AutocompleteOption, SelectedObjects } from '../../../../routes/projects/spotify/recommend';
 import axios, { AxiosResponse } from 'axios';
 
 type SpotifyArtistGenreTrackSearchAutocompleteComponentProps = {

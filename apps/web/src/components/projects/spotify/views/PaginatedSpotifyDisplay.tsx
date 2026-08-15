@@ -4,44 +4,51 @@ import { Box, Flex } from '@chakra-ui/react';
 import Pagination from '@choc-ui/paginator';
 import { TimeRange } from '../../../utils/SpotifyTypes';
 import { SpotifyPagination } from '../../../utils/SpotifyApiPaginationHelper';
-import { useRouter } from 'next/router';
+import { useNavigate } from 'react-router-dom';
 
-type PaginatedSpotifyDisplayProps<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType extends ReactNode> = {
-  dataProducer: (...args: any[]) => Promise<DataType>;
-  childDataMapper: (child: ChildType) => ChildMappedType;
+type PaginatedSpotifyDisplayProps<DataType extends SpotifyPagination<ChildType>, ChildType> = {
+  dataProducer: (limitPerPage: number, pageOffset: number) => Promise<DataType>;
+  childDataMapper: (child: ChildType) => ReactNode;
   timeRange?: TimeRange | null;
   limitPerPage: number;
-  setLimitPerPage: Function;
+  setLimitPerPage: (limitPerPage: number) => void;
   pageOffset: number;
-  setPageOffset: Function;
-  filterNotNull: (child: any) => boolean
+  setPageOffset: (pageOffset: number) => void;
+  filterNotNull: (child: ChildType) => boolean
 }
 
-export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<ChildType>, ChildType, ChildMappedType extends ReactNode>({
-                                                                                                                                       dataProducer,
-                                                                                                                                       childDataMapper,
-                                                                                                                                       timeRange = null,
-                                                                                                                                       limitPerPage,
-                                                                                                                                       setLimitPerPage,
-                                                                                                                                       pageOffset,
-                                                                                                                                       setPageOffset,
-                                                                                                                                       filterNotNull,
-                                                                                                                                     }: PaginatedSpotifyDisplayProps<DataType, ChildType, ChildMappedType>) {
-  const { data, loading, error, update } = useData<DataType>(async () => {
+export function PaginatedSpotifyDisplay<DataType extends SpotifyPagination<ChildType>, ChildType>({
+                                                                                                    dataProducer,
+                                                                                                    childDataMapper,
+                                                                                                    timeRange = null,
+                                                                                                    limitPerPage,
+                                                                                                    setLimitPerPage,
+                                                                                                    pageOffset,
+                                                                                                    setPageOffset,
+                                                                                                    filterNotNull,
+                                                                                                  }: PaginatedSpotifyDisplayProps<DataType, ChildType>) {
+  const { data, loading, error, update } = useData<DataType, unknown>(async () => {
     return await dataProducer(limitPerPage, pageOffset);
   }, [timeRange], [limitPerPage, pageOffset], false);
 
-  const router = useRouter();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // noinspection JSIgnoredPromiseFromCall
-    update(dataProducer, true, [limitPerPage, pageOffset]);
-    // eslint-disable-next-line
+    void update(
+      async () => await dataProducer(limitPerPage, pageOffset),
+      true,
+      [],
+    );
   }, [limitPerPage, pageOffset]);
 
+  useEffect(() => {
+    if (error) {
+      console.log(error);
+      void navigate('/projects/spotify');
+    }
+  }, [error, navigate]);
+
   if (error) {
-    console.log(error);
-    router.push('/projects/spotify');
     return null;
   }
 

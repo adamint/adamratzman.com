@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 
-const nextCompatDirectory = resolve(import.meta.dirname, 'src/compat/next');
 const envDir = resolve(import.meta.dirname, '../..');
 
 export default defineConfig(({ mode }) => {
@@ -14,14 +13,6 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     envDir,
     envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
-    resolve: {
-      alias: [
-        { find: /^next\/dynamic$/, replacement: resolve(nextCompatDirectory, 'dynamic.tsx') },
-        { find: /^next\/head$/, replacement: resolve(nextCompatDirectory, 'head.tsx') },
-        { find: /^next\/link$/, replacement: resolve(nextCompatDirectory, 'link.tsx') },
-        { find: /^next\/router$/, replacement: resolve(nextCompatDirectory, 'router.ts') },
-      ],
-    },
     server: apiHttpTarget ? {
       proxy: {
         '/api': {

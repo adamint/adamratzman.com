@@ -1,7 +1,7 @@
 import { Alert, AlertDescription, AlertIcon } from '@chakra-ui/react';
 import { GetAndShowSpotifyTrackRecommendations } from './GetAndShowSpotifyTrackRecommendations';
 import React from 'react';
-import { SelectedObjects, SelectedTrackAttribute } from '../../../../pages/projects/spotify/recommend';
+import { SelectedObjects, SelectedTrackAttribute } from '../../../../routes/projects/spotify/recommend';
 
 type SpotifyGenerateAndShowPlaylistRecommendationsComponentProps = {
   selectedObjects: SelectedObjects;

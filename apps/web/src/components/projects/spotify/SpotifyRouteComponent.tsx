@@ -2,11 +2,11 @@ import { SpotifyCallbackIngestionTokenProducerComponent } from '../../../spotify
 import { SpotifyLoginButton } from '../../../spotify-utils/auth/SpotifyLoginButton';
 import { useSpotifyStore } from '../../utils/useSpotifyStore';
 import shallow from 'zustand/shallow';
-import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 type SpotifyRouteComponentProps = {
-  children: any;
+  children: ReactNode;
   title?: string;
 }
 
@@ -16,7 +16,7 @@ export function SpotifyRouteComponent({ title, children }: SpotifyRouteComponent
   const spotifyClientId = useSpotifyStore(state => state.spotifyClientId);
   const spotifyRedirectUri = useSpotifyStore(state => state.spotifyRedirectUri);
   const [shouldRender, setShouldRender] = useState(false);
-  const router = useRouter();
+  const location = useLocation();
 
   useEffect(() => {
     setShouldRender(true);
@@ -24,7 +24,7 @@ export function SpotifyRouteComponent({ title, children }: SpotifyRouteComponent
 
   function buildSpotifyScopes(baseScopes: string[]) {
     const scopes = [...baseScopes];
-    switch (router.pathname) {
+    switch (location.pathname) {
       case '/projects/spotify/mytop':
         scopes.push('user-top-read');
         break;
@@ -55,11 +55,10 @@ export function SpotifyRouteComponent({ title, children }: SpotifyRouteComponent
         redirectUri={spotifyRedirectUri()}
         codeVerifier={codeVerifier}
         setCodeVerifier={setCodeVerifier}
-        redirectPathAfter={router.asPath}
+        redirectPathAfter={`${location.pathname}${location.search}`}
         buttonText='Log in with Spotify to view this page'
         title={title}
       />
     </>}
   </>;
 }
-

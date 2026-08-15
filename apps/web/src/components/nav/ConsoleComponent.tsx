@@ -12,7 +12,7 @@ import {
 } from '@chakra-ui/react';
 import React, { useEffect, useState } from 'react';
 import { skills } from '../home/TechnicalSkillsSection';
-import { currentProjects, pastProjects, Project } from '../../pages/portfolio';
+import { currentProjects, pastProjects, Project } from '../../routes/portfolio';
 
 type TerminalComponent = typeof import('react-console-emulator').default;
 type TerminalModule = {
