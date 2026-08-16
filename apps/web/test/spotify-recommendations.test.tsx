@@ -8,6 +8,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { StrictMode, useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -18,8 +19,11 @@ import type {
 import {
   type AutocompleteOption,
   type SelectedObjects,
+  type SelectedTrackAttribute,
 } from '../src/routes/projects/spotify/recommend';
 import { SpotifyArtistGenreTrackSearchAutocompleteComponent } from '../src/components/projects/spotify/playlist_generator/SpotifyArtistGenreTrackSearchAutocompleteComponent';
+import { SpotifySeedCombobox } from '../src/components/projects/spotify/playlist_generator/SpotifySeedCombobox';
+import { SpotifyTrackAttributeSelectorComponent } from '../src/components/projects/spotify/playlist_generator/SpotifyTrackAttributeSelectorComponent';
 import { GetAndShowSpotifyTrackRecommendations } from '../src/components/projects/spotify/playlist_generator/GetAndShowSpotifyTrackRecommendations';
 import { SpotifyGenerateAndShowPlaylistRecommendationsComponent } from '../src/components/projects/spotify/playlist_generator/SpotifyGenerateAndShowPlaylistRecommendationsComponent';
 import { tuneableTrackAttributes } from '../src/components/projects/spotify/TrackAttribute';
@@ -213,6 +217,409 @@ describe('Spotify autocomplete request lifecycle', () => {
     expect(screen.getByTestId('selected-uris')).toHaveTextContent(
       'spotify:track:selected-track',
     );
+  });
+});
+
+describe('Spotify seed and attribute controls', () => {
+  it('exposes the native combobox, listbox, and active option state', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('fetch', createSearchFetch({
+      indie: {
+        artists: Promise.resolve(searchResponse({
+          items: [{
+            name: 'Indie Artist',
+            uri: 'spotify:artist:indieartist',
+          }],
+        })),
+        tracks: Promise.resolve(searchResponse({
+          items: [trackSearchResult('Indie Track', 'indietrack')],
+        })),
+      },
+    }));
+    renderSearch();
+
+    const combobox = screen.getByRole('combobox', {
+      name: 'Spotify tracks, artists, or genres',
+    });
+    expect(combobox).toHaveAttribute('aria-autocomplete', 'list');
+    expect(combobox).toHaveAttribute('aria-expanded', 'false');
+
+    searchFor('indie');
+
+    const listbox = await screen.findByRole('listbox', {
+      name: 'Spotify search suggestions',
+    });
+    expect(combobox).toHaveAttribute('aria-expanded', 'true');
+    expect(combobox).toHaveAttribute('aria-controls', listbox.id);
+    const options = within(listbox).getAllByRole('option');
+    expect(options.length).toBeGreaterThan(0);
+    expect(options.every(option => option.id.length > 0)).toBe(true);
+    expect(options.every(option => option.closest('[role="listbox"]') === listbox)).toBe(true);
+
+    await user.click(combobox);
+    await user.keyboard('{ArrowDown}');
+
+    expect(combobox).toHaveAttribute(
+      'aria-activedescendant',
+      options[0].id,
+    );
+    expect(options[0]).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('selects a seed with the keyboard', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('fetch', createSearchFetch({
+      keyboard: {
+        artists: Promise.resolve(searchResponse({ items: [] })),
+        tracks: Promise.resolve(searchResponse({
+          items: [trackSearchResult('Keyboard Track', 'keyboardtrack')],
+        })),
+      },
+    }));
+    renderSearch();
+
+    searchFor('keyboard');
+    await screen.findByRole('option', { name: /Keyboard Track/u });
+    const combobox = screen.getByRole('combobox', {
+      name: 'Spotify tracks, artists, or genres',
+    });
+    await user.click(combobox);
+    await user.keyboard('{ArrowDown}{Enter}');
+
+    expect(screen.getByTestId('selected-uris')).toHaveTextContent(
+      'spotify:track:keyboardtrack',
+    );
+    expect(combobox).toHaveValue('');
+    expect(combobox).toHaveAttribute('aria-expanded', 'false');
+    expect(combobox).toHaveFocus();
+  });
+
+  it('moves through suggestions in their rendered group order', async () => {
+    const user = userEvent.setup();
+    const artist: AutocompleteOption = {
+      text: 'Grouped Artist',
+      textMapper: () => <b>Grouped Artist</b>,
+      type: 'artist',
+      uri: 'spotify:artist:groupedartist',
+    };
+    const track: AutocompleteOption = {
+      additionalText: 'Grouped Artist',
+      text: 'Grouped Track',
+      textMapper: () => <><b>Grouped Track</b> by Grouped Artist</>,
+      type: 'track',
+      uri: 'spotify:track:groupedtrack',
+    };
+    render(
+      <ChakraProvider theme={theme}>
+        <SeedComboboxHarness options={[artist, track]} />
+      </ChakraProvider>,
+    );
+
+    const combobox = screen.getByRole('combobox', {
+      name: 'Spotify tracks, artists, or genres',
+    });
+    await user.click(combobox);
+    const options = screen.getAllByRole('option');
+    expect(options[0]).toHaveTextContent('Grouped Track');
+
+    await user.keyboard('{ArrowDown}');
+    expect(combobox).toHaveAttribute(
+      'aria-activedescendant',
+      options[0].id,
+    );
+  });
+
+  it('resets the active suggestion when asynchronous results change', async () => {
+    const user = userEvent.setup();
+    const genre: AutocompleteOption = {
+      text: 'indie',
+      textMapper: () => <b>indie</b>,
+      type: 'genre',
+      uri: 'spotify:genre:indie',
+    };
+    const track: AutocompleteOption = {
+      additionalText: 'Grouped Artist',
+      text: 'Grouped Track',
+      textMapper: () => <><b>Grouped Track</b> by Grouped Artist</>,
+      type: 'track',
+      uri: 'spotify:track:groupedtrack',
+    };
+    const view = render(
+      <ChakraProvider theme={theme}>
+        <SeedComboboxHarness options={[genre]} />
+      </ChakraProvider>,
+    );
+
+    const combobox = screen.getByRole('combobox', {
+      name: 'Spotify tracks, artists, or genres',
+    });
+    await user.click(combobox);
+    await user.keyboard('{ArrowDown}');
+    expect(combobox).toHaveAttribute('aria-activedescendant');
+
+    view.rerender(
+      <ChakraProvider theme={theme}>
+        <SeedComboboxHarness options={[track, genre]} />
+      </ChakraProvider>,
+    );
+
+    await waitFor(() => {
+      expect(combobox).not.toHaveAttribute('aria-activedescendant');
+    });
+  });
+
+  it('selects a seed with a pointer without adding duplicates', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('fetch', createFreshSearchFetch({
+      artists: [],
+      tracks: [trackSearchResult('Pointer Track', 'pointertrack')],
+    }));
+    renderSearch();
+
+    searchFor('pointer');
+    const selectedOption = await screen.findByRole('option', {
+      name: /Pointer Track/u,
+    });
+    await user.click(selectedOption);
+    expect(screen.getByTestId('selected-uris')).toHaveTextContent(
+      'spotify:track:pointertrack',
+    );
+
+    searchFor('pointer');
+    const duplicateOption = await screen.findByRole('option', {
+      name: /Pointer Track/u,
+    });
+    expect(duplicateOption).toHaveAttribute('aria-selected', 'true');
+    await user.click(duplicateOption);
+    expect(screen.getByTestId('selected-uris')).toHaveTextContent(
+      /^spotify:track:pointertrack$/u,
+    );
+  });
+
+  it('clears on Escape and closes on blur', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('fetch', createSearchFetch({
+      indie: {
+        artists: Promise.resolve(searchResponse({ items: [] })),
+        tracks: Promise.resolve(searchResponse({
+          items: [trackSearchResult('Indie Track', 'indietrack')],
+        })),
+      },
+    }));
+    renderSearch();
+
+    const combobox = screen.getByRole('combobox', {
+      name: 'Spotify tracks, artists, or genres',
+    });
+    searchFor('indie');
+    await screen.findByRole('listbox', {
+      name: 'Spotify search suggestions',
+    });
+    await user.click(combobox);
+    await user.keyboard('{Escape}');
+
+    expect(combobox).toHaveValue('');
+    expect(combobox).toHaveAttribute('aria-expanded', 'false');
+    expect(combobox).not.toHaveAttribute('aria-controls');
+    expect(screen.queryByRole('listbox', {
+      name: 'Spotify search suggestions',
+    })).not.toBeInTheDocument();
+
+    searchFor('indie');
+    await screen.findByRole('listbox', {
+      name: 'Spotify search suggestions',
+    });
+    await user.click(screen.getByRole('button', { name: 'After search' }));
+
+    await waitFor(() => {
+      expect(combobox).toHaveAttribute('aria-expanded', 'false');
+    });
+    expect(combobox).toHaveValue('indie');
+  });
+
+  it('removes a selected seed and returns focus to the combobox', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('fetch', createSearchFetch({
+      removable: {
+        artists: Promise.resolve(searchResponse({ items: [] })),
+        tracks: Promise.resolve(searchResponse({
+          items: [{
+            artists: [
+              { name: 'First Artist' },
+              { name: 'Second Artist' },
+            ],
+            name: 'Removable Track',
+            uri: 'spotify:track:removabletrack',
+          }],
+        })),
+      },
+    }));
+    renderSearch();
+
+    searchFor('removable');
+    await user.click(await screen.findByRole('option', {
+      name: /Removable Track/u,
+    }));
+    await user.click(screen.getByRole('button', {
+      name: 'Remove Removable Track by First Artist, Second Artist from seeds',
+    }));
+
+    expect(screen.getByTestId('selected-uris')).toBeEmptyDOMElement();
+    expect(screen.getByRole('combobox', {
+      name: 'Spotify tracks, artists, or genres',
+    })).toHaveFocus();
+  });
+
+  it('preserves selected attribute values while adding and removing checkboxes', async () => {
+    const user = userEvent.setup();
+    const acousticness = tuneableTrackAttributes.find(
+      attribute => attribute.id === 'acousticness',
+    );
+    if (!acousticness) throw new Error('Expected Acousticness.');
+    renderAttributes([{
+      id: acousticness.id,
+      trackAttribute: acousticness,
+      type: 'min',
+      value: 0.73,
+    }]);
+
+    const acousticnessCheckbox = screen.getByRole('checkbox', {
+      name: 'Acousticness',
+    });
+    const popularityCheckbox = screen.getByRole('checkbox', {
+      name: 'Popularity',
+    });
+    expect(acousticnessCheckbox).toBeChecked();
+    expect(popularityCheckbox).not.toBeChecked();
+
+    await user.click(popularityCheckbox);
+    expect(readSelectedAttributes()).toEqual([
+      expect.objectContaining({
+        id: 'acousticness',
+        type: 'min',
+        value: 0.73,
+      }),
+      expect.objectContaining({
+        id: 'popularity',
+        type: 'target',
+        value: 50,
+      }),
+    ]);
+
+    await user.click(acousticnessCheckbox);
+    expect(readSelectedAttributes()).toEqual([
+      expect.objectContaining({
+        id: 'popularity',
+        type: 'target',
+        value: 50,
+      }),
+    ]);
+  });
+
+  it('does not mutate the selected attribute array while ordering controls', () => {
+    const acousticness = tuneableTrackAttributes.find(
+      attribute => attribute.id === 'acousticness',
+    );
+    const popularity = tuneableTrackAttributes.find(
+      attribute => attribute.id === 'popularity',
+    );
+    if (!acousticness || !popularity) {
+      throw new Error('Expected representative track attributes.');
+    }
+    const selectedTrackAttributes = Object.freeze([
+      {
+        id: popularity.id,
+        trackAttribute: popularity,
+        type: 'target' as const,
+        value: popularity.defaultValue,
+      },
+      {
+        id: acousticness.id,
+        trackAttribute: acousticness,
+        type: 'target' as const,
+        value: acousticness.defaultValue,
+      },
+    ]) as unknown as SelectedTrackAttribute[];
+
+    expect(() => render(
+      <ChakraProvider theme={theme}>
+        <SpotifyTrackAttributeSelectorComponent
+          selectedTrackAttributes={selectedTrackAttributes}
+          setSelectedTrackAttributes={vi.fn()}
+        />
+      </ChakraProvider>,
+    )).not.toThrow();
+    expect(selectedTrackAttributes.map(attribute => attribute.id)).toEqual([
+      'popularity',
+      'acousticness',
+    ]);
+  });
+
+  it('labels each selected attribute mode and value control', async () => {
+    const user = userEvent.setup();
+    const acousticness = tuneableTrackAttributes.find(
+      attribute => attribute.id === 'acousticness',
+    );
+    if (!acousticness) throw new Error('Expected Acousticness.');
+    renderAttributes([{
+      id: acousticness.id,
+      trackAttribute: acousticness,
+      type: 'target',
+      value: 0.73,
+    }]);
+
+    expect(screen.getByRole('group', {
+      name: 'Spotify track attributes',
+    })).toBeVisible();
+    const mode = screen.getByRole('combobox', {
+      name: 'Acousticness tuning mode',
+    });
+    expect(mode).toHaveAttribute(
+      'id',
+      'spotify-track-attribute-acousticness-mode',
+    );
+    const slider = screen.getByRole('slider', {
+      name: 'Acousticness value',
+    });
+    expect(slider).toHaveAttribute('aria-valuemin', '0');
+    expect(slider).toHaveAttribute('aria-valuemax', '1');
+    expect(slider).toHaveAttribute('aria-valuenow', '0.73');
+
+    await user.selectOptions(mode, 'max');
+    expect(readSelectedAttributes()[0]).toEqual(expect.objectContaining({
+      id: 'acousticness',
+      type: 'max',
+      value: 0.73,
+    }));
+  });
+
+  it('has no axe violations with suggestions, tags, and attributes visible', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('fetch', createFreshSearchFetch({
+      artists: [{
+        name: 'Accessible Artist',
+        uri: 'spotify:artist:accessibleartist',
+      }],
+      tracks: [trackSearchResult('Accessible Track', 'accessibletrack')],
+    }));
+    const { container } = render(<SpotifyControlsHarness />);
+
+    searchFor('accessible');
+    await user.click(await screen.findByRole('option', {
+      name: /Accessible Track/u,
+    }));
+    searchFor('accessible');
+    await screen.findByRole('listbox', {
+      name: 'Spotify search suggestions',
+    });
+    await user.click(screen.getByRole('checkbox', {
+      name: 'Acousticness',
+    }));
+    await user.click(screen.getByRole('checkbox', {
+      name: 'Popularity',
+    }));
+
+    await expectNoAxeViolations(container);
   });
 });
 
@@ -761,6 +1168,26 @@ function createSearchFetch(responses: SearchDeferredResponses) {
   });
 }
 
+function createFreshSearchFetch({
+  artists,
+  tracks,
+}: {
+  artists: Array<{ name: string; uri: string }>;
+  tracks: ReturnType<typeof trackSearchResult>[];
+}) {
+  return vi.fn((
+    input: RequestInfo | URL,
+  ): Promise<Response> => {
+    const url = requestUrl(input);
+    if (url.endsWith('/getAvailableGenreSeeds')) {
+      return Promise.resolve(Response.json(['indie', 'rock']));
+    }
+    return Promise.resolve(Response.json({
+      items: url.endsWith('/searchTracks') ? tracks : artists,
+    }));
+  });
+}
+
 function createSourceFailureFetch(failingSource: SearchSource) {
   return vi.fn((
     input: RequestInfo | URL,
@@ -810,7 +1237,89 @@ function SearchHarness() {
     <div data-testid="selected-uris">
       {Object.keys(selectedObjects).join('|')}
     </div>
+    <button type="button">After search</button>
   </ChakraProvider>;
+}
+
+function renderAttributes(
+  initialSelectedTrackAttributes: SelectedTrackAttribute[],
+) {
+  return render(
+    <ChakraProvider theme={theme}>
+      <AttributeHarness
+        initialSelectedTrackAttributes={initialSelectedTrackAttributes}
+      />
+    </ChakraProvider>,
+  );
+}
+
+function AttributeHarness({
+  initialSelectedTrackAttributes,
+}: {
+  initialSelectedTrackAttributes: SelectedTrackAttribute[];
+}) {
+  const [selectedTrackAttributes, setSelectedTrackAttributes] = useState(
+    initialSelectedTrackAttributes,
+  );
+
+  return <>
+    <SpotifyTrackAttributeSelectorComponent
+      selectedTrackAttributes={selectedTrackAttributes}
+      setSelectedTrackAttributes={setSelectedTrackAttributes}
+    />
+    <output data-testid="selected-attributes">
+      {JSON.stringify(selectedTrackAttributes)}
+    </output>
+  </>;
+}
+
+function SpotifyControlsHarness() {
+  const [selectedObjects, setSelectedObjects] = useState<SelectedObjects>({});
+  const [selectedTrackAttributes, setSelectedTrackAttributes] = useState<
+    SelectedTrackAttribute[]
+  >([]);
+
+  return <ChakraProvider theme={theme}>
+    <SpotifyArtistGenreTrackSearchAutocompleteComponent
+      selectedObjects={selectedObjects}
+      setSelectedObjects={setSelectedObjects}
+    />
+    <SpotifyTrackAttributeSelectorComponent
+      selectedTrackAttributes={selectedTrackAttributes}
+      setSelectedTrackAttributes={setSelectedTrackAttributes}
+    />
+  </ChakraProvider>;
+}
+
+function SeedComboboxHarness({
+  options,
+}: {
+  options: AutocompleteOption[];
+}) {
+  const [inputText, setInputText] = useState('grouped');
+  const [selectedObjects, setSelectedObjects] = useState<SelectedObjects>({});
+
+  return <SpotifySeedCombobox
+    inputText={inputText}
+    onInputTextChange={setInputText}
+    onRemove={uri => {
+      const nextSelectedObjects = { ...selectedObjects };
+      delete nextSelectedObjects[uri];
+      setSelectedObjects(nextSelectedObjects);
+    }}
+    onSelect={option => setSelectedObjects({
+      ...selectedObjects,
+      [option.uri]: option,
+    })}
+    options={options}
+    selectedObjects={selectedObjects}
+  />;
+}
+
+function readSelectedAttributes(): SelectedTrackAttribute[] {
+  return JSON.parse(
+    screen.getByTestId('selected-attributes').textContent ?? '[]',
+  ) as SelectedTrackAttribute[];
 }
 
 function searchFor(query: string) {

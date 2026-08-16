@@ -1,12 +1,12 @@
 import React from 'react';
-import { Box, Heading, HStack, Select, Slider, SliderFilledTrack, SliderThumb, SliderTrack } from '@chakra-ui/react';
+import { Box, HStack, Select, Slider, SliderFilledTrack, SliderThumb, SliderTrack } from '@chakra-ui/react';
 import { TrackAttributeType } from '../TrackAttribute';
 import { SelectedTrackAttribute } from '../../../../routes/projects/spotify/recommend';
 
 type SetTrackAttributeValueAndTypeComponentProps = {
   selectedAttribute: SelectedTrackAttribute;
   selectedTrackAttributes: SelectedTrackAttribute[];
-  setSelectedTrackAttributes: Function;
+  setSelectedTrackAttributes: (attributes: SelectedTrackAttribute[]) => void;
 }
 
 export function SetTrackAttributeValueAndTypeComponent({
@@ -14,27 +14,44 @@ export function SetTrackAttributeValueAndTypeComponent({
                                                          selectedTrackAttributes,
                                                          setSelectedTrackAttributes,
                                                        }: SetTrackAttributeValueAndTypeComponentProps) {
-  const attributesWithoutSelected = selectedTrackAttributes.filter(attr => attr.id !== selectedAttribute.id);
   const { trackAttribute, value, type } = selectedAttribute;
+  const modeSelectId = `spotify-track-attribute-${trackAttribute.id}-mode`;
 
   function handleAttributeValueChanged(newValue: number) {
-    setSelectedTrackAttributes([...attributesWithoutSelected, { ...selectedAttribute, value: newValue }]);
+    setSelectedTrackAttributes(selectedTrackAttributes.map(attribute => (
+      attribute.id === selectedAttribute.id
+        ? { ...selectedAttribute, value: newValue }
+        : attribute
+    )));
   }
 
   function handleAttributeTypeChanged(event: React.ChangeEvent<HTMLSelectElement>) {
-    setSelectedTrackAttributes([...attributesWithoutSelected, { ...selectedAttribute, type: event.target.value }]);
+    const nextType = event.target.value as SelectedTrackAttribute['type'];
+    setSelectedTrackAttributes(selectedTrackAttributes.map(attribute => (
+      attribute.id === selectedAttribute.id
+        ? { ...selectedAttribute, type: nextType }
+        : attribute
+    )));
   }
 
-  return <Box mb={2}>
+  return <Box as='fieldset' border={0} mb={4} minW={0} p={0}>
+    <Box as='legend' fontWeight='semibold' mb={1}>
+      {trackAttribute.name}
+    </Box>
     <HStack mb={1}>
-      <Heading size='sm' variant='light'>{trackAttribute.name}</Heading>
-      <Select value={type} maxW='175px' onChange={handleAttributeTypeChanged}>
+      <Select
+        aria-label={`${trackAttribute.name} tuning mode`}
+        id={modeSelectId}
+        maxW='175px'
+        onChange={handleAttributeTypeChanged}
+        value={type}
+      >
         <option value='target'>Target value</option>
         <option value='min'>Minimum value</option>
         <option value='max'>Maximum value</option>
       </Select>
     </HStack>
-    <Slider aria-label={`slider-${trackAttribute.id}`}
+    <Slider aria-label={`${trackAttribute.name} value`}
             value={value} min={trackAttribute.min}
             max={trackAttribute.max}
             step={trackAttribute.type === TrackAttributeType.Integer ? 1 : 0.01}

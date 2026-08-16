@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -6,15 +6,6 @@ import {
   Box,
 } from '@chakra-ui/react';
 import Fuse from 'fuse.js';
-import {
-  AutoComplete,
-  AutoCompleteGroup,
-  AutoCompleteGroupTitle,
-  AutoCompleteInput,
-  AutoCompleteItem,
-  AutoCompleteList,
-  AutoCompleteTag,
-} from '@choc-ui/chakra-autocomplete';
 import type {
   SearchRequest,
   SpotifySearchPage,
@@ -27,6 +18,7 @@ import {
   isSpotifyTrackSearchPage,
 } from '../../../../api/spotifyBrowserValidation';
 import { useLatestAsyncData } from '../../../utils/useLatestAsyncData';
+import { SpotifySeedCombobox } from './SpotifySeedCombobox';
 
 type SpotifyArtistGenreTrackSearchAutocompleteComponentProps = {
   selectedObjects: SelectedObjects;
@@ -47,7 +39,6 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
                                                                      setSelectedObjects,
                                                                    }: SpotifyArtistGenreTrackSearchAutocompleteComponentProps) {
   const [inputText, setInputText] = useState('');
-  const [tagToRemove, setTagToRemove] = useState<{ onRemove: () => void } | null>(null);
   const query = inputText.trim();
   const genreState = useLatestAsyncData(getAvailableGenreSeeds);
   const artistProducer = useMemo(
@@ -84,6 +75,9 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
       uri: track.uri,
       text: track.name,
       additionalText: track.artists.map(artist => artist.name).join(' '),
+      displayText: `${track.name} by ${track.artists.map(
+        artist => artist.name,
+      ).join(', ')}`,
       textMapper: () => <>
         <b>{track.name}</b> <Box as='span' ml={1}>
           by {track.artists.map(artist => artist.name).join(', ')}
@@ -110,31 +104,18 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
     trackState.data,
   ]);
 
-  useEffect(() => {
-    if (tagToRemove) {
-      tagToRemove.onRemove();
-      setTagToRemove(null);
-    }
-  }, [tagToRemove, selectedObjects]);
-
-  function getAutocompleteItem(option: AutocompleteOption) {
-    return <AutoCompleteItem
-      key={`autocomplete-spotify-option-${option.uri}`}
-      value={option.uri}>
-      {option.textMapper()}
-    </AutoCompleteItem>;
+  function handleOptionSelected(option: AutocompleteOption) {
+    if (selectedObjects[option.uri]) return;
+    setSelectedObjects({
+      ...selectedObjects,
+      [option.uri]: option,
+    });
   }
 
-  function handleAutocompleteSelectedValuesChange(values: string[]) {
-    const newSelectedObjects: SelectedObjects = { ...selectedObjects };
-    values.forEach((value: string) => {
-      if (!newSelectedObjects[value]) {
-        const foundOption = allAutocompleteOptions.find(opt => opt.uri === value);
-        if (foundOption) newSelectedObjects[value] = foundOption;
-      }
-    });
+  function handleOptionRemoved(uri: string) {
+    const newSelectedObjects = { ...selectedObjects };
+    delete newSelectedObjects[uri];
     setSelectedObjects(newSelectedObjects);
-    setInputText('');
   }
 
   let topResults: AutocompleteOption[];
@@ -144,87 +125,22 @@ export function SpotifyArtistGenreTrackSearchAutocompleteComponent({
       .concat(allAutocompleteOptions.filter(opt => opt.type === 'genre').slice(0, 4));
   } else topResults = allAutocompleteOptions.slice(0, 15);
 
-  const trackGroup = [
-    <AutoCompleteGroupTitle key='group-key'><b><u>Tracks</u></b></AutoCompleteGroupTitle>,
-    ...topResults.filter(option => option.type === 'track').map(option => getAutocompleteItem(option)),
-  ];
-
-  const artistGroup = [
-    <AutoCompleteGroupTitle key='group-key'><b><u>Artists</u></b></AutoCompleteGroupTitle>,
-    ...topResults.filter(option => option.type === 'artist').map(option => getAutocompleteItem(option)),
-  ];
-
-  const genreGroup = [
-    <AutoCompleteGroupTitle key='group-key'><b><u>Genres</u></b></AutoCompleteGroupTitle>,
-    ...topResults.filter(option => option.type === 'genre').map(option => getAutocompleteItem(option)),
-  ];
-
-  return <AutoComplete filter={(_query: string, optionValue: unknown) => {
-    return typeof optionValue === 'string'
-      && allAutocompleteOptions.some(opt => opt.uri === optionValue);
-  }}
-                       multiple
-                       onChange={(values: unknown) => {
-                         if (Array.isArray(values) && values.every(value => typeof value === 'string')) {
-                           handleAutocompleteSelectedValuesChange(values);
-                         }
-                       }}>
-    <AutoCompleteInput variant='filled' placeholder='Enter a Spotify track, artist, or genre...' autoFocus
-                       value={inputText}
-                       onChange={e => {
-                         setInputText(e.target.value);
-                       }}>
-      {({ tags }: { tags: Array<{ label: unknown; onRemove: () => void }> }) => {
-        return tags.map(tag => {
-          const uri = tag.label;
-          if (typeof uri !== 'string') return null;
-          const selectedUri = uri;
-          const optionObj = selectedObjects[selectedUri];
-          if (!optionObj) return null;
-          let bgColor;
-          if (optionObj.type === 'genre') bgColor = 'teal.400';
-          else if (optionObj.type === 'track') bgColor = 'orange.400';
-          else bgColor = 'green.400';
-
-          function onRemoveTag() {
-            const newSelectedObjects = { ...selectedObjects };
-            delete newSelectedObjects[selectedUri];
-            setSelectedObjects(newSelectedObjects);
-            setTagToRemove({ onRemove: tag.onRemove });
-          }
-
-          return <AutoCompleteTag
-            key={selectedUri}
-            // @ts-expect-error The compatibility package accepts React nodes at runtime but types this as string.
-            label={optionObj.textMapper()}
-            onRemove={onRemoveTag}
-            bgColor={bgColor}
-          />;
-        });
-      }
-      }
-    </AutoCompleteInput>
-    <AutoCompleteList maxH='100%'>
-      <AutoCompleteGroup showDivider>
-        {trackGroup}
-      </AutoCompleteGroup>
-
-      <AutoCompleteGroup showDivider>
-        {artistGroup}
-      </AutoCompleteGroup>
-
-      <AutoCompleteGroup showDivider>
-        {genreGroup}
-      </AutoCompleteGroup>
-
-    </AutoCompleteList>
-    {query && (genreState.error || artistState.error || trackState.error) && <Alert status='error' mt={2}>
+  return <>
+    <SpotifySeedCombobox
+      inputText={inputText}
+      onInputTextChange={setInputText}
+      onRemove={handleOptionRemoved}
+      onSelect={handleOptionSelected}
+      options={topResults}
+      selectedObjects={selectedObjects}
+    />
+    {query && (genreState.error || artistState.error || trackState.error) && <Alert role='alert' status='error' mt={2}>
       <AlertIcon />
       <AlertDescription>
         We were unable to search Spotify. Please try again.
       </AlertDescription>
     </Alert>}
-  </AutoComplete>;
+  </>;
 }
 
 function createSpotifySearchProducer<Item>(

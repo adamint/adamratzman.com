@@ -9,7 +9,12 @@ import {
 } from '@testing-library/react';
 import type { UseDisclosureReturn } from '@chakra-ui/hooks';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { StrictMode, Suspense, type ReactElement } from 'react';
+import {
+  createRef,
+  StrictMode,
+  Suspense,
+  type ReactElement,
+} from 'react';
 import {
   parseRecommendedTrackIds,
 } from '../src/routes/projects/spotify/recommend/create-playlist';
@@ -426,12 +431,23 @@ describe('playlist creation modal', () => {
       expect(submitButton).toBeEnabled();
     });
 
-    it('disables modal close, escape, and overlay dismissal while submitting', async () => {
+    it.each([
+      'Escape',
+      'overlay',
+      'header close',
+      'footer close',
+    ] as const)('allows %s while a deferred create continues', async closePath => {
+      vi.spyOn(window, 'open').mockImplementation(() => null);
       const playlistRequest = deferred<SpotifyApi.CreatePlaylistResponse>();
       const createPlaylist = vi.fn().mockReturnValue(playlistRequest.promise);
-      const { disclosure } = renderModal({
+      const replaceTracksInPlaylist = vi.fn().mockResolvedValue({});
+      const {
+        disclosure,
+        setOpen,
+        trigger,
+      } = renderModal({
         createPlaylist,
-        replaceTracksInPlaylist: vi.fn(),
+        replaceTracksInPlaylist,
       });
 
       submitPlaylist();
@@ -441,25 +457,126 @@ describe('playlist creation modal', () => {
       });
       const closeButtons = screen.getAllByRole('button', { name: 'Close' });
       expect(closeButtons).toHaveLength(2);
-      expect(closeButtons.every(button => button.hasAttribute('disabled'))).toBe(true);
+      expect(closeButtons.every(button => !button.hasAttribute('disabled'))).toBe(true);
 
-      closeButtons.forEach(button => fireEvent.click(button));
-      fireEvent.keyDown(screen.getByRole('dialog'), {
-        code: 'Escape',
-        key: 'Escape',
+      closePlaylistModal(closePath);
+
+      expect(disclosure.onClose).toHaveBeenCalledOnce();
+      setOpen(false);
+      await waitFor(() => {
+        expect(trigger).toHaveFocus();
       });
-      const overlay = document.querySelector('.chakra-modal__overlay');
-      if (!(overlay instanceof HTMLElement)) {
-        throw new Error('Expected the modal overlay.');
-      }
-      fireEvent.click(overlay);
 
-      expect(disclosure.onClose).not.toHaveBeenCalled();
-
-      playlistRequest.reject(new Error('expected test failure'));
+      playlistRequest.resolve(createdPlaylist(
+        'https://open.spotify.com/playlist/created',
+      ));
       await act(async () => {
-        await playlistRequest.promise.catch(() => undefined);
+        await playlistRequest.promise;
       });
+      await waitFor(() => {
+        expect(replaceTracksInPlaylist).toHaveBeenCalledOnce();
+      });
+      await waitFor(() => {
+        expect(screen.getByText(
+          'Successfully created playlist.',
+        )).toBeVisible();
+      });
+      expect(sessionStorage.getItem(
+        spotifyPendingPlaylistStorageKey,
+      )).toBeNull();
+    });
+
+    it('reopens recoverable replacement failure without creating a duplicate', async () => {
+      vi.spyOn(window, 'open').mockImplementation(() => null);
+      const replacementRequest = deferred<unknown>();
+      const createPlaylist = vi.fn().mockResolvedValue(createdPlaylist(
+        'https://open.spotify.com/playlist/created',
+      ));
+      const replaceTracksInPlaylist = vi.fn()
+        .mockReturnValueOnce(replacementRequest.promise)
+        .mockResolvedValueOnce({});
+      const {
+        disclosure,
+        setOpen,
+      } = renderModal({
+        createPlaylist,
+        replaceTracksInPlaylist,
+      });
+
+      submitPlaylist({ description: 'Closed recovery' });
+      await waitFor(() => {
+        expect(replaceTracksInPlaylist).toHaveBeenCalledOnce();
+      });
+      closePlaylistModal('footer close');
+      expect(disclosure.onClose).toHaveBeenCalledOnce();
+      setOpen(false);
+
+      replacementRequest.reject(new Error('replacement failed while closed'));
+      await act(async () => {
+        await replacementRequest.promise.catch(() => undefined);
+      });
+      expect(readPendingPlaylistStorage()).toHaveProperty(
+        'playlistId',
+        'createdplaylist',
+      );
+
+      setOpen(true);
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Your playlist was created, but its tracks are not confirmed.',
+      );
+      expect(screen.getByLabelText('Playlist description')).toHaveValue(
+        'Closed recovery',
+      );
+      fireEvent.click(screen.getByRole('button', {
+        name: 'Retry adding tracks',
+      }));
+
+      expect(await screen.findByText(
+        'Successfully created playlist.',
+      )).toBeVisible();
+      expect(createPlaylist).toHaveBeenCalledOnce();
+      expect(replaceTracksInPlaylist).toHaveBeenCalledTimes(2);
+      expect(sessionStorage.getItem(
+        spotifyPendingPlaylistStorageKey,
+      )).toBeNull();
+    });
+
+    it('finishes authoritative storage and toast work after modal unmount', async () => {
+      vi.spyOn(window, 'open').mockImplementation(() => null);
+      const playlistRequest = deferred<SpotifyApi.CreatePlaylistResponse>();
+      const createPlaylist = vi.fn().mockReturnValue(playlistRequest.promise);
+      const replaceTracksInPlaylist = vi.fn().mockResolvedValue({});
+      const {
+        disclosure,
+        unmountModal,
+      } = renderModal({
+        createPlaylist,
+        replaceTracksInPlaylist,
+      });
+
+      submitPlaylist();
+      await waitFor(() => {
+        expect(createPlaylist).toHaveBeenCalledOnce();
+      });
+      unmountModal();
+
+      playlistRequest.resolve(createdPlaylist(
+        'https://open.spotify.com/playlist/created',
+      ));
+      await act(async () => {
+        await playlistRequest.promise;
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(
+          'Successfully created playlist.',
+        )).toBeVisible();
+      });
+      expect(replaceTracksInPlaylist).toHaveBeenCalledOnce();
+      expect(sessionStorage.getItem(
+        spotifyPendingPlaylistStorageKey,
+      )).toBeNull();
+      expect(disclosure.onClose).not.toHaveBeenCalled();
     });
 
     it('opens a safe Spotify destination immediately and renders a fallback link', async () => {
@@ -1117,6 +1234,34 @@ describe('create-playlist route request lifecycle', () => {
     })).toBeVisible();
   });
 
+  it('keeps the create trigger mounted and restores focus after Escape', async () => {
+    mockSpotifyApi({
+      getMe: vi.fn().mockResolvedValue(userProfile()),
+      getTracks: vi.fn().mockResolvedValue({
+        tracks: [track('first'), track('second')],
+      }),
+    });
+    renderRoute(
+      '/projects/spotify/recommend/create-playlist?trackIds=first&trackIds=second',
+    );
+
+    const trigger = await screen.findByRole('button', {
+      name: 'Create playlist',
+    });
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.keyDown(await screen.findByRole('dialog'), {
+      code: 'Escape',
+      key: 'Escape',
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+    expect(trigger).toBeVisible();
+  });
+
   it('keeps stale success from replacing tracks after the query changes', async () => {
     const oldTracks = deferred<SpotifyApi.MultipleTracksResponse>();
     const getTracks = vi.fn((ids: string[]) => (
@@ -1292,15 +1437,18 @@ function renderModal({
       replaceTracksInPlaylist,
     } as never),
   };
+  const triggerRef = createRef<HTMLButtonElement>();
 
-  const modal = () => (
+  const modal = (showModal = true) => (
     <ChakraProvider theme={theme}>
-      <CreateSpotifyPlaylistModal
-        createPlaylistDisclosure={disclosure as unknown as UseDisclosureReturn}
-        guardedSpotifyApi={guardedSpotifyApi}
-        recommendedTracks={[track('first'), track('second')]}
-        spotifyUserId='spotify-user'
-      />
+      <button ref={triggerRef} type='button'>Create playlist trigger</button>
+      {showModal && <CreateSpotifyPlaylistModal
+          createPlaylistDisclosure={disclosure as unknown as UseDisclosureReturn}
+          finalFocusRef={triggerRef}
+          guardedSpotifyApi={guardedSpotifyApi}
+          recommendedTracks={[track('first'), track('second')]}
+          spotifyUserId='spotify-user'
+        />}
     </ChakraProvider>
   );
   const view = render(wrapper ? wrapper(modal()) : modal());
@@ -1313,7 +1461,41 @@ function renderModal({
     ...view,
     disclosure,
     setOpen,
+    trigger: triggerRef.current,
+    unmountModal: () => {
+      view.rerender(modal(false));
+    },
   };
+}
+
+function closePlaylistModal(
+  closePath: 'Escape' | 'overlay' | 'header close' | 'footer close',
+) {
+  if (closePath === 'Escape') {
+    fireEvent.keyDown(screen.getByRole('dialog'), {
+      code: 'Escape',
+      key: 'Escape',
+    });
+    return;
+  }
+  if (closePath === 'overlay') {
+    const overlayContainer = document.querySelector(
+      '.chakra-modal__content-container',
+    );
+    if (!(overlayContainer instanceof HTMLElement)) {
+      throw new Error('Expected the modal overlay container.');
+    }
+    fireEvent.mouseDown(overlayContainer);
+    fireEvent.click(overlayContainer);
+    return;
+  }
+
+  const closeButtons = screen.getAllByRole('button', { name: 'Close' });
+  fireEvent.click(
+    closePath === 'header close'
+      ? closeButtons[0]
+      : closeButtons[closeButtons.length - 1],
+  );
 }
 
 const suspendedRender = new Promise<never>(() => undefined);

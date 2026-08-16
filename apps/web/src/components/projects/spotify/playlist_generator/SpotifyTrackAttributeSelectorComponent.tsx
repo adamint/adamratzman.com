@@ -1,70 +1,78 @@
 import { tuneableTrackAttributes } from '../TrackAttribute';
 import {
-  AutoComplete,
-  AutoCompleteInput,
-  AutoCompleteItem,
-  AutoCompleteList,
-  AutoCompleteTag,
-} from '@choc-ui/chakra-autocomplete';
-import { Box, Heading } from '@chakra-ui/react';
+  Box,
+  Checkbox,
+  Heading,
+  SimpleGrid,
+} from '@chakra-ui/react';
 import { SelectedTrackAttribute } from '../../../../routes/projects/spotify/recommend';
 import React from 'react';
 import { SetTrackAttributeValueAndTypeComponent } from './SetTrackAttributeValueAndTypeComponent';
 
 type SpotifyTrackAttributeSelectorComponentProps = {
   selectedTrackAttributes: SelectedTrackAttribute[];
-  setSelectedTrackAttributes: Function;
+  setSelectedTrackAttributes: (attributes: SelectedTrackAttribute[]) => void;
 }
 
 export function SpotifyTrackAttributeSelectorComponent({
                                                          selectedTrackAttributes,
                                                          setSelectedTrackAttributes,
                                                        }: SpotifyTrackAttributeSelectorComponentProps) {
-  function handleSelectedAttributesChanged(newSelectedAttributes: string[]) {
-    const filteredNewSelectedAttributes = selectedTrackAttributes.filter((attribute: SelectedTrackAttribute) => newSelectedAttributes.includes(attribute.id));
-    newSelectedAttributes.filter(newAttribute => !filteredNewSelectedAttributes.some((attr: SelectedTrackAttribute) => newAttribute === attr.id)).forEach(newAttributeToAdd => {
-      const trackAttr = tuneableTrackAttributes.find(tuneableTrackAttribute => tuneableTrackAttribute.id === newAttributeToAdd);
-      if (trackAttr) {
-        const attributeWithValue: SelectedTrackAttribute = {
-          id: trackAttr.id,
-          value: trackAttr.defaultValue,
-          trackAttribute: trackAttr,
-          type: 'target',
-        };
-        filteredNewSelectedAttributes.push(attributeWithValue);
-      }
-    });
+  function handleSelectedAttributeChanged(
+    attributeId: SelectedTrackAttribute['id'],
+    selected: boolean,
+  ) {
+    if (!selected) {
+      setSelectedTrackAttributes(
+        selectedTrackAttributes.filter(attribute => attribute.id !== attributeId),
+      );
+      return;
+    }
+    if (selectedTrackAttributes.some(attribute => attribute.id === attributeId)) {
+      return;
+    }
 
-    setSelectedTrackAttributes(filteredNewSelectedAttributes);
+    const trackAttribute = tuneableTrackAttributes.find(
+      attribute => attribute.id === attributeId,
+    );
+    if (!trackAttribute) return;
+    setSelectedTrackAttributes([
+      ...selectedTrackAttributes,
+      {
+        id: trackAttribute.id,
+        trackAttribute,
+        type: 'target',
+        value: trackAttribute.defaultValue,
+      },
+    ]);
   }
 
   return <Box mb={5}>
-    <AutoComplete openOnFocus suggestWhenEmpty multiple onChange={handleSelectedAttributesChanged}>
-      <AutoCompleteInput variant='filled' placeholder='Enter an attribute...'>
-        {({ tags }) =>
-          tags.map((tag, tid) => (
-            <AutoCompleteTag
-              key={tid}
-              label={tag.label}
-              onRemove={tag.onRemove}
-            />
-          ))
-        }
-      </AutoCompleteInput>
-      <AutoCompleteList maxH='100%'>
+    <Box as='fieldset' border={0} m={0} p={0}>
+      <Box as='legend' fontWeight='semibold' mb={2}>
+        Spotify track attributes
+      </Box>
+      <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={2}>
         {tuneableTrackAttributes.map(trackAttribute => (
-          <AutoCompleteItem
-            key={`option-${trackAttribute.id}`}
-            value={trackAttribute.id}>
+          <Checkbox
+            isChecked={selectedTrackAttributes.some(
+              attribute => attribute.id === trackAttribute.id,
+            )}
+            key={trackAttribute.id}
+            onChange={event => handleSelectedAttributeChanged(
+              trackAttribute.id,
+              event.target.checked,
+            )}
+          >
             {trackAttribute.name}
-          </AutoCompleteItem>
+          </Checkbox>
         ))}
-      </AutoCompleteList>
-    </AutoComplete>
+      </SimpleGrid>
+    </Box>
 
     {selectedTrackAttributes.length > 0 && <Box mt={5}>
-      <Heading size='md' variant='semiLight' mb={3}>Track attribute values</Heading>
-      {selectedTrackAttributes.sort((attr1, attr2) => attr1.id.localeCompare(attr2.id))
+      <Heading as='h3' size='md' variant='semiLight' mb={3}>Track attribute values</Heading>
+      {[...selectedTrackAttributes].sort((attr1, attr2) => attr1.id.localeCompare(attr2.id))
         .map(selectedAttribute => <SetTrackAttributeValueAndTypeComponent key={selectedAttribute.id}
                                                                           selectedAttribute={selectedAttribute}
                                                                           selectedTrackAttributes={selectedTrackAttributes}

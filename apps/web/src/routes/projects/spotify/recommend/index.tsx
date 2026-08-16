@@ -18,6 +18,7 @@ export type AutocompleteOption = {
   uri: string;
   text: string;
   additionalText?: string;
+  displayText?: string;
   textMapper: () => React.ReactElement,
   type: AutocompleteType
 }

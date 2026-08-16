@@ -121,6 +121,7 @@ function CreatePlaylistFromRecommendationsContent({
   const location = useLocation();
   const noShowBeforeRender = useNoShowBeforeRender();
   const createPlaylistDisclosure = useDisclosure({ defaultIsOpen: false });
+  const createPlaylistTriggerRef = useRef<HTMLButtonElement>(null);
   const producer = useMemo(() => {
     if (!spotifyTokenInfo) return null;
 
@@ -183,9 +184,17 @@ function CreatePlaylistFromRecommendationsContent({
                   Your playlist will include the tracks shown below.
                 </AlertDescription>
               </Alert>}
-              {!createPlaylistDisclosure.isOpen && <Box mb={10}>
-                <Button colorScheme='green' onClick={createPlaylistDisclosure.onOpen}>Create playlist</Button>
-              </Box>}
+              <Box mb={10}>
+                <Button
+                  aria-expanded={createPlaylistDisclosure.isOpen}
+                  aria-haspopup='dialog'
+                  colorScheme='green'
+                  onClick={createPlaylistDisclosure.onOpen}
+                  ref={createPlaylistTriggerRef}
+                >
+                  Create playlist
+                </Button>
+              </Box>
 
               <Box>
                 <Heading size='lg' mb={2}>Tracks</Heading>
@@ -196,6 +205,7 @@ function CreatePlaylistFromRecommendationsContent({
 
               <CreateSpotifyPlaylistModal guardedSpotifyApi={guardedSpotifyApi}
                                           createPlaylistDisclosure={createPlaylistDisclosure}
+                                          finalFocusRef={createPlaylistTriggerRef}
                                           spotifyUserId={data.spotifyUserId}
                                           recommendedTracks={data.recommendedTracks} />
             </>}

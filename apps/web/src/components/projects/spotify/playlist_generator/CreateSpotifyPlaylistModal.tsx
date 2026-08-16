@@ -23,7 +23,13 @@ import {
 import { Field, FieldProps, Form, Formik } from 'formik';
 import { PkceGuardedSpotifyWebApiJs } from '../../../../spotify-utils/auth/SpotifyAuthUtils';
 import { UseDisclosureReturn } from '@chakra-ui/hooks';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 import { ChakraRouterLink } from '../../../utils/ChakraRouterLink';
 import { z } from 'zod';
 import { isSpotifyTrackId } from '../../../../api/spotifyBrowserValidation';
@@ -76,6 +82,7 @@ type PendingPlaylistReadResult =
 type CreateSpotifyPlaylistModalProps = {
   guardedSpotifyApi: PkceGuardedSpotifyWebApiJs;
   createPlaylistDisclosure: UseDisclosureReturn;
+  finalFocusRef: RefObject<HTMLButtonElement>;
   spotifyUserId: string;
   recommendedTracks: SpotifyApi.TrackObjectFull[];
 }
@@ -344,11 +351,15 @@ function completePlaylistRecovery(
 export function CreateSpotifyPlaylistModal({
                                              guardedSpotifyApi,
                                              createPlaylistDisclosure,
+                                             finalFocusRef,
                                              spotifyUserId,
                                              recommendedTracks,
                                            }: CreateSpotifyPlaylistModalProps) {
   const toast = useToast();
+  const mountedRef = useRef(false);
   const submittingRef = useRef(false);
+  const disclosureOpenRef = useRef(createPlaylistDisclosure.isOpen);
+  disclosureOpenRef.current = createPlaylistDisclosure.isOpen;
   const [submitting, setSubmitting] = useState(false);
   const trackUris = useMemo(
     () => recommendedTracks.map(track => track.uri),
@@ -375,6 +386,13 @@ export function CreateSpotifyPlaylistModal({
     || unrecoverablePlaylist;
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const readResult = readPendingPlaylistStorage(
       spotifyUserId,
       trackUris,
@@ -393,10 +411,12 @@ export function CreateSpotifyPlaylistModal({
       : readResult.kind === 'unrecoverable'
         ? readResult.marker
         : null;
-    setHydratedRecovery({
-      recovery: nextRecovery,
-      scopeKey: recoveryScopeKey,
-    });
+    if (mountedRef.current) {
+      setHydratedRecovery({
+        recovery: nextRecovery,
+        scopeKey: recoveryScopeKey,
+      });
+    }
   }, [recoveryScopeKey, spotifyUserId, trackUris]);
 
   function validatePlaylistName(value: string) {
@@ -404,16 +424,16 @@ export function CreateSpotifyPlaylistModal({
   }
 
   function closeModal() {
+    disclosureOpenRef.current = false;
     createPlaylistDisclosure.onClose();
   }
 
   return <Modal blockScrollOnMount={false}
-                closeOnEsc={!submitting}
-                closeOnOverlayClick={!submitting}
+                closeOnEsc
+                closeOnOverlayClick
+                finalFocusRef={finalFocusRef}
                 isOpen={createPlaylistDisclosure.isOpen}
-                onClose={() => {
-                  if (!submitting) closeModal();
-                }}>
+                onClose={closeModal}>
     <ModalOverlay />
     <Formik
       enableReinitialize
@@ -425,11 +445,11 @@ export function CreateSpotifyPlaylistModal({
           || unrecoverablePlaylist
           || submittingRef.current
         ) {
-          actions.setSubmitting(false);
+          if (mountedRef.current) actions.setSubmitting(false);
           return;
         }
         submittingRef.current = true;
-        setSubmitting(true);
+        if (mountedRef.current) setSubmitting(true);
         let pendingPlaylistForAttempt = activePendingPlaylist;
         const playlistCreationOptions: PlaylistCreationOptions = {
           name: values.playlistName,
@@ -463,20 +483,24 @@ export function CreateSpotifyPlaylistModal({
                   recoveryScopeKey,
                 );
               }
-              setHydratedRecovery({
-                recovery: unrecoverableMarker ?? { kind: 'unrecoverable' },
-                scopeKey: recoveryScopeKey,
-              });
+              if (mountedRef.current) {
+                setHydratedRecovery({
+                  recovery: unrecoverableMarker ?? { kind: 'unrecoverable' },
+                  scopeKey: recoveryScopeKey,
+                });
+              }
               return;
             }
             storePlaylistRecovery(
               pendingPlaylistForAttempt,
               recoveryScopeKey,
             );
-            setHydratedRecovery({
-              recovery: pendingPlaylistForAttempt,
-              scopeKey: recoveryScopeKey,
-            });
+            if (mountedRef.current) {
+              setHydratedRecovery({
+                recovery: pendingPlaylistForAttempt,
+                scopeKey: recoveryScopeKey,
+              });
+            }
           }
 
           await spotifyApi.replaceTracksInPlaylist(
@@ -489,13 +513,15 @@ export function CreateSpotifyPlaylistModal({
             trackUris,
             recoveryScopeKey,
           );
-          setHydratedRecovery({
-            recovery: null,
-            scopeKey: recoveryScopeKey,
-          });
-          actions.resetForm({
-            values: createDefaultPlaylistFormValues(),
-          });
+          if (mountedRef.current) {
+            setHydratedRecovery({
+              recovery: null,
+              scopeKey: recoveryScopeKey,
+            });
+            actions.resetForm({
+              values: createDefaultPlaylistFormValues(),
+            });
+          }
           if (spotifyUrlForPlaylist) {
             try {
               window.open(
@@ -507,7 +533,7 @@ export function CreateSpotifyPlaylistModal({
               // The persistent toast link remains available if opening a tab fails.
             }
           }
-          closeModal();
+          if (mountedRef.current && disclosureOpenRef.current) closeModal();
           toast({
             duration: null,
             isClosable: true,
@@ -532,8 +558,10 @@ export function CreateSpotifyPlaylistModal({
           }
         } finally {
           submittingRef.current = false;
-          setSubmitting(false);
-          actions.setSubmitting(false);
+          if (mountedRef.current) {
+            setSubmitting(false);
+            actions.setSubmitting(false);
+          }
         }
       }}
     >
@@ -541,7 +569,7 @@ export function CreateSpotifyPlaylistModal({
         <Form>
           <ModalContent>
             <ModalHeader>Create your new Spotify playlist</ModalHeader>
-            <ModalCloseButton isDisabled={submitting} />
+            <ModalCloseButton />
             <ModalBody>
               {activePendingPlaylist && !submitting && <Alert status='warning' mb={4} alignItems='start'>
                 <AlertIcon mt={1} />
@@ -647,7 +675,7 @@ export function CreateSpotifyPlaylistModal({
                                                                            }}>
                 Abandon playlist and reset
               </Button>}
-              <Button variant='ghost' mr={3} isDisabled={submitting}
+              <Button variant='ghost' mr={3}
                       onClick={closeModal} type='button'>Close</Button>
               {!unrecoverablePlaylist && <Button colorScheme='blue' type='submit'
                                                  isDisabled={!recoveryHydrated || props.isSubmitting}
