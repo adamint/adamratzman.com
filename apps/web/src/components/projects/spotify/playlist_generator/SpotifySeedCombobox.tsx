@@ -7,6 +7,7 @@ import {
   Text,
   Wrap,
   WrapItem,
+  useColorModeValue,
 } from '@chakra-ui/react';
 import {
   useEffect,
@@ -50,6 +51,10 @@ export function SpotifySeedCombobox({
   selectedObjects,
 }: SpotifySeedComboboxProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const activeOptionBackground = useColorModeValue(
+    'gray.100',
+    'whiteAlpha.200',
+  );
   const instanceId = useId().replaceAll(':', '');
   const inputId = `spotify-search-input-${instanceId}`;
   const listboxId = `spotify-search-suggestions-${instanceId}`;
@@ -153,6 +158,7 @@ export function SpotifySeedCombobox({
       aria-controls={listboxOpen ? listboxId : undefined}
       aria-expanded={listboxOpen}
       aria-label='Spotify tracks, artists, or genres'
+      aria-owns={listboxOpen ? listboxId : undefined}
       autoComplete='off'
       autoFocus
       id={inputId}
@@ -168,6 +174,7 @@ export function SpotifySeedCombobox({
     />
     {listboxOpen && <Box
       aria-label='Spotify search suggestions'
+      aria-multiselectable='true'
       as='ul'
       borderColor='gray.200'
       borderRadius='md'
@@ -181,49 +188,54 @@ export function SpotifySeedCombobox({
       p={0}
       role='listbox'
     >
-      {optionGroups.map(group => {
+      {optionGroups.flatMap(group => {
         const groupedOptions = options.filter(
           option => option.type === group.type,
         );
-        if (groupedOptions.length === 0) return null;
+        if (groupedOptions.length === 0) return [];
 
-        return <Box
-          as='li'
-          borderBottomWidth={group.type === 'genre' ? 0 : '1px'}
-          key={group.type}
-          listStyleType='none'
-          role='presentation'
-        >
-          <Text fontWeight='bold' px={3} py={2} textDecoration='underline'>
-            {group.label}
-          </Text>
-          <Box as='ul' listStyleType='none' m={0} p={0} role='presentation'>
-            {groupedOptions.map(option => {
-              const optionIndex = displayedOptions.indexOf(option);
-              const active = optionIndex === activeIndex;
-              const selected = selectedObjects[option.uri] !== undefined;
+        return [
+          <Box
+            as='li'
+            key={`${group.type}-heading`}
+            listStyleType='none'
+            role='presentation'
+          >
+            <Text fontWeight='bold' px={3} py={2} textDecoration='underline'>
+              {group.label}
+            </Text>
+          </Box>,
+          ...groupedOptions.map((option, groupIndex) => {
+            const optionIndex = displayedOptions.indexOf(option);
+            const active = optionIndex === activeIndex;
+            const selected = selectedObjects[option.uri] !== undefined;
 
-              return <Box
-                aria-selected={selected}
-                as='li'
-                bg={active ? 'gray.100' : undefined}
-                cursor='pointer'
-                id={getOptionId(listboxId, option.uri)}
-                key={option.uri}
-                onClick={() => selectOption(option)}
-                onMouseMove={() => setActiveIndex(optionIndex)}
-                onPointerDown={(event: PointerEvent<HTMLLIElement>) => {
-                  event.preventDefault();
-                }}
-                px={3}
-                py={2}
-                role='option'
-              >
-                {option.textMapper()}
-              </Box>;
-            })}
-          </Box>
-        </Box>;
+            return <Box
+              aria-selected={selected}
+              as='li'
+              bg={active ? activeOptionBackground : undefined}
+              borderBottomWidth={
+                group.type !== 'genre'
+                && groupIndex === groupedOptions.length - 1
+                  ? '1px'
+                  : 0
+              }
+              cursor='pointer'
+              id={getOptionId(listboxId, option.uri)}
+              key={option.uri}
+              onClick={() => selectOption(option)}
+              onMouseMove={() => setActiveIndex(optionIndex)}
+              onPointerDown={(event: PointerEvent<HTMLLIElement>) => {
+                event.preventDefault();
+              }}
+              px={3}
+              py={2}
+              role='option'
+            >
+              {option.textMapper()}
+            </Box>;
+          }),
+        ];
       })}
     </Box>}
   </Box>;

@@ -198,6 +198,33 @@ describe('accessible site console', () => {
     expect(localStorage.getItem('show_console')).toBe('false');
   });
 
+  it('keeps the open panel and closed trigger below modal content', async () => {
+    const user = userEvent.setup();
+    const zIndices = (theme as {
+      zIndices: { modal: number; overlay: number };
+    }).zIndices;
+    renderConsole({ desktop: true });
+
+    expect(zIndices.overlay).toBeLessThan(zIndices.modal);
+    const consoleRegion = await screen.findByRole('region', {
+      name: 'Interactive site console',
+    });
+    expect(getComputedStyle(consoleRegion).zIndex).toBe(
+      'var(--chakra-zIndices-overlay)',
+    );
+
+    await user.click(screen.getByRole('button', {
+      name: 'Close interactive site console',
+    }));
+
+    const openButton = await screen.findByRole('button', {
+      name: 'Open interactive site console',
+    });
+    expect(getComputedStyle(openButton).zIndex).toBe(
+      'var(--chakra-zIndices-overlay)',
+    );
+  });
+
   it('moves focus from the removed launcher to the command input after opening', async () => {
     const user = userEvent.setup();
     const requestAnimationFrame = stubDeferredRequestAnimationFrame();

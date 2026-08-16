@@ -34,6 +34,7 @@ import { renderWithRouter } from './render';
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -251,10 +252,12 @@ describe('Spotify seed and attribute controls', () => {
     });
     expect(combobox).toHaveAttribute('aria-expanded', 'true');
     expect(combobox).toHaveAttribute('aria-controls', listbox.id);
+    expect(combobox).toHaveAttribute('aria-owns', listbox.id);
     const options = within(listbox).getAllByRole('option');
     expect(options.length).toBeGreaterThan(0);
     expect(options.every(option => option.id.length > 0)).toBe(true);
     expect(options.every(option => option.closest('[role="listbox"]') === listbox)).toBe(true);
+    expect(options.every(option => option.parentElement === listbox)).toBe(true);
 
     await user.click(combobox);
     await user.keyboard('{ArrowDown}');
@@ -264,6 +267,64 @@ describe('Spotify seed and attribute controls', () => {
       options[0].id,
     );
     expect(options[0]).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('declares the suggestion list as multiselectable', async () => {
+    const user = userEvent.setup();
+    const track: AutocompleteOption = {
+      additionalText: 'Selected Artist',
+      text: 'Selected Track',
+      textMapper: () => <><b>Selected Track</b> by Selected Artist</>,
+      type: 'track',
+      uri: 'spotify:track:selectedtrack',
+    };
+    render(
+      <ChakraProvider theme={theme}>
+        <SeedComboboxHarness options={[track]} />
+      </ChakraProvider>,
+    );
+
+    await user.click(screen.getByRole('combobox', {
+      name: 'Spotify tracks, artists, or genres',
+    }));
+
+    expect(screen.getByRole('listbox', {
+      name: 'Spotify search suggestions',
+    })).toHaveAttribute('aria-multiselectable', 'true');
+  });
+
+  it('uses a readable active option background in dark mode', async () => {
+    localStorage.setItem('chakra-ui-color-mode', 'dark');
+    const user = userEvent.setup();
+    const track: AutocompleteOption = {
+      additionalText: 'Dark Artist',
+      text: 'Dark Track',
+      textMapper: () => <><b>Dark Track</b> by Dark Artist</>,
+      type: 'track',
+      uri: 'spotify:track:darktrack',
+    };
+    render(
+      <ChakraProvider theme={theme}>
+        <SeedComboboxHarness options={[track]} />
+      </ChakraProvider>,
+    );
+
+    const combobox = screen.getByRole('combobox', {
+      name: 'Spotify tracks, artists, or genres',
+    });
+    await user.click(combobox);
+    await user.keyboard('{ArrowDown}');
+
+    const activeOption = screen.getByRole('option', {
+      name: /Dark Track/u,
+    });
+    expect(combobox).toHaveAttribute(
+      'aria-activedescendant',
+      activeOption.id,
+    );
+    expect(getComputedStyle(activeOption).background).toBe(
+      'var(--chakra-colors-whitealpha-200)',
+    );
   });
 
   it('selects a seed with the keyboard', async () => {
@@ -421,6 +482,7 @@ describe('Spotify seed and attribute controls', () => {
     expect(combobox).toHaveValue('');
     expect(combobox).toHaveAttribute('aria-expanded', 'false');
     expect(combobox).not.toHaveAttribute('aria-controls');
+    expect(combobox).not.toHaveAttribute('aria-owns');
     expect(screen.queryByRole('listbox', {
       name: 'Spotify search suggestions',
     })).not.toBeInTheDocument();

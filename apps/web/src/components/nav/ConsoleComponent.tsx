@@ -220,7 +220,7 @@ export function ConsoleComponent() {
         ref={openButtonRef}
         right={4}
         size="sm"
-        zIndex="popover"
+        zIndex="overlay"
       >
         Open interactive site console
       </Button>
@@ -245,7 +245,7 @@ export function ConsoleComponent() {
       right={4}
       role="region"
       w="min(32rem, calc(100vw - 2rem))"
-      zIndex="popover"
+      zIndex="overlay"
     >
       <VStack align="stretch" spacing={3}>
         <HStack justify="space-between">

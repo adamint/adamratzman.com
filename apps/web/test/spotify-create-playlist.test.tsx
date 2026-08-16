@@ -431,6 +431,148 @@ describe('playlist creation modal', () => {
       expect(submitButton).toBeEnabled();
     });
 
+    it('rejoins a deferred create after the modal component remounts', async () => {
+      vi.spyOn(window, 'open').mockImplementation(() => null);
+      const playlistRequest = deferred<SpotifyApi.CreatePlaylistResponse>();
+      const createPlaylist = vi.fn().mockReturnValue(playlistRequest.promise);
+      const replaceTracksInPlaylist = vi.fn().mockResolvedValue({});
+      const {
+        remountModal,
+        unmountModal,
+      } = renderModal({
+        createPlaylist,
+        replaceTracksInPlaylist,
+      });
+
+      submitPlaylist({ description: 'Remounted attempt' });
+      await waitFor(() => {
+        expect(createPlaylist).toHaveBeenCalledOnce();
+      });
+
+      const storedPreflight = sessionStorage.getItem(
+        spotifyPendingPlaylistStorageKey,
+      );
+      expect.soft(storedPreflight).not.toBeNull();
+      if (storedPreflight) {
+        expect.soft(JSON.parse(storedPreflight)).toEqual({
+          kind: 'unrecoverable',
+          spotifyUserId: 'spotify-user',
+          trackUris: ['spotify:track:first', 'spotify:track:second'],
+        });
+      }
+
+      unmountModal();
+      remountModal();
+
+      const remountedSubmit = screen.getByRole('button', {
+        name: /Create Playlist/u,
+      });
+      const remountedName = screen.getByLabelText('Playlist name');
+      expect.soft(remountedName).toBeDisabled();
+      expect.soft(screen.getByLabelText('Playlist description')).toBeDisabled();
+      expect.soft(remountedSubmit).toBeDisabled();
+      expect.soft(remountedSubmit).toHaveAttribute('data-loading');
+      const abandonButton = screen.queryByRole('button', {
+        name: 'Abandon playlist and reset',
+      });
+      expect.soft(abandonButton).not.toBeNull();
+      if (abandonButton) expect.soft(abandonButton).toBeDisabled();
+
+      if (!remountedName.hasAttribute('disabled')) {
+        fireEvent.change(remountedName, {
+          target: { value: 'Duplicate playlist' },
+        });
+      }
+      fireEvent.click(remountedSubmit);
+      expect.soft(createPlaylist).toHaveBeenCalledOnce();
+
+      playlistRequest.resolve(createdPlaylist(
+        'https://open.spotify.com/playlist/created',
+      ));
+      await act(async () => {
+        await playlistRequest.promise;
+      });
+
+      await waitFor(() => {
+        expect(replaceTracksInPlaylist).toHaveBeenCalledOnce();
+      });
+      expect(await screen.findByText(
+        'Successfully created playlist.',
+      )).toBeVisible();
+      expect(createPlaylist).toHaveBeenCalledOnce();
+      expect(sessionStorage.getItem(
+        spotifyPendingPlaylistStorageKey,
+      )).toBeNull();
+    });
+
+    it('keeps a reopened Formik tree locked until a deferred create failure settles', async () => {
+      const playlistRequest = deferred<SpotifyApi.CreatePlaylistResponse>();
+      const createPlaylist = vi.fn().mockReturnValue(playlistRequest.promise);
+      const {
+        disclosure,
+        setOpen,
+      } = renderModal({
+        createPlaylist,
+        replaceTracksInPlaylist: vi.fn(),
+      });
+
+      submitPlaylist();
+      await waitFor(() => {
+        expect(createPlaylist).toHaveBeenCalledOnce();
+      });
+
+      closePlaylistModal('footer close');
+      expect(disclosure.onClose).toHaveBeenCalledOnce();
+      setOpen(false);
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      setOpen(true);
+
+      const reopenedSubmit = screen.getByRole('button', {
+        name: /Create Playlist/u,
+      });
+      const reopenedName = screen.getByLabelText('Playlist name');
+      expect.soft(reopenedName).toBeDisabled();
+      expect.soft(screen.getByLabelText('Playlist description')).toBeDisabled();
+      expect.soft(reopenedSubmit).toBeDisabled();
+      expect.soft(reopenedSubmit).toHaveAttribute('data-loading');
+
+      if (!reopenedName.hasAttribute('disabled')) {
+        fireEvent.change(reopenedName, {
+          target: { value: 'Duplicate playlist' },
+        });
+      }
+      fireEvent.click(reopenedSubmit);
+      expect.soft(createPlaylist).toHaveBeenCalledOnce();
+
+      playlistRequest.reject({
+        response: 'RAW REOPENED CREATE SECRET',
+        statusText: 'RAW REOPENED CREATE STATUS',
+      });
+      await act(async () => {
+        await playlistRequest.promise.catch(() => undefined);
+      });
+
+      await waitFor(() => {
+        const errors = screen.getAllByText(
+          'Failed to create playlist. Please reload the page and try again',
+        );
+        expect(errors.at(-1)).toBeVisible();
+      });
+      expect(document.body).not.toHaveTextContent('RAW REOPENED CREATE SECRET');
+      expect(document.body).not.toHaveTextContent('RAW REOPENED CREATE STATUS');
+      expect(sessionStorage.getItem(
+        spotifyPendingPlaylistStorageKey,
+      )).toBeNull();
+      expect(screen.getByLabelText('Playlist name')).toBeEnabled();
+      expect(screen.getByLabelText('Playlist description')).toBeEnabled();
+      expect(screen.getByRole('button', {
+        name: 'Create Playlist',
+      })).toBeEnabled();
+      expect(createPlaylist).toHaveBeenCalledOnce();
+    });
+
     it.each([
       'Escape',
       'overlay',
@@ -1464,6 +1606,9 @@ function renderModal({
     trigger: triggerRef.current,
     unmountModal: () => {
       view.rerender(modal(false));
+    },
+    remountModal: () => {
+      view.rerender(modal());
     },
   };
 }

@@ -149,6 +149,7 @@ const storedPlaylistRecoverySchema = z.union([
 
 const volatilePlaylistRecovery = new Map<string, PendingPlaylist | PlaylistRecoveryMarker>();
 const volatileRecoveryFallbackScopes = new Set<string>();
+const playlistCreationAttempts = new Map<string, Promise<void>>();
 
 function isSpotifyTrackUri(value: string) {
   const match = /^spotify:track:([^:]+)$/u.exec(value);
@@ -348,6 +349,31 @@ function completePlaylistRecovery(
   removePendingPlaylistStorage(scopeKey);
 }
 
+function loadPlaylistRecovery(
+  spotifyUserId: string,
+  trackUris: string[],
+  scopeKey: string,
+): PlaylistRecovery | null {
+  const readResult = readPendingPlaylistStorage(
+    spotifyUserId,
+    trackUris,
+    scopeKey,
+  );
+
+  if (readResult.kind === 'malformed' || readResult.kind === 'mismatched') {
+    volatilePlaylistRecovery.delete(scopeKey);
+    removePendingPlaylistStorage(scopeKey);
+  } else if (readResult.kind === 'completed') {
+    removePendingPlaylistStorage(scopeKey);
+  }
+
+  return readResult.kind === 'pending'
+    ? readResult.pendingPlaylist
+    : readResult.kind === 'unrecoverable'
+      ? readResult.marker
+      : null;
+}
+
 export function CreateSpotifyPlaylistModal({
                                              guardedSpotifyApi,
                                              createPlaylistDisclosure,
@@ -382,6 +408,7 @@ export function CreateSpotifyPlaylistModal({
     && 'kind' in recovery
     && recovery.kind === 'unrecoverable';
   const formLocked = !recoveryHydrated
+    || submitting
     || activePendingPlaylist !== null
     || unrecoverablePlaylist;
 
@@ -393,30 +420,39 @@ export function CreateSpotifyPlaylistModal({
   }, []);
 
   useEffect(() => {
-    const readResult = readPendingPlaylistStorage(
-      spotifyUserId,
-      trackUris,
-      recoveryScopeKey,
-    );
-
-    if (readResult.kind === 'malformed' || readResult.kind === 'mismatched') {
-      volatilePlaylistRecovery.delete(recoveryScopeKey);
-      removePendingPlaylistStorage(recoveryScopeKey);
-    } else if (readResult.kind === 'completed') {
-      removePendingPlaylistStorage(recoveryScopeKey);
-    }
-
-    const nextRecovery = readResult.kind === 'pending'
-      ? readResult.pendingPlaylist
-      : readResult.kind === 'unrecoverable'
-        ? readResult.marker
-        : null;
+    const activeAttempt = playlistCreationAttempts.get(recoveryScopeKey);
+    const attemptActive = activeAttempt !== undefined;
+    submittingRef.current = attemptActive;
+    setSubmitting(attemptActive);
     if (mountedRef.current) {
       setHydratedRecovery({
-        recovery: nextRecovery,
+        recovery: loadPlaylistRecovery(
+          spotifyUserId,
+          trackUris,
+          recoveryScopeKey,
+        ),
         scopeKey: recoveryScopeKey,
       });
     }
+
+    if (!activeAttempt) return;
+    let cancelled = false;
+    void activeAttempt.then(() => {
+      if (cancelled || !mountedRef.current) return;
+      submittingRef.current = false;
+      setSubmitting(false);
+      setHydratedRecovery({
+        recovery: loadPlaylistRecovery(
+          spotifyUserId,
+          trackUris,
+          recoveryScopeKey,
+        ),
+        scopeKey: recoveryScopeKey,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [recoveryScopeKey, spotifyUserId, trackUris]);
 
   function validatePlaylistName(value: string) {
@@ -439,18 +475,55 @@ export function CreateSpotifyPlaylistModal({
       enableReinitialize
       initialValues={activePendingPlaylist?.formValues
         ?? createDefaultPlaylistFormValues()}
-      onSubmit={async (values, actions) => {
+      onSubmit={(values) => {
+        const activeAttempt = playlistCreationAttempts.get(recoveryScopeKey);
+        if (submittingRef.current) {
+          return activeAttempt ?? Promise.resolve();
+        }
+        if (activeAttempt) {
+          submittingRef.current = true;
+          if (mountedRef.current) setSubmitting(true);
+          void activeAttempt.then(() => {
+            submittingRef.current = false;
+            if (mountedRef.current) {
+              setSubmitting(false);
+              setHydratedRecovery({
+                recovery: loadPlaylistRecovery(
+                  spotifyUserId,
+                  trackUris,
+                  recoveryScopeKey,
+                ),
+                scopeKey: recoveryScopeKey,
+              });
+            }
+          });
+          return activeAttempt;
+        }
         if (
           !recoveryHydrated
           || unrecoverablePlaylist
-          || submittingRef.current
         ) {
-          if (mountedRef.current) actions.setSubmitting(false);
-          return;
+          return Promise.resolve();
         }
         submittingRef.current = true;
         if (mountedRef.current) setSubmitting(true);
         let pendingPlaylistForAttempt = activePendingPlaylist;
+        if (!pendingPlaylistForAttempt) {
+          const preflightMarker = createPlaylistRecoveryMarker(
+            'unrecoverable',
+            spotifyUserId,
+            trackUris,
+          );
+          if (preflightMarker) {
+            storePlaylistRecovery(preflightMarker, recoveryScopeKey);
+          }
+          if (mountedRef.current) {
+            setHydratedRecovery({
+              recovery: preflightMarker ?? { kind: 'unrecoverable' },
+              scopeKey: recoveryScopeKey,
+            });
+          }
+        }
         const playlistCreationOptions: PlaylistCreationOptions = {
           name: values.playlistName,
           public: values.playlistShouldBePublic,
@@ -458,111 +531,121 @@ export function CreateSpotifyPlaylistModal({
         };
         if (values.playlistDescription.length > 0) playlistCreationOptions['description'] = values.playlistDescription;
 
-        try {
-          const spotifyApi = await guardedSpotifyApi.getApi();
-          if (!pendingPlaylistForAttempt) {
-            const playlist = await spotifyApi.createPlaylist(
-              spotifyUserId,
-              playlistCreationOptions,
-            );
-            pendingPlaylistForAttempt = createPendingPlaylist(
-              playlist,
-              spotifyUserId,
-              trackUris,
-              values,
-            );
+        const attempt = Promise.resolve().then(async () => {
+          try {
+            const spotifyApi = await guardedSpotifyApi.getApi();
             if (!pendingPlaylistForAttempt) {
-              const unrecoverableMarker = createPlaylistRecoveryMarker(
-                'unrecoverable',
+              const playlist = await spotifyApi.createPlaylist(
+                spotifyUserId,
+                playlistCreationOptions,
+              );
+              pendingPlaylistForAttempt = createPendingPlaylist(
+                playlist,
                 spotifyUserId,
                 trackUris,
+                values,
               );
-              if (unrecoverableMarker) {
-                storePlaylistRecovery(
-                  unrecoverableMarker,
-                  recoveryScopeKey,
+              if (!pendingPlaylistForAttempt) {
+                const unrecoverableMarker = createPlaylistRecoveryMarker(
+                  'unrecoverable',
+                  spotifyUserId,
+                  trackUris,
                 );
+                if (unrecoverableMarker) {
+                  storePlaylistRecovery(
+                    unrecoverableMarker,
+                    recoveryScopeKey,
+                  );
+                }
+                if (mountedRef.current) {
+                  setHydratedRecovery({
+                    recovery: unrecoverableMarker ?? { kind: 'unrecoverable' },
+                    scopeKey: recoveryScopeKey,
+                  });
+                }
+                return;
               }
+              storePlaylistRecovery(
+                pendingPlaylistForAttempt,
+                recoveryScopeKey,
+              );
               if (mountedRef.current) {
                 setHydratedRecovery({
-                  recovery: unrecoverableMarker ?? { kind: 'unrecoverable' },
+                  recovery: pendingPlaylistForAttempt,
                   scopeKey: recoveryScopeKey,
                 });
               }
-              return;
             }
-            storePlaylistRecovery(
-              pendingPlaylistForAttempt,
+
+            await spotifyApi.replaceTracksInPlaylist(
+              pendingPlaylistForAttempt.playlistId,
+              pendingPlaylistForAttempt.trackUris,
+            );
+            const spotifyUrlForPlaylist = pendingPlaylistForAttempt.spotifyUrl;
+            completePlaylistRecovery(
+              spotifyUserId,
+              trackUris,
               recoveryScopeKey,
             );
             if (mountedRef.current) {
               setHydratedRecovery({
-                recovery: pendingPlaylistForAttempt,
+                recovery: null,
                 scopeKey: recoveryScopeKey,
               });
             }
-          }
-
-          await spotifyApi.replaceTracksInPlaylist(
-            pendingPlaylistForAttempt.playlistId,
-            pendingPlaylistForAttempt.trackUris,
-          );
-          const spotifyUrlForPlaylist = pendingPlaylistForAttempt.spotifyUrl;
-          completePlaylistRecovery(
-            spotifyUserId,
-            trackUris,
-            recoveryScopeKey,
-          );
-          if (mountedRef.current) {
-            setHydratedRecovery({
-              recovery: null,
-              scopeKey: recoveryScopeKey,
+            if (spotifyUrlForPlaylist) {
+              try {
+                window.open(
+                  spotifyUrlForPlaylist,
+                  '_blank',
+                  'noopener,noreferrer',
+                );
+              } catch {
+                // The persistent toast link remains available if opening a tab fails.
+              }
+            }
+            if (mountedRef.current && disclosureOpenRef.current) closeModal();
+            toast({
+              duration: null,
+              isClosable: true,
+              status: 'success',
+              title: 'Successfully created playlist.',
+              description: spotifyUrlForPlaylist
+                ? <>Your Spotify playlist is ready. <ChakraRouterLink
+                  href={spotifyUrlForPlaylist}
+                  target='_blank'
+                >
+                  Open playlist on Spotify
+                </ChakraRouterLink></>
+                : 'Your Spotify playlist is ready.',
             });
-            actions.resetForm({
-              values: createDefaultPlaylistFormValues(),
-            });
-          }
-          if (spotifyUrlForPlaylist) {
-            try {
-              window.open(
-                spotifyUrlForPlaylist,
-                '_blank',
-                'noopener,noreferrer',
-              );
-            } catch {
-              // The persistent toast link remains available if opening a tab fails.
+          } catch {
+            if (!pendingPlaylistForAttempt) {
+              removePendingPlaylistStorage(recoveryScopeKey);
+              if (mountedRef.current) {
+                setHydratedRecovery({
+                  recovery: null,
+                  scopeKey: recoveryScopeKey,
+                });
+              }
+              toast({
+                status: 'error',
+                title: 'Failed to create playlist. Please reload the page and try again',
+              });
             }
           }
-          if (mountedRef.current && disclosureOpenRef.current) closeModal();
-          toast({
-            duration: null,
-            isClosable: true,
-            status: 'success',
-            title: 'Successfully created playlist.',
-            description: spotifyUrlForPlaylist
-              ? <>Your Spotify playlist is ready. <ChakraRouterLink
-                href={spotifyUrlForPlaylist}
-                target='_blank'
-              >
-                Open playlist on Spotify
-              </ChakraRouterLink></>
-              : 'Your Spotify playlist is ready.',
-          });
-
-        } catch {
-          if (!pendingPlaylistForAttempt) {
-            toast({
-              status: 'error',
-              title: 'Failed to create playlist. Please reload the page and try again',
-            });
+        });
+        playlistCreationAttempts.set(recoveryScopeKey, attempt);
+        void attempt.then(() => {
+          if (playlistCreationAttempts.get(recoveryScopeKey) === attempt) {
+            playlistCreationAttempts.delete(recoveryScopeKey);
           }
-        } finally {
+        });
+        void attempt.then(() => {
           submittingRef.current = false;
-          if (mountedRef.current) {
-            setSubmitting(false);
-            actions.setSubmitting(false);
-          }
-        }
+          if (mountedRef.current) setSubmitting(false);
+        });
+        return attempt;
       }}
     >
       {(props) => (
@@ -677,9 +760,9 @@ export function CreateSpotifyPlaylistModal({
               </Button>}
               <Button variant='ghost' mr={3}
                       onClick={closeModal} type='button'>Close</Button>
-              {!unrecoverablePlaylist && <Button colorScheme='blue' type='submit'
-                                                 isDisabled={!recoveryHydrated || props.isSubmitting}
-                                                 isLoading={props.isSubmitting}>
+              {(!unrecoverablePlaylist || submitting) && <Button colorScheme='blue' type='submit'
+                                                 isDisabled={!recoveryHydrated || submitting}
+                                                 isLoading={submitting}>
                 {activePendingPlaylist ? 'Retry adding tracks' : 'Create Playlist'}
               </Button>}
             </ModalFooter>
