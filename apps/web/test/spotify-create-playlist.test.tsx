@@ -578,10 +578,20 @@ describe('playlist creation modal', () => {
       });
       expect.soft(abandonButton).not.toBeNull();
       if (abandonButton) expect.soft(abandonButton).toBeDisabled();
+      fireEvent.change(remountedName, {
+        target: { value: 'Remounted playlist' },
+      });
+      expect(remountedName).toHaveValue('Remounted playlist');
 
       const remountedForm = remountedSubmit.closest('form');
       if (!remountedForm) throw new Error('Expected the remounted playlist form.');
-      fireEvent.submit(remountedForm);
+      await act(async () => {
+        fireEvent.submit(remountedForm);
+        await Promise.resolve();
+      });
+      expect(screen.queryByText(
+        'Playlist name cannot be empty',
+      )).not.toBeInTheDocument();
       expect.soft(createPlaylist).toHaveBeenCalledOnce();
 
       playlistRequest.resolve(createdPlaylist(
@@ -594,9 +604,12 @@ describe('playlist creation modal', () => {
       await waitFor(() => {
         expect(replaceTracksInPlaylist).toHaveBeenCalledOnce();
       });
-      expect(await screen.findByText(
-        'Successfully created playlist.',
-      )).toBeVisible();
+      await waitFor(() => {
+        const successMessages = screen.getAllByText(
+          'Successfully created playlist.',
+        );
+        expect(successMessages.at(-1)).toBeVisible();
+      });
       expect(createPlaylist).toHaveBeenCalledOnce();
       expect(sessionStorage.getItem(
         spotifyPendingPlaylistStorageKey,
@@ -635,10 +648,20 @@ describe('playlist creation modal', () => {
       expect.soft(screen.getByLabelText('Playlist description')).toBeDisabled();
       expect.soft(reopenedSubmit).toBeDisabled();
       expect.soft(reopenedSubmit).toHaveAttribute('data-loading');
+      fireEvent.change(reopenedName, {
+        target: { value: 'Reopened playlist' },
+      });
+      expect(reopenedName).toHaveValue('Reopened playlist');
 
       const reopenedForm = reopenedSubmit.closest('form');
       if (!reopenedForm) throw new Error('Expected the reopened playlist form.');
-      fireEvent.submit(reopenedForm);
+      await act(async () => {
+        fireEvent.submit(reopenedForm);
+        await Promise.resolve();
+      });
+      expect(screen.queryByText(
+        'Playlist name cannot be empty',
+      )).not.toBeInTheDocument();
       expect.soft(createPlaylist).toHaveBeenCalledOnce();
 
       playlistRequest.reject({
