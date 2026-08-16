@@ -87,6 +87,7 @@ vi.mock('../src/components/utils/useNoShowBeforeRender', () => ({
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   sessionStorage.clear();
   authMocks.useGuard.mockReset();
   spotifyStoreState.spotifyTokenInfo = loggedInSpotifyTokenInfo;
@@ -1536,6 +1537,31 @@ describe('create-playlist route request lifecycle', () => {
     expect(trigger).toBeVisible();
   });
 
+  it.each(['light', 'dark'])(
+    'uses AA-contrast create controls in %s mode',
+    async colorMode => {
+      localStorage.setItem('chakra-ui-color-mode', colorMode);
+      mockSpotifyApi({
+        getMe: vi.fn().mockResolvedValue(userProfile()),
+        getTracks: vi.fn().mockResolvedValue({
+          tracks: [track('first'), track('second')],
+        }),
+      });
+      renderRoute(
+        '/projects/spotify/recommend/create-playlist?trackIds=first&trackIds=second',
+      );
+
+      const trigger = await screen.findByRole('button', {
+        name: 'Create playlist',
+      });
+      expectButtonPalette(trigger, 'green');
+      fireEvent.click(trigger);
+      expectButtonPalette(await screen.findByRole('button', {
+        name: 'Create Playlist',
+      }), 'blue', true);
+    },
+  );
+
   it('keeps stale success from replacing tracks after the query changes', async () => {
     const oldTracks = deferred<SpotifyApi.MultipleTracksResponse>();
     const getTracks = vi.fn((ids: string[]) => (
@@ -1685,6 +1711,56 @@ function renderRoute(initialEntry: string) {
   ], {
     initialEntries: [initialEntry],
   });
+}
+
+function expectButtonPalette(
+  button: HTMLElement,
+  palette: 'blue' | 'green',
+  guardsDisabledHover = false,
+) {
+  const generatedClass = button.className.split(' ').at(-1);
+  const rules = Array.from(document.styleSheets)
+    .flatMap(sheet => Array.from(sheet.cssRules)) as CSSStyleRule[];
+  const baseRule = rules.find(rule => rule.selectorText === `.${generatedClass}`);
+  const hoverRule = rules.find(rule => (
+    rule.selectorText?.includes(`.${generatedClass}:hover`)
+  ));
+  const activeRule = rules.find(rule => (
+    rule.selectorText?.includes(`.${generatedClass}:active`)
+  ));
+
+  expect(baseRule?.style.background).toBe(
+    `var(--chakra-colors-${palette}-700)`,
+  );
+  expect(baseRule?.style.color).toBe('var(--chakra-colors-white)');
+  expect(hoverRule?.style.background).toBe(
+    `var(--chakra-colors-${palette}-800)`,
+  );
+  expect(activeRule?.style.background).toBe(
+    `var(--chakra-colors-${palette}-900)`,
+  );
+  if (guardsDisabledHover) {
+    const disabledHoverRule = rules.find(rule => (
+      rule.selectorText?.includes(`.${generatedClass}:hover`)
+      && (
+        rule.selectorText.includes(':disabled')
+        || rule.selectorText.includes('[data-disabled]')
+      )
+    ));
+    expect(disabledHoverRule?.style.background).toBe(
+      `var(--chakra-colors-${palette}-700)`,
+    );
+    const disabledActiveRule = rules.find(rule => (
+      rule.selectorText?.includes(`.${generatedClass}:active`)
+      && (
+        rule.selectorText.includes(':disabled')
+        || rule.selectorText.includes('[data-disabled]')
+      )
+    ));
+    expect(disabledActiveRule?.style.background).toBe(
+      `var(--chakra-colors-${palette}-700)`,
+    );
+  }
 }
 
 function renderModal({

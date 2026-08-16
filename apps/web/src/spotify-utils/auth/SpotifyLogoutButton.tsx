@@ -12,7 +12,14 @@ export function SpotifyLogoutButton({ setSpotifyTokenInfo } : SpotifyLogoutButto
     setSpotifyTokenInfo(null);
   }
 
-  return <Button backgroundColor='#1DB954' rightIcon={<FaSpotify />} onClick={handleClickLogoutButton}>
+  return <Button
+    backgroundColor='#1DB954'
+    color='gray.900'
+    rightIcon={<FaSpotify />}
+    _active={{ backgroundColor: '#169B45' }}
+    _hover={{ backgroundColor: '#1ED760' }}
+    onClick={handleClickLogoutButton}
+  >
     Log out of Spotify
   </Button>;
 }

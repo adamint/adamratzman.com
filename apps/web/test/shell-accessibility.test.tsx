@@ -64,7 +64,9 @@ describe('site shell accessibility', () => {
     expect(screen.getByRole('navigation', {
       name: 'Primary navigation',
     })).toBeVisible();
-    expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
+    expect(screen.getByRole('main', {
+      name: 'Main content',
+    })).toHaveAttribute('id', 'main-content');
     expect(screen.getByRole('contentinfo')).toBeVisible();
   });
 

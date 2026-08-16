@@ -188,9 +188,14 @@ function CreatePlaylistFromRecommendationsContent({
                 <Button
                   aria-expanded={createPlaylistDisclosure.isOpen}
                   aria-haspopup='dialog'
-                  colorScheme='green'
+                  background='green.700'
+                  borderColor='green.900'
+                  borderWidth='1px'
+                  color='white'
                   onClick={createPlaylistDisclosure.onOpen}
                   ref={createPlaylistTriggerRef}
+                  _active={{ background: 'green.900' }}
+                  _hover={{ background: 'green.800' }}
                 >
                   Create playlist
                 </Button>

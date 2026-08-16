@@ -27,6 +27,7 @@ import { ChakraRouterLink } from '../src/components/utils/ChakraRouterLink';
 import { spotifyAuthStorageKeys } from '../src/spotify-utils/auth/SpotifyAuthUtils';
 import { SpotifyCallbackIngestionTokenProducerComponent } from '../src/spotify-utils/auth/SpotifyCallbackIngestionTokenProducerComponent';
 import { SpotifyLoginButton } from '../src/spotify-utils/auth/SpotifyLoginButton';
+import { SpotifyLogoutButton } from '../src/spotify-utils/auth/SpotifyLogoutButton';
 import * as SpotifyRedirectModule from '../src/spotify-utils/auth/RedirectToSpotifyLogin';
 import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
@@ -49,6 +50,50 @@ function PersistentNavbarLayout() {
 }
 
 describe('navigation primitives', () => {
+  it('uses an explicit AA foreground on Spotify authentication buttons', () => {
+    localStorage.setItem('chakra-ui-color-mode', 'dark');
+
+    render(
+      <ChakraProvider theme={theme}>
+        <SpotifyLoginButton
+          scopes={['user-top-read']}
+          clientId="client-id"
+          redirectUri="https://example.com/projects/spotify/callback"
+          setCodeVerifier={vi.fn()}
+          redirectPathAfter="/projects/spotify/mytop"
+        />
+        <SpotifyLogoutButton setSpotifyTokenInfo={vi.fn()} />
+      </ChakraProvider>,
+    );
+
+    for (const button of screen.getAllByRole('button')) {
+      const generatedClass = button.className.split(' ').at(-1);
+      const baseRules = Array.from(document.styleSheets)
+        .flatMap(sheet => Array.from(sheet.cssRules))
+        .filter(rule => (
+          (rule as CSSStyleRule).selectorText === `.${generatedClass}`
+        )) as CSSStyleRule[];
+
+      expect(baseRules.some(rule => (
+        rule.style.color === 'var(--chakra-colors-gray-900)'
+      ))).toBe(true);
+
+      const stateRules = Array.from(document.styleSheets)
+        .flatMap(sheet => Array.from(sheet.cssRules))
+        .filter(rule => (
+          (rule as CSSStyleRule).selectorText?.includes(`.${generatedClass}:`)
+        )) as CSSStyleRule[];
+      expect(stateRules.some(rule => (
+        rule.selectorText.includes(':hover')
+        && hasCssColor(rule, '#1ed760', 'rgb(30, 215, 96)')
+      ))).toBe(true);
+      expect(stateRules.some(rule => (
+        rule.selectorText.includes(':active')
+        && hasCssColor(rule, '#169b45', 'rgb(22, 155, 69)')
+      ))).toBe(true);
+    }
+  });
+
   it('uses the Spotify login title as the route h1', () => {
     renderWithRouter([{
       path: '/',
@@ -71,6 +116,15 @@ describe('navigation primitives', () => {
       name: 'View your Spotify top tracks and artists',
     })).toBeVisible();
   });
+
+  function hasCssColor(
+    rule: CSSStyleRule,
+    hex: string,
+    rgb: string,
+  ) {
+    const cssText = rule.cssText.toLowerCase();
+    return cssText.includes(hex) || cssText.includes(rgb);
+  }
 
   it('shows a generic error when Spotify login URL generation fails', async () => {
     const user = userEvent.setup();

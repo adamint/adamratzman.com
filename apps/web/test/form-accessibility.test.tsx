@@ -16,6 +16,7 @@ import CharacterCounterRoute, { countWords } from '../src/routes/projects/charac
 import BaseConverterRoute, {
   BASE_CONVERTER_BUTTON_COLORS,
 } from '../src/routes/projects/conversion/base-converter';
+import { Pagination } from '../src/components/projects/fitness/FitnessUtils';
 import { routes } from '../src/router';
 import { theme } from '../src/theme';
 import { expectNoAxeViolations } from './a11y';
@@ -245,6 +246,63 @@ describe('keyboard-accessible triggers', () => {
     });
     expect(dialog).toBeVisible();
     expect(dialog).toHaveAttribute('aria-label', 'Ben the labradoodle');
+  });
+});
+
+describe('fitness pagination accessibility', () => {
+  it('uses AA-contrast colors for the enabled primary action', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <Pagination
+          next={{ limit: 6, offset: 1 }}
+          nextText='Back in time'
+          previous={null}
+          previousText='Further in time'
+          setLimit={() => undefined}
+          setOffset={() => undefined}
+          switchPreviousAndNext
+        >
+          Activity results
+        </Pagination>
+      </ChakraProvider>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Back in time' });
+    const generatedClass = button.className.split(' ').at(-1);
+    const rules = Array.from(document.styleSheets)
+      .flatMap(sheet => Array.from(sheet.cssRules)) as CSSStyleRule[];
+    const baseRule = rules.find(rule => rule.selectorText === `.${generatedClass}`);
+    const hoverRule = rules.find(rule => (
+      rule.selectorText?.includes(`.${generatedClass}:hover`)
+    ));
+    const activeRule = rules.find(rule => (
+      rule.selectorText?.includes(`.${generatedClass}:active`)
+    ));
+    const disabledHoverRule = rules.find(rule => (
+      rule.selectorText?.includes(`.${generatedClass}:hover`)
+      && (
+        rule.selectorText.includes(':disabled')
+        || rule.selectorText.includes('[data-disabled]')
+      )
+    ));
+    const disabledActiveRule = rules.find(rule => (
+      rule.selectorText?.includes(`.${generatedClass}:active`)
+      && (
+        rule.selectorText.includes(':disabled')
+        || rule.selectorText.includes('[data-disabled]')
+      )
+    ));
+
+    expect(baseRule?.style.background).toBe(toColorVariable('blue.700'));
+    expect(baseRule?.style.color).toBe(toColorVariable('white'));
+    expect(hoverRule?.style.background).toBe(toColorVariable('blue.800'));
+    expect(activeRule?.style.background).toBe(toColorVariable('blue.900'));
+    expect(disabledHoverRule?.style.background).toBe(
+      toColorVariable('blue.700'),
+    );
+    expect(disabledActiveRule?.style.background).toBe(
+      toColorVariable('blue.700'),
+    );
   });
 });
 

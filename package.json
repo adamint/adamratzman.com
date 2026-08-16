@@ -20,11 +20,12 @@
     "aspire:start": "npm run aspire:require-cli && aspire run --apphost apphost.mts",
     "aspire:build:auto-restore": "npm run aspire:restore && tsc -p tsconfig.apphost.json",
     "build": "npm run build --workspace @adamratzman/contracts --if-present && npm run build --workspace @adamratzman/api --if-present && npm run build --workspace @adamratzman/web && npm run aspire:build:auto-restore",
-    "typecheck": "npm run build --workspace @adamratzman/contracts --if-present && npm run typecheck --workspace @adamratzman/contracts --if-present && npm run typecheck --workspace @adamratzman/api --if-present && npm run typecheck --workspace @adamratzman/web && npm run aspire:build:auto-restore",
+    "typecheck": "npm run build --workspace @adamratzman/contracts --if-present && npm run typecheck --workspace @adamratzman/contracts --if-present && npm run typecheck --workspace @adamratzman/api --if-present && npm run typecheck --workspace @adamratzman/web && tsc -p tsconfig.json && npm run aspire:build:auto-restore",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspace @adamratzman/contracts --if-present && npm run lint --workspace @adamratzman/api --if-present && npm run lint --workspace @adamratzman/web && npm run aspire:lint:auto-restore",
+    "lint": "npm run lint --workspace @adamratzman/contracts --if-present && npm run lint --workspace @adamratzman/api --if-present && npm run lint --workspace @adamratzman/web && eslint playwright.config.ts e2e && npm run aspire:lint:auto-restore",
     "dev": "npm run dev --workspace @adamratzman/web --",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "test:a11y": "playwright test e2e/accessibility.spec.ts"
   },
   "dependencies": {
     "@aws-crypto/sha256-browser": "^5.0.0",

@@ -772,9 +772,23 @@ export function CreateSpotifyPlaylistModal({
               </Button>}
               <Button variant='ghost' mr={3}
                       onClick={closeModal} type='button'>Close</Button>
-              {(!unrecoverablePlaylist || submitting) && <Button colorScheme='blue' type='submit'
-                                                 isDisabled={!recoveryHydrated || submitting}
-                                                 isLoading={submitting}>
+              {(!unrecoverablePlaylist || submitting) && <Button
+                background='blue.700'
+                borderColor='blue.900'
+                borderWidth='1px'
+                color='white'
+                type='submit'
+                isDisabled={!recoveryHydrated || submitting}
+                isLoading={submitting}
+                _active={{
+                  background: 'blue.900',
+                  _disabled: { background: 'blue.700' },
+                }}
+                _hover={{
+                  background: 'blue.800',
+                  _disabled: { background: 'blue.700' },
+                }}
+              >
                 {activePendingPlaylist ? 'Retry adding tracks' : 'Create Playlist'}
               </Button>}
             </ModalFooter>

@@ -158,7 +158,15 @@ function SpotifyGenerateTokenRoute() {
         <Text>This API token contains the following
           scopes: <b>{spotifyTokenInfo.token.scope ? spotifyTokenInfo.token.scope.split(' ').join(', ') : 'none'}</b>.</Text>
         <Text mb={3}>It expires <b>{moment(spotifyTokenInfo.expiry).from(Date.now())}</b>.</Text>
-        <Button colorScheme='blue' onClick={handleCopyTokenButtonClicked}>Copy access
+        <Button
+          background='blue.700'
+          borderColor='blue.900'
+          borderWidth='1px'
+          color='white'
+          onClick={handleCopyTokenButtonClicked}
+          _active={{ background: 'blue.900' }}
+          _hover={{ background: 'blue.800' }}
+        >Copy access
           token {hasCopied && <>(again)</>}</Button>
       </Box>}
       <Box>

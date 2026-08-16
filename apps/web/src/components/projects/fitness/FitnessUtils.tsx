@@ -37,8 +37,26 @@ export function Pagination({
     setLimit(next!.limit);
   }
 
-  const nextButton = <Button key={nextText} isDisabled={!next} onClick={onNextButtonClicked} variant='solid'
-                             colorScheme='blue'>{nextText}</Button>;
+  const nextButton = <Button
+    key={nextText}
+    isDisabled={!next}
+    onClick={onNextButtonClicked}
+    variant='solid'
+    background='blue.700'
+    borderColor='blue.900'
+    borderWidth='1px'
+    color='white'
+    _active={{
+      background: 'blue.900',
+      _disabled: { background: 'blue.700' },
+    }}
+    _hover={{
+      background: 'blue.800',
+      _disabled: { background: 'blue.700' },
+    }}
+  >
+    {nextText}
+  </Button>;
   const previousButton = <Button key={previousText} isDisabled={!previous} onClick={onPreviousButtonClicked}
                                  variant='outline'
                                  colorScheme='blue'>{previousText}</Button>;

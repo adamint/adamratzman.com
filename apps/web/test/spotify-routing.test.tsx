@@ -124,6 +124,26 @@ describe('Spotify route authentication', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
+  it('uses an AA-contrast palette for the access-token copy button', async () => {
+    authorizeMyTop();
+
+    renderWithRouter([{
+      path: '/projects/spotify/generate-token',
+      Component: () => (
+        <ChakraProvider theme={theme}>
+          <SpotifyGenerateTokenRoute />
+        </ChakraProvider>
+      ),
+    }], {
+      initialEntries: ['/projects/spotify/generate-token'],
+    });
+
+    const button = await screen.findByRole('button', {
+      name: 'Copy access token',
+    });
+    expectButtonPalette(button, 'blue');
+  });
+
   it('shows a generic error when generated Spotify login URL creation fails', async () => {
     const tokenInfo: SpotifyTokenInfo = {
       expiry: Date.now() + 60_000,
@@ -613,6 +633,30 @@ function renderSpotifyRoute(initialEntry: string) {
   ], {
     initialEntries: [initialEntry],
   });
+}
+
+function expectButtonPalette(button: HTMLElement, palette: 'blue') {
+  const generatedClass = button.className.split(' ').at(-1);
+  const rules = Array.from(document.styleSheets)
+    .flatMap(sheet => Array.from(sheet.cssRules)) as CSSStyleRule[];
+  const baseRule = rules.find(rule => rule.selectorText === `.${generatedClass}`);
+  const hoverRule = rules.find(rule => (
+    rule.selectorText?.includes(`.${generatedClass}:hover`)
+  ));
+  const activeRule = rules.find(rule => (
+    rule.selectorText?.includes(`.${generatedClass}:active`)
+  ));
+
+  expect(baseRule?.style.background).toBe(
+    `var(--chakra-colors-${palette}-700)`,
+  );
+  expect(baseRule?.style.color).toBe('var(--chakra-colors-white)');
+  expect(hoverRule?.style.background).toBe(
+    `var(--chakra-colors-${palette}-800)`,
+  );
+  expect(activeRule?.style.background).toBe(
+    `var(--chakra-colors-${palette}-900)`,
+  );
 }
 
 type TopPage = {

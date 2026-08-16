@@ -63,7 +63,13 @@ export function SpotifyLoginButton({
       <Heading as="h1" size="lg" mb={1}>{title}</Heading>
       <Text>Or go back to the <ChakraRouterLink href='/projects'>projects page →</ChakraRouterLink></Text>
     </Box>}
-    <Button backgroundColor='#1DB954' rightIcon={<FaSpotify />} onClick={() => {
+    <Button
+      backgroundColor='#1DB954'
+      color='gray.900'
+      rightIcon={<FaSpotify />}
+      _active={{ backgroundColor: '#169B45' }}
+      _hover={{ backgroundColor: '#1ED760' }}
+      onClick={() => {
       void handleClickLoginButton();
     }}>
       {buttonText ? buttonText : <>Log in with Spotify</>}

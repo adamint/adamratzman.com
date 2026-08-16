@@ -22,7 +22,7 @@ export function AppShell() {
           <Box as="header">
             <Navbar />
           </Box>
-          <Box as="main" id="main-content" mx="auto" mt="30px" tabIndex={-1} w={['90%', '85%', '66%']}>
+          <Box aria-label="Main content" as="main" id="main-content" mx="auto" mt="30px" tabIndex={-1} w={['90%', '85%', '66%']}>
             <Outlet />
           </Box>
           <Spacer />

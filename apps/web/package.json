@@ -7,6 +7,7 @@
     "predev": "npm run build --workspace @adamratzman/contracts",
     "dev": "vite",
     "build": "vite build",
+    "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "lint": "eslint src test vite.config.ts"

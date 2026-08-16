@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "ES2022",
     "lib": [
       "dom",
       "dom.iterable",
@@ -22,20 +22,20 @@
         "apps/web/node_modules/*"
       ]
     },
-    "typeRoots": [
-      "node_modules/@types",
-      "apps/web/node_modules/@types"
+    "types": [
+      "node",
+      "@playwright/test"
     ],
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
+    "jsx": "preserve"
   },
   "include": [
     "src",
-    "global.d.ts"
+    "global.d.ts",
+    "playwright.config.ts",
+    "e2e/**/*.ts"
   ],
   "exclude": [
     "node_modules"
