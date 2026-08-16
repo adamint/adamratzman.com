@@ -22,12 +22,14 @@ const supportedDigits = '0123456789abcdefghijklmnopqrstuv';
 
 export const BASE_CONVERTER_BUTTON_COLORS = {
   light: {
+    activeBackground: 'orange.900',
     background: 'orange.700',
     border: 'orange.900',
     foreground: 'white',
     hoverBackground: 'orange.800',
   },
   dark: {
+    activeBackground: 'orange.100',
     background: 'orange.300',
     border: 'orange.50',
     foreground: 'gray.900',
@@ -123,7 +125,17 @@ function BaseConverterRoute() {
       borderWidth='1px'
       color={inverseButtonColors.foreground}
       onClick={handleInverseButtonClicked}
-      _hover={{ background: inverseButtonColors.hoverBackground }}
+      _active={{ background: inverseButtonColors.activeBackground }}
+      _focusVisible={{
+        boxShadow: 'none',
+        outline: '3px solid',
+        outlineColor: 'focusRing',
+        outlineOffset: '3px',
+      }}
+      _hover={{
+        background: inverseButtonColors.hoverBackground,
+        _active: { background: inverseButtonColors.activeBackground },
+      }}
     >
       Inverse to/from
     </Button>

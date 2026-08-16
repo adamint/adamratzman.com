@@ -23,12 +23,14 @@ import { renderWithRouter } from './render';
 
 const EXPECTED_BASE_CONVERTER_BUTTON_COLORS = {
   light: {
+    activeBackground: 'orange.900',
     background: 'orange.700',
     border: 'orange.900',
     foreground: 'white',
     hoverBackground: 'orange.800',
   },
   dark: {
+    activeBackground: 'orange.100',
     background: 'orange.300',
     border: 'orange.50',
     foreground: 'gray.900',
@@ -40,6 +42,7 @@ afterEach(() => {
   cleanup();
   document.title = '';
   localStorage.clear();
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -182,6 +185,7 @@ describe('keyboard-accessible triggers', () => {
   it('removes the document Escape listener and pending close timer on cleanup', async () => {
     const addEventListener = vi.spyOn(document, 'addEventListener');
     const removeEventListener = vi.spyOn(document, 'removeEventListener');
+    const setTimeout = vi.spyOn(window, 'setTimeout');
     const clearTimeout = vi.spyOn(window, 'clearTimeout');
     const { unmount } = render(
       <ChakraProvider theme={theme}>
@@ -199,14 +203,23 @@ describe('keyboard-accessible triggers', () => {
       .at(-1)?.[1];
     expect(keydownListener).toBeTypeOf('function');
 
-    fireEvent.pointerLeave(trigger, { pointerType: 'mouse' });
+    const timeoutCallCount = setTimeout.mock.calls.length;
+    fireEvent.blur(trigger);
+    const closeTimerCallIndex = setTimeout.mock.calls.findIndex(
+      ([, delay], index) => index >= timeoutCallCount && delay === 100,
+    );
+    const closeTimerHandle = setTimeout.mock.results[closeTimerCallIndex]
+      ?.value as number | undefined;
+    expect(closeTimerCallIndex).toBeGreaterThanOrEqual(timeoutCallCount);
+    expect(closeTimerHandle).toBeDefined();
+
     unmount();
 
     expect(removeEventListener).toHaveBeenCalledWith(
       'keydown',
       keydownListener,
     );
-    expect(clearTimeout).toHaveBeenCalled();
+    expect(clearTimeout).toHaveBeenCalledWith(closeTimerHandle);
   });
 
   it.each([
@@ -441,6 +454,10 @@ describe('base converter accessibility', () => {
         resolveThemeColor(colors.foreground),
         resolveThemeColor(colors.hoverBackground),
       )).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(
+        resolveThemeColor(colors.foreground),
+        resolveThemeColor(colors.activeBackground),
+      )).toBeGreaterThanOrEqual(4.5);
     }
   });
 
@@ -461,6 +478,12 @@ describe('base converter accessibility', () => {
       const hoverRule = rules.find(rule => (
         rule.selectorText?.includes(`.${generatedClass}:hover`)
       ));
+      const activeRule = rules.find(rule => (
+        rule.selectorText?.includes(`.${generatedClass}:active`)
+      ));
+      const focusVisibleRule = rules.find(rule => (
+        rule.selectorText?.includes(`.${generatedClass}:focus-visible`)
+      ));
 
       expect(baseRule?.style.background).toBe(toColorVariable(colors.background));
       expect(baseRule?.style.color).toBe(toColorVariable(colors.foreground));
@@ -468,8 +491,75 @@ describe('base converter accessibility', () => {
       expect(hoverRule?.style.background).toBe(
         toColorVariable(colors.hoverBackground),
       );
+      expect(activeRule?.style.background).toBe(
+        toColorVariable(colors.activeBackground),
+      );
+      expect(focusVisibleRule?.style.boxShadow).toBe(
+        'var(--chakra-shadows-none)',
+      );
+      expect(focusVisibleRule?.style.outline).toBe('3px solid');
+      expect(focusVisibleRule?.style.outlineColor).toBe(
+        toColorVariable('focusRing'),
+      );
+      expect(focusVisibleRule?.style.outlineOffset).toBe('3px');
       expect(style.borderStyle).toBe('solid');
       expect(style.borderWidth).toBe('1px');
+    },
+  );
+
+  it.each(Object.entries(EXPECTED_BASE_CONVERTER_BUTTON_COLORS))(
+    'computes the inverse button active state in %s mode',
+    (colorMode, colors) => {
+      localStorage.setItem('chakra-ui-color-mode', colorMode);
+      renderProjectRoute(<BaseConverterRoute />);
+
+      const button = screen.getByRole('button', {
+        name: 'Inverse to/from',
+      });
+      button.setAttribute('data-hover', '');
+      button.setAttribute('data-active', '');
+
+      const style = getComputedStyle(button);
+      expect(style.background).toBe(toColorVariable(colors.activeBackground));
+      expect(style.color).toBe(toColorVariable(colors.foreground));
+    },
+  );
+
+  it.each(['light', 'dark'])(
+    'shows the semantic focus indicator after keyboard focus in %s mode',
+    async (colorMode) => {
+      localStorage.setItem('chakra-ui-color-mode', colorMode);
+      const user = userEvent.setup();
+      renderProjectRoute(<BaseConverterRoute />);
+
+      const button = screen.getByRole('button', {
+        name: 'Inverse to/from',
+      });
+      for (let index = 0; index < 8 && document.activeElement !== button; index++) {
+        await user.tab();
+      }
+      expect(button).toHaveFocus();
+      expect(button).toHaveFocus();
+      const generatedClass = button.className.split(' ').at(-1);
+      const focusVisibleRule = Array.from(document.styleSheets)
+        .flatMap(sheet => Array.from(sheet.cssRules))
+        .find(rule => (
+          (rule as CSSStyleRule).selectorText
+            ?.includes(`.${generatedClass}:focus-visible`)
+        )) as CSSStyleRule | undefined;
+      const focusVisibleAttributeSelector = focusVisibleRule?.selectorText
+        .split(',')
+        .find(selector => selector.includes('[data-focus-visible]'));
+
+      expect(focusVisibleAttributeSelector).toBeTruthy();
+      expect(focusVisibleRule?.style.boxShadow).toBe(
+        'var(--chakra-shadows-none)',
+      );
+      expect(focusVisibleRule?.style.outline).toBe('3px solid');
+      expect(focusVisibleRule?.style.outlineColor).toBe(
+        toColorVariable('focusRing'),
+      );
+      expect(focusVisibleRule?.style.outlineOffset).toBe('3px');
     },
   );
 
