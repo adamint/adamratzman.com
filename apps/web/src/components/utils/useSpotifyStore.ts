@@ -11,15 +11,12 @@ interface SpotifyStore {
 }
 
 type SpotifyClientEnvironment = {
-  NEXT_PUBLIC_SPOTIFY_CLIENT_ID?: string;
   VITE_SPOTIFY_CLIENT_ID?: string;
 };
 
 export function getSpotifyClientId(env?: SpotifyClientEnvironment) {
   const viteEnv = env ?? (import.meta.env as SpotifyClientEnvironment);
-  return viteEnv.VITE_SPOTIFY_CLIENT_ID
-    ?? viteEnv.NEXT_PUBLIC_SPOTIFY_CLIENT_ID
-    ?? '';
+  return viteEnv.VITE_SPOTIFY_CLIENT_ID ?? '';
 }
 
 export const useSpotifyStore = create<SpotifyStore>(set => ({

@@ -1,7 +1,6 @@
 .git
 .github
 .idea
-.next
 .env.local
 .env.development.local
 .env.test.local
@@ -13,6 +12,4 @@ build
 coverage
 node_modules
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 .DS_Store

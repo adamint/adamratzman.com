@@ -84,13 +84,10 @@ export function createPkceCodeVerifier(
 
 function getSpotifyClientIdFromEnv() {
   const env = import.meta.env as {
-    NEXT_PUBLIC_SPOTIFY_CLIENT_ID?: string;
     VITE_SPOTIFY_CLIENT_ID?: string;
   };
 
-  return env.VITE_SPOTIFY_CLIENT_ID
-    ?? env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID
-    ?? '';
+  return env.VITE_SPOTIFY_CLIENT_ID ?? '';
 }
 
 function removeStoredTokenOnly() {

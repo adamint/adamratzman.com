@@ -22,10 +22,6 @@ node_modules/
 .env.production
 
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-.next
 .aspire/
 dist/
 aspire-output/

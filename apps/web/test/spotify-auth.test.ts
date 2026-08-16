@@ -125,14 +125,10 @@ describe('Spotify PKCE browser compatibility', () => {
     );
   });
 
-  it('prefers the Vite-specific client id and retains the legacy public key', () => {
+  it('reads the Vite-specific client id', () => {
     expect(getSpotifyClientId({
-      NEXT_PUBLIC_SPOTIFY_CLIENT_ID: 'legacy-public-id',
       VITE_SPOTIFY_CLIENT_ID: 'vite-public-id',
     })).toBe('vite-public-id');
-    expect(getSpotifyClientId({
-      NEXT_PUBLIC_SPOTIFY_CLIENT_ID: 'legacy-public-id',
-    })).toBe('legacy-public-id');
     expect(getSpotifyClientId({})).toBe('');
   });
 

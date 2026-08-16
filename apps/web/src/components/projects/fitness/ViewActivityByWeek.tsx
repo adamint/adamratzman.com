@@ -1,63 +1,36 @@
-import React, { useMemo, useState } from 'react';
-import { Pair, SportType, useActivityStatsByWeek, WeekMonthYearPair } from '../../utils/useKomootData';
-import { AxisOptions, Chart } from 'react-charts';
-import { Box, Text } from '@chakra-ui/react';
+import React, { useState } from 'react';
+import { SportType, useActivityStatsByWeek } from '../../utils/useKomootData';
+import {
+  Box,
+  Table,
+  TableContainer,
+  Tbody,
+  Td,
+  Text,
+  Th,
+  Thead,
+  Tr,
+} from '@chakra-ui/react';
 import { DashedSpan } from '../../utils/DashedSpanWithTooltip';
 import { ChakraRouterLink } from '../../utils/ChakraRouterLink';
-import { useColorModeColor } from '../../utils/useColorModeColor';
 import { metersToMiles, Pagination } from './FitnessUtils';
 
-type Series = {
-  label: string,
-  data: Pair<WeekMonthYearPair, number>[]
-}
-
 export function ViewActivityByWeek() {
-  const colorModeColor = useColorModeColor();
-
   const [offset, setOffset] = useState<number>(0);
   const limit = 6;
 
   const response = useActivityStatsByWeek({ offset, limit });
 
-  const primaryAxis = useMemo(
-    (): AxisOptions<Pair<WeekMonthYearPair, number>> => ({
-      getValue: datum => `${datum.first.weekStartMonth}/${datum.first.weekStartDay} - ${datum.first.weekEndMonth}/${datum.first.weekEndDay}`,
-    }),
-    [],
-  );
-
-  const secondaryAxes = useMemo(
-    (): AxisOptions<Pair<WeekMonthYearPair, number>>[] => [
-      {
-        getValue: datum => metersToMiles(datum.second),
-        elementType: 'area',
-        max: response?.data ? Math.max(120, ...response?.data?.flatMap(s => Object.values(s.second).map(meters => metersToMiles(meters)) as number[])) : 120,
-        showGrid: true,
-        formatters: {
-          cursor: (value: number) => `${value?.toFixed(2)} miles`,
-          tooltip: (value: number) => `${value?.toFixed(2)} miles`,
-        },
-      },
-    ],
-    [response?.data],
-  );
-
   if (response === null) return;
 
-  const data = response.data.reverse();
-  const sportTypes: SportType[] = ['Biking', 'EBiking', 'Running', 'Other'];
-  const allSeries: Series[] = Array.from(sportTypes).map(sportType => {
-    return {
-      label: sportType,
-      data: data.map(weekData => {
-        return {
-          first: weekData.first,
-          second: weekData.second[sportType] || 0,
-        };
-      }),
-    };
-  });
+  const data = [...response.data].reverse();
+  const sportTypes: SportType[] = [
+    'Biking',
+    'EBiking',
+    'Running',
+    'Hiking',
+    'Other',
+  ];
 
   const backendMicroserviceGithubLink = 'https://github.com/adamint/adamratzman-backend-microservice/blob/main/src/main/kotlin/com/adamratzman/api/komoot/KomootExternalApi.kt#L63';
 
@@ -73,21 +46,54 @@ export function ViewActivityByWeek() {
   >
     <Box>
       <Box mb={2}>
-        <Text fontSize='md'>Activity by week (includes biking & running).</Text>
+        <Text fontSize='md'>Activity by week, split by sport.</Text>
         <Text fontSize='sm'>Data from Komoot, aggregation done by <ChakraRouterLink
           href={backendMicroserviceGithubLink}><DashedSpan>myself</DashedSpan></ChakraRouterLink></Text>
       </Box>
 
-      <Box h={220}>
-        <Chart
-          options={{
-            data: allSeries,
-            primaryAxis,
-            secondaryAxes,
-            dark: colorModeColor === 'white',
-          }}
-        />
-      </Box>
+      <TableContainer
+        aria-label='Weekly activity distance table'
+        overflowX='auto'
+        role='region'
+        tabIndex={0}
+      >
+        <Table
+          aria-label='Weekly activity distance in miles'
+          size='sm'
+          variant='simple'
+        >
+          <Thead>
+            <Tr>
+              <Th>Week</Th>
+              {sportTypes.map(sportType => (
+                <Th key={sportType} isNumeric>{sportType}</Th>
+              ))}
+            </Tr>
+          </Thead>
+          <Tbody>
+            {data.map(weekData => (
+              <Tr key={[
+                weekData.first.year,
+                weekData.first.weekStartMonth,
+                weekData.first.weekStartDay,
+              ].join('-')}>
+                <Td whiteSpace='nowrap'>
+                  {weekData.first.weekStartMonth}/{weekData.first.weekStartDay}
+                  {' - '}
+                  {weekData.first.weekEndMonth}/{weekData.first.weekEndDay},
+                  {' '}
+                  {weekData.first.year}
+                </Td>
+                {sportTypes.map(sportType => (
+                  <Td key={sportType} isNumeric>
+                    {metersToMiles(weekData.second[sportType] || 0).toFixed(2)}
+                  </Td>
+                ))}
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </TableContainer>
     </Box>
   </Pagination>;
 }

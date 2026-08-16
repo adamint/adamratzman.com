@@ -1020,9 +1020,10 @@ describe('navigation primitives', () => {
 });
 
 describe('Next compatibility removal', () => {
-  it('contains no Next imports, aliases, or compatibility directory', () => {
+  it('contains no Next imports, environment aliases, or compatibility directory', () => {
     const webRoot = `${process.cwd()}/`;
     const frameworkName = ['ne', 'xt'].join('');
+    const legacyEnvironmentPrefix = ['NEXT', 'PUBLIC', ''].join('_');
     const compatibilityDirectory = `${webRoot}src/compat/${frameworkName}`;
     const importPattern = new RegExp(
       String.raw`(?:from\s+['"]${frameworkName}(?:/|['"])|import\(\s*['"]${frameworkName}(?:/|['"])|${frameworkName}/)`,
@@ -1039,7 +1040,7 @@ describe('Next compatibility removal', () => {
       const lines = readFileSync(filePath, 'utf8').split('\n');
 
       return lines.flatMap((line, index) => (
-        importPattern.test(line)
+        importPattern.test(line) || line.includes(legacyEnvironmentPrefix)
           ? [`${relativePath}:${index + 1}: ${line.trim()}`]
           : []
       ));

@@ -12,7 +12,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     envDir,
-    envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
     server: apiHttpTarget ? {
       proxy: {
         '/api': {
