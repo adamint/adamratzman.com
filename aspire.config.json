@@ -3,6 +3,9 @@
     "path": "apphost.mts",
     "language": "typescript/nodejs"
   },
+  "sdk": {
+    "version": "13.5.0"
+  },
   "channel": "staging",
   "profiles": {
     "https": {
@@ -21,7 +24,9 @@
       }
     }
   },
-  "sdk": {
-    "version": "13.5.0"
+  "packages": {
+    "Aspire.Hosting.JavaScript": "13.5.0",
+    "Aspire.Hosting.Azure.AppService": "13.5.0",
+    "Aspire.Hosting.Azure.ApplicationInsights": "13.5.0"
   }
 }
