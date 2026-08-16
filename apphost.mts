@@ -4,6 +4,7 @@
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
+const isPublishMode = await builder.executionContext().isPublishMode();
 
 const spotifyClientId = await builder.addParameter(
   'spotify-client-id',
@@ -28,9 +29,10 @@ const backendSiteOrigin = await builder.addParameter(
 
 const api = await builder.addJavaScriptApp(
   'api',
-  './services/api',
-  { runScriptName: 'dev' },
+  '.',
+  { runScriptName: 'dev:api' },
 );
+api.withBuildScript('build:api');
 api.withHttpEndpoint({ env: 'PORT', name: 'http' });
 api.withExternalHttpEndpoints();
 api.withHttpHealthCheck({ path: '/api/health' });
@@ -38,9 +40,22 @@ api.withEnvironment('HOST', '0.0.0.0');
 api.withEnvironment('SPOTIFY_CLIENT_ID', spotifyClientId);
 api.withEnvironment('SPOTIFY_CLIENT_SECRET', spotifyClientSecret);
 api.withEnvironment('BACKEND_SITE_ORIGIN', backendSiteOrigin);
-api.publishAsPackageScript({ scriptName: 'start' });
+api.publishAsPackageScript({ scriptName: 'start:api' });
+if (isPublishMode) {
+  await api.publishAsDockerFile(async (container) => {
+    await container
+      .withBuildArg('TARGET', 'api-runtime')
+      .withEntrypoint('node')
+      .withArgs(['--enable-source-maps', 'dist/server.js']);
+  });
+}
 
-const web = await builder.addViteApp('web', './apps/web');
+const web = await builder.addViteApp(
+  'web',
+  '.',
+  { runScriptName: 'dev:web' },
+);
+web.withBuildScript('build:web');
 web.withEnvironment('API_HTTP', api.getEndpoint('http'));
 web.withEnvironment('BROWSER', 'none');
 web.withEnvironment('VITE_SPOTIFY_CLIENT_ID', spotifyClientId);
@@ -49,11 +64,19 @@ web.waitFor(api);
 web.publishAsStaticWebsite({
   apiPath: '/api',
   apiTarget: api,
-  outputPath: 'dist',
+  outputPath: 'apps/web/dist',
   targetEndpointName: 'http',
 });
+if (isPublishMode) {
+  await web.publishAsDockerFile(async (container) => {
+    await container
+      .withBuildArg('TARGET', 'web-runtime')
+      .withEntrypoint('dotnet')
+      .withArgs(['/app/yarp.dll']);
+  });
+}
 
-if (await builder.executionContext().isPublishMode()) {
+if (isPublishMode) {
   const appService = await builder.addAzureAppServiceEnvironment('appservice');
   appService.withDashboard({ enable: false });
 
