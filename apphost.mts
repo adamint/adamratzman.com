@@ -61,27 +61,38 @@ web.withEnvironment('BROWSER', 'none');
 web.withEnvironment('VITE_SPOTIFY_CLIENT_ID', spotifyClientId);
 web.withExternalHttpEndpoints();
 web.waitFor(api);
-web.publishAsStaticWebsite({
-  apiPath: '/api',
-  apiTarget: api,
-  outputPath: 'apps/web/dist',
-  targetEndpointName: 'http',
-});
 if (isPublishMode) {
   await web.publishAsDockerFile(async (container) => {
     await container
       .withBuildArg('TARGET', 'web-runtime')
-      .withEntrypoint('dotnet')
-      .withArgs(['/app/yarp.dll']);
+      .withEntrypoint('/docker-entrypoint.sh')
+      .withArgs(['nginx', '-g', 'daemon off;']);
   });
 }
 
 if (isPublishMode) {
-  const appService = await builder.addAzureAppServiceEnvironment('appservice');
-  appService.withDashboard({ enable: false });
-
   const appInsights = await builder.addAzureApplicationInsights('appinsights');
-  appService.withAzureApplicationInsights({ applicationInsights: appInsights });
+  const existingAppInsightsName = process.env.AZURE_APPLICATION_INSIGHTS_NAME;
+  if (existingAppInsightsName) {
+    await appInsights.publishAsExisting(
+      existingAppInsightsName,
+      { resourceGroup: process.env.Azure__ResourceGroup },
+    );
+  }
+  await api.withReference(appInsights);
+
+  const containerApps = await builder.addAzureContainerAppEnvironment('aca');
+  await containerApps.withDashboard({ enable: false });
+
+  const existingRegistryName = process.env.AZURE_CONTAINER_REGISTRY_NAME;
+  if (existingRegistryName) {
+    const registry = await builder.addAzureContainerRegistry('registry');
+    await registry.publishAsExisting(
+      existingRegistryName,
+      { resourceGroup: process.env.Azure__ResourceGroup },
+    );
+    await containerApps.withAzureContainerRegistry(registry);
+  }
 }
 
 await builder.build().run();

@@ -1,22 +1,33 @@
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
 import { SportType, useToursByMonth } from '../../utils/useKomootData';
-import { Box, HStack, Spinner, Text, Tooltip } from '@chakra-ui/react';
+import { Box, HStack, Spinner, Text } from '@chakra-ui/react';
 import { metersToMiles } from './FitnessUtils';
 
 export function ViewToursByMonthComponent() {
-  const offset = 0
-  const currentMonthResponse = useToursByMonth({ offset: 0, limit: 1 });
+  const currentMonthRequest = useToursByMonth({ offset: 0, limit: 1 });
 
-  const currentMonth = new Date().getMonth()
-  const limit = currentMonth + 1;
-  const response = useToursByMonth({ offset, limit });
+  if (currentMonthRequest.error) {
+    return <Text aria-live='polite' role='status'>
+      Monthly activity is temporarily unavailable.
+    </Text>;
+  }
 
-  if (!currentMonthResponse?.data || !response?.data) return <HStack>
+  const currentMonthResponse = currentMonthRequest.data;
+  if (currentMonthRequest.isLoading || !currentMonthResponse) return <HStack
+    aria-live='polite'
+    role='status'
+  >
     <Text fontSize='md'>Loading activities...</Text>
     <Spinner />
   </HStack>;
 
   const currentMonthData = currentMonthResponse.data[0];
+  if (!currentMonthData) {
+    return <Text aria-live='polite' role='status'>
+      No activities recorded this month.
+    </Text>;
+  }
+
   const currentMonthTravelElements = Object.entries(currentMonthData.distanceBySportType)
     .sort((a, b) => -a[0].localeCompare(b[0]))
     .map(entry => <Fragment key={entry[0]}>{displayName(entry[0] as SportType)} <b>{metersToMiles(entry[1]).toFixed(0)}</b> miles</Fragment>);

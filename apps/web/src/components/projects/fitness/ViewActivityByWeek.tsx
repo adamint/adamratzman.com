@@ -19,9 +19,23 @@ export function ViewActivityByWeek() {
   const [offset, setOffset] = useState<number>(0);
   const limit = 6;
 
-  const response = useActivityStatsByWeek({ offset, limit });
+  const {
+    data: response,
+    error,
+    isLoading,
+  } = useActivityStatsByWeek({ offset, limit });
 
-  if (response === null) return;
+  if (error) {
+    return <Text aria-live='polite' role='status'>
+      Weekly activity is temporarily unavailable.
+    </Text>;
+  }
+
+  if (isLoading || response === null) {
+    return <Text aria-live='polite' role='status'>
+      Loading weekly activity...
+    </Text>;
+  }
 
   const data = [...response.data].reverse();
   const sportTypes: SportType[] = [

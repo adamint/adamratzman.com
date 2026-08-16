@@ -26,7 +26,7 @@
   },
   "packages": {
     "Aspire.Hosting.JavaScript": "13.5.0",
-    "Aspire.Hosting.Azure.AppService": "13.5.0",
-    "Aspire.Hosting.Azure.ApplicationInsights": "13.5.0"
+    "Aspire.Hosting.Azure.ApplicationInsights": "13.5.0",
+    "Aspire.Hosting.Azure.AppContainers": "13.5.0"
   }
 }

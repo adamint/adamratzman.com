@@ -42,9 +42,13 @@ COPY --from=api-build /app/services/api/dist services/api/dist
 ENV NODE_ENV=production
 WORKDIR /app/services/api
 
-FROM mcr.microsoft.com/dotnet/nightly/yarp:2.3-preview AS web-runtime
-WORKDIR /app
+FROM nginxinc/nginx-unprivileged:1.29-alpine AS web-runtime
 
-COPY --from=web-build /app/apps/web/dist /app/wwwroot
+COPY apps/web/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=web-build /app/apps/web/dist /usr/share/nginx/html
+
+ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
+ENV NGINX_ENVSUBST_FILTER="^(API_HTTP|NGINX_LOCAL_RESOLVERS|PORT)$"
+ENV PORT=8080
 
 FROM ${TARGET} AS final

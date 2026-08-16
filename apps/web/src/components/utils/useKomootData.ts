@@ -8,6 +8,12 @@ interface PaginationResponse<T> {
   previous?: PaginationRequest | null;
 }
 
+export interface ActivityDataResult<T> {
+  data: PaginationResponse<T> | null;
+  error: Error | null;
+  isLoading: boolean;
+}
+
 export interface PaginationRequest {
   offset: number;
   limit: number;
@@ -45,15 +51,16 @@ type useActivityStatsByWeekProps = PaginationProps
 export function useActivityStatsByWeek({
                                          offset,
                                          limit,
-                                       }: useActivityStatsByWeekProps): PaginationResponse<ActivityStatsByWeekResponse> | null {
+                                       }: useActivityStatsByWeekProps): ActivityDataResult<ActivityStatsByWeekResponse> {
   const latestToursUrl = `/api/komoot/activity-stats-by-week?limit=${limit}&offset=${offset}`;
 
   const request = useSWR<PaginationResponse<ActivityStatsByWeekResponse>, Error>(latestToursUrl, fetcher);
 
-  const data = request.data;
-  if (request.isLoading || request.error || !data) return null;
-
-  return data;
+  return {
+    data: request.data ?? null,
+    error: request.error ?? null,
+    isLoading: request.isLoading,
+  };
 }
 
 type useToursByMonthProps = PaginationProps
@@ -63,15 +70,16 @@ export type ToursByMonthResponse = ToursInMonthYear[]
 export function useToursByMonth({
                                   offset,
                                   limit,
-                                }: useToursByMonthProps): PaginationResponse<ToursByMonthResponse> | null {
+                                }: useToursByMonthProps): ActivityDataResult<ToursByMonthResponse> {
   const latestToursUrl = `/api/komoot/latest-komoot-tours-by-month?limit=${limit}&offset=${offset}`;
 
   const request = useSWR<PaginationResponse<ToursByMonthResponse>, Error>(latestToursUrl, fetcher);
 
-  const data = request.data;
-  if (request.isLoading || request.error || !data) return null;
-
-  return data;
+  return {
+    data: request.data ?? null,
+    error: request.error ?? null,
+    isLoading: request.isLoading,
+  };
 }
 
 export type ToursInMonthYear = {
