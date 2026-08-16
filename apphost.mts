@@ -58,7 +58,7 @@ if (await builder.executionContext().isPublishMode()) {
   appService.withDashboard({ enable: false });
 
   const appInsights = await builder.addAzureApplicationInsights('appinsights');
-  api.withReference(appInsights);
+  appService.withAzureApplicationInsights({ applicationInsights: appInsights });
 }
 
 await builder.build().run();
