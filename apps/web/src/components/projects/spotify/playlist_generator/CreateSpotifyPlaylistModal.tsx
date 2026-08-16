@@ -222,10 +222,7 @@ function readPendingPlaylistStorage(
   scopeKey: string,
 ): PendingPlaylistReadResult {
   if (typeof window === 'undefined') return { kind: 'absent' };
-  if (
-    volatileRecoveryFallbackScopes.has(scopeKey)
-    && volatilePlaylistRecovery.has(scopeKey)
-  ) {
+  if (volatileRecoveryFallbackScopes.has(scopeKey)) {
     return readVolatilePlaylistRecovery(scopeKey);
   }
 
@@ -332,6 +329,17 @@ function removePendingPlaylistStorage(scopeKey: string) {
   } catch {
     volatileRecoveryFallbackScopes.add(scopeKey);
     // A safe marker or volatile recovery remains authoritative.
+  }
+}
+
+function discardPendingPlaylistStorage(scopeKey: string) {
+  volatilePlaylistRecovery.delete(scopeKey);
+  volatileRecoveryFallbackScopes.add(scopeKey);
+  try {
+    window.sessionStorage.removeItem(spotifyPendingPlaylistStorageKey);
+    volatileRecoveryFallbackScopes.delete(scopeKey);
+  } catch {
+    // Volatile absence remains authoritative when storage cannot be cleared.
   }
 }
 
@@ -531,10 +539,12 @@ export function CreateSpotifyPlaylistModal({
         };
         if (values.playlistDescription.length > 0) playlistCreationOptions['description'] = values.playlistDescription;
 
+        let createRequestInvoked = false;
         const attempt = Promise.resolve().then(async () => {
           try {
             const spotifyApi = await guardedSpotifyApi.getApi();
             if (!pendingPlaylistForAttempt) {
+              createRequestInvoked = true;
               const playlist = await spotifyApi.createPlaylist(
                 spotifyUserId,
                 playlistCreationOptions,
@@ -621,12 +631,14 @@ export function CreateSpotifyPlaylistModal({
             });
           } catch {
             if (!pendingPlaylistForAttempt) {
-              removePendingPlaylistStorage(recoveryScopeKey);
-              if (mountedRef.current) {
-                setHydratedRecovery({
-                  recovery: null,
-                  scopeKey: recoveryScopeKey,
-                });
+              if (!createRequestInvoked) {
+                discardPendingPlaylistStorage(recoveryScopeKey);
+                if (mountedRef.current) {
+                  setHydratedRecovery({
+                    recovery: null,
+                    scopeKey: recoveryScopeKey,
+                  });
+                }
               }
               toast({
                 status: 'error',

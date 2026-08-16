@@ -24,7 +24,10 @@ import {
   getSafeSpotifyPlaylistUrl,
   spotifyPendingPlaylistStorageKey,
 } from '../src/components/projects/spotify/playlist_generator/CreateSpotifyPlaylistModal';
-import type { SpotifyTokenInfo } from '../src/spotify-utils/auth/SpotifyAuthUtils';
+import type {
+  PkceGuardedSpotifyWebApiJs,
+  SpotifyTokenInfo,
+} from '../src/spotify-utils/auth/SpotifyAuthUtils';
 import { theme } from '../src/theme';
 import { renderWithRouter } from './render';
 
@@ -247,13 +250,13 @@ describe('playlist creation modal', () => {
       })).toBeEnabled();
     });
 
-    it('shows only the generic error and recovers after createPlaylist fails', async () => {
+    it('keeps an ambiguous create failure unrecoverable after remount', async () => {
       const createPlaylist = vi.fn().mockRejectedValue({
         response: 'RAW CREATE SECRET',
         statusText: 'RAW CREATE STATUS',
       });
       const replaceTracksInPlaylist = vi.fn();
-      renderModal({ createPlaylist, replaceTracksInPlaylist });
+      const firstView = renderModal({ createPlaylist, replaceTracksInPlaylist });
 
       submitPlaylist();
 
@@ -266,10 +269,104 @@ describe('playlist creation modal', () => {
       expect(document.body).not.toHaveTextContent('RAW CREATE SECRET');
       expect(document.body).not.toHaveTextContent('RAW CREATE STATUS');
       expect(replaceTracksInPlaylist).not.toHaveBeenCalled();
-      expect(sessionStorage.getItem(spotifyPendingPlaylistStorageKey)).toBeNull();
-      expect(screen.getByRole('button', {
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'A playlist may have been created, but we cannot complete it automatically.',
+      );
+      expect(readPendingPlaylistStorage()).toEqual({
+        kind: 'unrecoverable',
+        spotifyUserId: 'spotify-user',
+        trackUris: ['spotify:track:first', 'spotify:track:second'],
+      });
+      expect(screen.queryByRole('button', {
         name: 'Create Playlist',
-      })).toBeEnabled();
+      })).not.toBeInTheDocument();
+
+      const form = screen.getByRole('button', {
+        name: 'Abandon playlist and reset',
+      }).closest('form');
+      if (!form) throw new Error('Expected the playlist form.');
+      fireEvent.submit(form);
+      expect(createPlaylist).toHaveBeenCalledOnce();
+
+      firstView.unmount();
+      const reloadedCreatePlaylist = vi.fn();
+      renderModal({
+        createPlaylist: reloadedCreatePlaylist,
+        replaceTracksInPlaylist: vi.fn(),
+      });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'A playlist may have been created, but we cannot complete it automatically.',
+      );
+      expect(reloadedCreatePlaylist).not.toHaveBeenCalled();
+      expect(screen.queryByRole('button', {
+        name: 'Create Playlist',
+      })).not.toBeInTheDocument();
+    });
+
+    it('retries after getApi fails before create with storage blocked', async () => {
+      vi.spyOn(window, 'open').mockImplementation(() => null);
+      const createPlaylist = vi.fn().mockResolvedValue(createdPlaylist(
+        'https://open.spotify.com/playlist/created',
+      ));
+      const replaceTracksInPlaylist = vi.fn().mockResolvedValue({});
+      const getApi = vi.fn<PkceGuardedSpotifyWebApiJs['getApi']>()
+        .mockRejectedValueOnce({
+          response: 'RAW GET API SECRET',
+          statusText: 'RAW GET API STATUS',
+        })
+        .mockResolvedValue({
+          createPlaylist,
+          replaceTracksInPlaylist,
+        } as never);
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('storage write failure');
+      });
+      const removeItem = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new DOMException('storage removal failure');
+      });
+      const {
+        remountModal,
+        unmountModal,
+      } = renderModal({
+        createPlaylist,
+        getApi,
+        replaceTracksInPlaylist,
+      });
+
+      submitPlaylist();
+
+      await waitFor(() => {
+        const errors = screen.getAllByText(
+          'Failed to create playlist. Please reload the page and try again',
+        );
+        expect(errors.at(-1)).toBeVisible();
+      });
+      expect(getApi).toHaveBeenCalledOnce();
+      expect(createPlaylist).not.toHaveBeenCalled();
+      expect(document.body).not.toHaveTextContent('RAW GET API SECRET');
+      expect(document.body).not.toHaveTextContent('RAW GET API STATUS');
+
+      unmountModal();
+      remountModal();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', {
+          name: 'Create Playlist',
+        })).toBeEnabled();
+      });
+      expect(screen.queryByText(
+        'A playlist may have been created, but we cannot complete it automatically.',
+      )).not.toBeInTheDocument();
+
+      setItem.mockRestore();
+      removeItem.mockRestore();
+      submitPlaylist();
+
+      expect(await screen.findByText('Successfully created playlist.')).toBeVisible();
+      expect(getApi).toHaveBeenCalledTimes(2);
+      expect(createPlaylist).toHaveBeenCalledOnce();
+      expect(replaceTracksInPlaylist).toHaveBeenCalledOnce();
     });
 
     it('shows partial success and locks fields after track replacement fails', async () => {
@@ -402,7 +499,7 @@ describe('playlist creation modal', () => {
       });
     });
 
-    it('prevents duplicate submission while loading and recovers after failure', async () => {
+    it('prevents duplicate submission while loading and blocks retries after failure', async () => {
       const playlistRequest = deferred<SpotifyApi.CreatePlaylistResponse>();
       const createPlaylist = vi.fn().mockReturnValue(playlistRequest.promise);
       renderModal({
@@ -428,7 +525,11 @@ describe('playlist creation modal', () => {
         );
         expect(errors.at(-1)).toBeVisible();
       });
-      expect(submitButton).toBeEnabled();
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'A playlist may have been created, but we cannot complete it automatically.',
+      );
+      expect(submitButton).not.toBeInTheDocument();
+      expect(createPlaylist).toHaveBeenCalledOnce();
     });
 
     it('rejoins a deferred create after the modal component remounts', async () => {
@@ -478,12 +579,9 @@ describe('playlist creation modal', () => {
       expect.soft(abandonButton).not.toBeNull();
       if (abandonButton) expect.soft(abandonButton).toBeDisabled();
 
-      if (!remountedName.hasAttribute('disabled')) {
-        fireEvent.change(remountedName, {
-          target: { value: 'Duplicate playlist' },
-        });
-      }
-      fireEvent.click(remountedSubmit);
+      const remountedForm = remountedSubmit.closest('form');
+      if (!remountedForm) throw new Error('Expected the remounted playlist form.');
+      fireEvent.submit(remountedForm);
       expect.soft(createPlaylist).toHaveBeenCalledOnce();
 
       playlistRequest.resolve(createdPlaylist(
@@ -538,12 +636,9 @@ describe('playlist creation modal', () => {
       expect.soft(reopenedSubmit).toBeDisabled();
       expect.soft(reopenedSubmit).toHaveAttribute('data-loading');
 
-      if (!reopenedName.hasAttribute('disabled')) {
-        fireEvent.change(reopenedName, {
-          target: { value: 'Duplicate playlist' },
-        });
-      }
-      fireEvent.click(reopenedSubmit);
+      const reopenedForm = reopenedSubmit.closest('form');
+      if (!reopenedForm) throw new Error('Expected the reopened playlist form.');
+      fireEvent.submit(reopenedForm);
       expect.soft(createPlaylist).toHaveBeenCalledOnce();
 
       playlistRequest.reject({
@@ -562,13 +657,21 @@ describe('playlist creation modal', () => {
       });
       expect(document.body).not.toHaveTextContent('RAW REOPENED CREATE SECRET');
       expect(document.body).not.toHaveTextContent('RAW REOPENED CREATE STATUS');
-      expect(sessionStorage.getItem(
-        spotifyPendingPlaylistStorageKey,
-      )).toBeNull();
-      expect(screen.getByLabelText('Playlist name')).toBeEnabled();
-      expect(screen.getByLabelText('Playlist description')).toBeEnabled();
-      expect(screen.getByRole('button', {
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'A playlist may have been created, but we cannot complete it automatically.',
+      );
+      expect(readPendingPlaylistStorage()).toEqual({
+        kind: 'unrecoverable',
+        spotifyUserId: 'spotify-user',
+        trackUris: ['spotify:track:first', 'spotify:track:second'],
+      });
+      expect(screen.getByLabelText('Playlist name')).toBeDisabled();
+      expect(screen.getByLabelText('Playlist description')).toBeDisabled();
+      expect(screen.queryByRole('button', {
         name: 'Create Playlist',
+      })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', {
+        name: 'Abandon playlist and reset',
       })).toBeEnabled();
       expect(createPlaylist).toHaveBeenCalledOnce();
     });
@@ -933,9 +1036,12 @@ describe('playlist creation modal', () => {
       cleanupView.unmount();
       removeItem.mockRestore();
 
+      vi.spyOn(window, 'open').mockImplementation(() => null);
       renderModal({
-        createPlaylist: vi.fn(),
-        replaceTracksInPlaylist: vi.fn(),
+        createPlaylist: vi.fn().mockResolvedValue(createdPlaylist(
+          'https://open.spotify.com/playlist/created',
+        )),
+        replaceTracksInPlaylist: vi.fn().mockResolvedValue({}),
       });
       expect(screen.getByRole('button', {
         name: 'Create Playlist',
@@ -943,6 +1049,9 @@ describe('playlist creation modal', () => {
       expect(screen.queryByRole('button', {
         name: 'Retry adding tracks',
       })).not.toBeInTheDocument();
+
+      submitPlaylist();
+      expect(await screen.findByText('Successfully created playlist.')).toBeVisible();
     });
 
     it('clears pending recovery only when explicitly abandoned', () => {
@@ -1557,10 +1666,12 @@ function renderRoute(initialEntry: string) {
 
 function renderModal({
   createPlaylist,
+  getApi,
   replaceTracksInPlaylist,
   wrapper,
 }: {
   createPlaylist: ReturnType<typeof vi.fn>;
+  getApi?: PkceGuardedSpotifyWebApiJs['getApi'];
   replaceTracksInPlaylist: ReturnType<typeof vi.fn>;
   wrapper?: (modal: ReactElement) => ReactElement;
 }) {
@@ -1574,10 +1685,10 @@ function renderModal({
     onToggle: vi.fn(),
   } as unknown as UseDisclosureReturn;
   const guardedSpotifyApi = {
-    getApi: () => Promise.resolve({
+    getApi: getApi ?? (() => Promise.resolve({
       createPlaylist,
       replaceTracksInPlaylist,
-    } as never),
+    } as never)),
   };
   const triggerRef = createRef<HTMLButtonElement>();
 
