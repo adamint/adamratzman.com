@@ -2,6 +2,7 @@ using AdamRatzman.Activity;
 using AdamRatzman.Activity.Contract;
 using AdamRatzman.Activity.Komoot;
 using OpenTelemetry;
+using OpenTelemetry.Instrumentation.Http;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -54,7 +55,7 @@ builder.Services.AddOpenTelemetry()
         .AddRuntimeInstrumentation())
     .WithTracing(tracing => tracing
         .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation());
+        .AddHttpClientInstrumentation(KomootTelemetryRedaction.Configure));
 
 if (!string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
 {
@@ -110,3 +111,61 @@ static IResult Page<T>(
 
 /// <summary>Exposed so the integration tests can host the app with WebApplicationFactory.</summary>
 public partial class Program;
+
+namespace AdamRatzman.Activity
+{
+    /// <summary>
+    /// The Komoot login request carries the account email in the URL path (see
+    /// <see cref="Komoot.KomootClient"/>), and OpenTelemetry's HTTP client instrumentation records
+    /// the full request URL as the <c>url.full</c> span attribute. The email is declared a secret in
+    /// the app model, so it must not reach the Aspire dashboard or Application Insights. This scrubs
+    /// it from the recorded span without touching the request on the wire.
+    /// </summary>
+    internal static class KomootTelemetryRedaction
+    {
+        // The login URL is ".../account/email/{email}/". The crawl URLs never contain this segment,
+        // so matching on it leaves their real (numeric-user-id) URLs intact for debugging.
+        private const string AccountEmailMarker = "/account/email/";
+        private const string RedactedSegment = "REDACTED";
+
+        // Only url.full carries the email on the current instrumentation; url.path is redacted too in
+        // case a future version records it. server.address holds just the host, so it is left alone.
+        private static readonly string[] UrlBearingTags = ["url.full", "url.path"];
+
+        public static void Configure(HttpClientTraceInstrumentationOptions options) =>
+            options.EnrichWithHttpRequestMessage = Redact;
+
+        internal static void Redact(System.Diagnostics.Activity activity, HttpRequestMessage request)
+        {
+            if (request.RequestUri is null) return;
+
+            foreach (var tag in UrlBearingTags)
+            {
+                if (activity.GetTagItem(tag) is string value && TryRedactAccountEmail(value, out var redacted))
+                {
+                    activity.SetTag(tag, redacted);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Replaces the email segment in an account-lookup URL with <c>REDACTED</c>, returning
+        /// <see langword="false"/> (and leaving the URL untouched) for any other request.
+        /// </summary>
+        internal static bool TryRedactAccountEmail(string url, out string redacted)
+        {
+            redacted = url;
+
+            var marker = url.IndexOf(AccountEmailMarker, StringComparison.Ordinal);
+            if (marker < 0) return false;
+
+            var segmentStart = marker + AccountEmailMarker.Length;
+            var segmentEnd = url.IndexOfAny(['/', '?', '#'], segmentStart);
+            if (segmentEnd < 0) segmentEnd = url.Length;
+            if (segmentEnd == segmentStart) return false;
+
+            redacted = string.Concat(url.AsSpan(0, segmentStart), RedactedSegment, url.AsSpan(segmentEnd));
+            return true;
+        }
+    }
+}
