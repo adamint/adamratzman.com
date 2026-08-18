@@ -101,7 +101,7 @@ public class EndpointTests
         var root = document.RootElement;
         root.GetProperty("total").GetInt32().Should().Be(3);
         root.GetProperty("data").GetArrayLength().Should().Be(2);
-        root.GetProperty("data")[0].GetProperty("monthYearPair").GetProperty("month").GetString().Should().Be("June");
+        root.GetProperty("data")[0].GetProperty("monthYearPair").GetProperty("month").GetString().Should().Be("6");
         root.GetProperty("next").GetProperty("offset").GetInt32().Should().Be(2);
         root.TryGetProperty("previous", out _).Should().BeFalse("null pagination links are omitted");
     }

@@ -86,7 +86,7 @@ public class TourMapperTests
         result.Date.DayOfMonth.Should().Be(14);
         result.Date.Year.Should().Be(2025);
         result.Date.DayOfWeek.Should().Be(new SerializableDayOfWeek(6, "Saturday"));
-        result.Date.Month.Should().Be(new SerializableMonth(6, "June"));
+        result.Date.Month.Should().Be(new SerializableMonth(6, "6"));
     }
 
     [Fact]

@@ -54,7 +54,7 @@ public static class TourMapper
             local.Hour,
             new SerializableDayOfWeek(IsoDayNumber(local.DayOfWeek), EnUs.DateTimeFormat.GetDayName(local.DayOfWeek)),
             local.Day,
-            new SerializableMonth(local.Month, EnUs.DateTimeFormat.GetMonthName(local.Month)),
+            new SerializableMonth(local.Month, MonthGrouping.EnglishMonthNumberName(local.Month)),
             local.Year);
     }
 

@@ -28,9 +28,9 @@ public class GroupingTests
         var groups = MonthGrouping.GroupByMonth(tours, Utc);
 
         groups.Select(g => g.MonthYearPair).Should().Equal(
-            new MonthYearPair("June", 2025),
-            new MonthYearPair("May", 2025),
-            new MonthYearPair("June", 2024));
+            new MonthYearPair("6", 2025),
+            new MonthYearPair("5", 2025),
+            new MonthYearPair("6", 2024));
         groups[0].Tours.Should().HaveCount(2);
         groups[1].Tours.Should().HaveCount(1);
     }
@@ -74,7 +74,7 @@ public class GroupingTests
         // 2025-07-01T04:00Z is still 2025-06-30 in Los Angeles.
         var groups = MonthGrouping.GroupByMonth([Tour(1, "2025-07-01T04:00:00Z")], la);
 
-        groups[0].MonthYearPair.Should().Be(new MonthYearPair("June", 2025));
+        groups[0].MonthYearPair.Should().Be(new MonthYearPair("6", 2025));
     }
 
     [Fact]
