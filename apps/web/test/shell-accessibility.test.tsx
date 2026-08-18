@@ -126,7 +126,7 @@ describe('site shell accessibility', () => {
   });
 
   it.each([
-    ['/', /Hi\. I'm Adam Ratzman, a software engineer at Microsoft\./i],
+    ['/', /Hi\. I'm Adam Ratzman, a senior software engineer at Microsoft\./i],
     ['/contact', /you'd like to contact me/i],
     ['/portfolio', /Here are just some of the things I've done\./i],
     ['/projects', 'Projects'],
@@ -283,7 +283,7 @@ describe('site shell accessibility', () => {
 
     await screen.findByRole('heading', {
       level: 1,
-      name: /Hi\. I'm Adam Ratzman, a software engineer at Microsoft\./i,
+      name: /Hi\. I'm Adam Ratzman, a senior software engineer at Microsoft\./i,
     });
     const puppyTrigger = screen.getByRole('button', { name: 'puppy' });
 

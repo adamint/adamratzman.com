@@ -232,7 +232,7 @@ describe('keyboard-accessible triggers', () => {
 
     await screen.findByRole('heading', {
       level: 1,
-      name: /Hi\. I'm Adam Ratzman, a software engineer at Microsoft\./i,
+      name: /Hi\. I'm Adam Ratzman, a senior software engineer at Microsoft\./i,
     });
     const trigger = screen.getByRole('button', {
       name: 'puppy',

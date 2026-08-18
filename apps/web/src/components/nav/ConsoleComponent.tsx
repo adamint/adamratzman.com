@@ -37,6 +37,30 @@ const HELP_OUTPUT = [
   'help - List available commands',
 ].join('\n');
 
+const PANEL_SURFACE = 'gray.900';
+const PANEL_BORDER = 'gray.700';
+const PANEL_FOREGROUND = 'gray.100';
+const PANEL_MUTED_FOREGROUND = 'gray.400';
+const CONSOLE_FONT_FAMILY = 'mono';
+
+// The console panel is deliberately dark in both colour modes so it reads as a
+// terminal. Only `primary` sits on the page background, so it is the one group
+// that needs light and dark variants; `accent` and `secondary` live inside the
+// dark panel and stay constant.
+const PANEL_ACCENT_CONTROL = {
+  background: 'blue.300',
+  border: 'blue.400',
+  foreground: 'gray.900',
+  hoverBackground: 'blue.200',
+} as const;
+
+const PANEL_SECONDARY_CONTROL = {
+  background: 'gray.700',
+  border: 'gray.600',
+  foreground: 'gray.100',
+  hoverBackground: 'gray.600',
+} as const;
+
 export const CONSOLE_CONTROL_COLORS = {
   light: {
     primary: {
@@ -45,12 +69,8 @@ export const CONSOLE_CONTROL_COLORS = {
       foreground: 'white',
       hoverBackground: 'blue.800',
     },
-    secondary: {
-      background: 'white',
-      border: 'gray.300',
-      foreground: 'gray.900',
-      hoverBackground: 'gray.100',
-    },
+    accent: PANEL_ACCENT_CONTROL,
+    secondary: PANEL_SECONDARY_CONTROL,
   },
   dark: {
     primary: {
@@ -59,12 +79,8 @@ export const CONSOLE_CONTROL_COLORS = {
       foreground: 'gray.900',
       hoverBackground: 'blue.200',
     },
-    secondary: {
-      background: 'gray.100',
-      border: 'gray.300',
-      foreground: 'gray.900',
-      hoverBackground: 'white',
-    },
+    accent: PANEL_ACCENT_CONTROL,
+    secondary: PANEL_SECONDARY_CONTROL,
   },
 } as const;
 
@@ -89,7 +105,7 @@ export function executeConsoleCommand(
   switch (command) {
     case 'job':
       return commandResult(
-        'I am a software engineer on the C# Project System team in Microsoft\'s Developer Division. I am based in Seattle, along with my dog Ben.',
+        'I am a senior software engineer on the Aspire team in Microsoft\'s Developer Division. I am based in Seattle, along with my dog Ben.',
       );
     case 'skills':
       return commandResult(
@@ -134,15 +150,9 @@ export function ConsoleComponent() {
   const [history, setHistory] = useState<ConsoleHistoryEntry[]>([]);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const openButtonRef = useRef<HTMLButtonElement>(null);
-  const panelBackground = useColorModeValue('gray.900', 'gray.800');
-  const panelBorder = useColorModeValue('gray.700', 'gray.600');
   const primaryControlColors = useColorModeValue(
     CONSOLE_CONTROL_COLORS.light.primary,
     CONSOLE_CONTROL_COLORS.dark.primary,
-  );
-  const secondaryControlColors = useColorModeValue(
-    CONSOLE_CONTROL_COLORS.light.secondary,
-    CONSOLE_CONTROL_COLORS.dark.secondary,
   );
 
   useEffect(() => {
@@ -231,13 +241,13 @@ export function ConsoleComponent() {
     <Box
       aria-label="Interactive site console"
       as="section"
-      bg={panelBackground}
-      borderColor={panelBorder}
+      bg={PANEL_SURFACE}
+      borderColor={PANEL_BORDER}
       borderRadius="md"
       borderWidth="1px"
       bottom={4}
-      boxShadow="xl"
-      color="white"
+      boxShadow="dark-lg"
+      color={PANEL_FOREGROUND}
       maxH="min(32rem, calc(100vh - 2rem))"
       overflowY="auto"
       p={4}
@@ -249,31 +259,34 @@ export function ConsoleComponent() {
     >
       <VStack align="stretch" spacing={3}>
         <HStack justify="space-between">
-          <Heading as="h2" size="sm">
+          <Heading as="h2" fontFamily={CONSOLE_FONT_FAMILY} size="sm">
             Interactive site console
           </Heading>
           <Button
-            _hover={{ bg: secondaryControlColors.hoverBackground }}
-            bg={secondaryControlColors.background}
-            borderColor={secondaryControlColors.border}
+            _hover={{ bg: PANEL_SECONDARY_CONTROL.hoverBackground }}
+            aria-label="Close interactive site console"
+            bg={PANEL_SECONDARY_CONTROL.background}
+            borderColor={PANEL_SECONDARY_CONTROL.border}
             borderWidth="1px"
-            color={secondaryControlColors.foreground}
+            color={PANEL_SECONDARY_CONTROL.foreground}
             onClick={closeConsole}
             size="xs"
           >
-            Close interactive site console
+            Close
           </Button>
         </HStack>
 
-        <Text fontSize="sm">
+        <Text color={PANEL_MUTED_FOREGROUND} fontSize="sm">
           Type help to see available commands, or exit to close the console.
         </Text>
 
         <Box
           aria-label="Console output"
           aria-live="polite"
-          bg="blackAlpha.400"
+          bg="blackAlpha.600"
+          borderColor="whiteAlpha.200"
           borderRadius="sm"
+          borderWidth="1px"
           minH="5rem"
           p={3}
           role="log"
@@ -281,10 +294,19 @@ export function ConsoleComponent() {
           <VStack align="stretch" spacing={3}>
             {history.map((entry, index) => (
               <Box key={`${index}-${entry.command}`}>
-                <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap">
+                <Text
+                  color="blue.200"
+                  fontFamily={CONSOLE_FONT_FAMILY}
+                  fontSize="sm"
+                  whiteSpace="pre-wrap"
+                >
                   {`> ${entry.command}`}
                 </Text>
-                <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap">
+                <Text
+                  fontFamily={CONSOLE_FONT_FAMILY}
+                  fontSize="sm"
+                  whiteSpace="pre-wrap"
+                >
                   {entry.output}
                 </Text>
               </Box>
@@ -295,25 +317,36 @@ export function ConsoleComponent() {
         <Box as="form" onSubmit={runCommand}>
           <HStack align="end">
             <FormControl>
-              <FormLabel fontSize="sm" mb={1}>
+              <FormLabel fontSize="sm" mb={1} srOnly>
                 Console command
               </FormLabel>
               <Input
+                _focusVisible={{
+                  borderColor: 'blue.300',
+                  boxShadow: 'none',
+                  outline: '2px solid',
+                  outlineColor: 'focusRing',
+                  outlineOffset: '1px',
+                }}
+                _placeholder={{ color: PANEL_MUTED_FOREGROUND }}
                 autoComplete="off"
-                bg="white"
-                color="gray.900"
+                bg="blackAlpha.600"
+                borderColor="whiteAlpha.400"
+                color={PANEL_FOREGROUND}
+                fontFamily={CONSOLE_FONT_FAMILY}
                 onChange={event => setCommandLine(event.target.value)}
+                placeholder="Type a command, e.g. help"
                 ref={commandInputRef}
                 size="sm"
                 value={commandLine}
               />
             </FormControl>
             <Button
-              _hover={{ bg: primaryControlColors.hoverBackground }}
-              bg={primaryControlColors.background}
-              borderColor={primaryControlColors.border}
+              _hover={{ bg: PANEL_ACCENT_CONTROL.hoverBackground }}
+              bg={PANEL_ACCENT_CONTROL.background}
+              borderColor={PANEL_ACCENT_CONTROL.border}
               borderWidth="1px"
-              color={primaryControlColors.foreground}
+              color={PANEL_ACCENT_CONTROL.foreground}
               flexShrink={0}
               size="sm"
               type="submit"

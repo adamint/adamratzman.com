@@ -33,7 +33,7 @@ afterEach(() => {
 describe('console commands', () => {
   it('returns the preserved job, skills, education, and project output', () => {
     expect(executeConsoleCommand('job')).toEqual({
-      output: 'I am a software engineer on the C# Project System team in Microsoft\'s Developer Division. I am based in Seattle, along with my dog Ben.',
+      output: 'I am a senior software engineer on the Aspire team in Microsoft\'s Developer Division. I am based in Seattle, along with my dog Ben.',
       shouldClose: false,
     });
     expect(executeConsoleCommand('skills')).toEqual({
@@ -133,7 +133,7 @@ describe('accessible site console', () => {
     const output = screen.getByRole('log', { name: 'Console output' });
     expect(output).toHaveAttribute('aria-live', 'polite');
     expect(output).toHaveTextContent('> job');
-    expect(output).toHaveTextContent('I am a software engineer on the C# Project System team');
+    expect(output).toHaveTextContent('I am a senior software engineer on the Aspire team');
     expect(input).toHaveValue('');
 
     await user.type(input, '<img src=x alt=hacked>');
@@ -285,6 +285,7 @@ describe('accessible site console', () => {
     'uses bounded, AA-contrast console controls in %s mode',
     (_colorMode, colors) => {
       expect(colors.primary.border).toBeTruthy();
+      expect(colors.accent.border).toBeTruthy();
       expect(colors.secondary.border).toBeTruthy();
       expectColorPairToMeetAa(
         colors.primary.foreground,
@@ -293,6 +294,14 @@ describe('accessible site console', () => {
       expectColorPairToMeetAa(
         colors.primary.foreground,
         colors.primary.hoverBackground,
+      );
+      expectColorPairToMeetAa(
+        colors.accent.foreground,
+        colors.accent.background,
+      );
+      expectColorPairToMeetAa(
+        colors.accent.foreground,
+        colors.accent.hoverBackground,
       );
       expectColorPairToMeetAa(
         colors.secondary.foreground,

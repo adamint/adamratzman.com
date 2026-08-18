@@ -38,7 +38,7 @@ function HomeRoute() {
       <Heading as='h1' fontSize='2.5rem' variant='light' mb={3}>Hi. I&apos;m <DashedSpanWithTooltip
         tooltip='You thought there was going to be something here, didn&apos;t you?'>Adam
         Ratzman</DashedSpanWithTooltip>, a
-        software engineer at Microsoft.</Heading>
+        senior software engineer at Microsoft.</Heading>
       <Text variant='bold'>You can read below to learn more about me or see some of my <ChakraRouterLink
         href='/projects'>interactive
         projects →</ChakraRouterLink></Text>
@@ -47,10 +47,10 @@ function HomeRoute() {
     </Box>
 
     <TitledSection title='About me'>
-      <Text mb={1}>Currently, I&apos;m a Software Engineer at <b>Microsoft</b> <MicrosoftIcon /> on
+      <Text mb={1}>Currently, I&apos;m a Senior Software Engineer at <b>Microsoft</b> <MicrosoftIcon /> on
         the <ChakraRouterLink
-          target='_blank' href='https://github.com/dotnet/project-system'>Visual Studio .NET Developer Experience
-          team</ChakraRouterLink>, where I help C# and VB.NET developers be more productive.</Text>
+          target='_blank' href='https://github.com/dotnet/aspire'>Aspire</ChakraRouterLink> team,
+        where I help developers build, orchestrate, and deploy distributed applications.</Text>
 
       <Text mb={5}>I graduated from <b>Indiana University Bloomington</b> <IuTridentIcon /> in 2021, where I received a BS and
         MS in Computer Science. I build software and distributed systems and tools, and in addition to
@@ -87,12 +87,11 @@ function HomeRoute() {
     <TitledSection title='Work Experience'>
       <Experience place='Microsoft'
                   location='Washington, DC'
-                  title='Software Engineer II'
+                  title='Senior Software Engineer'
                   date='January 2022 - Present'
                   bullets={[
-                    'I am a member of the Visual Studio .NET Project team in the Developer Division at Microsoft',
-                    'I help VS .NET developers be more productive in their work, and help bring new .NET features to Visual Studio',
-                    <>I also have worked on other dotnet initiatives such as <ChakraRouterLink href="https://github.com/dotnet/aspire">.NET Aspire</ChakraRouterLink></>
+                    <>I work on <ChakraRouterLink href="https://github.com/dotnet/aspire">Aspire</ChakraRouterLink>, helping developers build, orchestrate, and deploy distributed applications</>,
+                    'Previously a member of the Visual Studio .NET Project team in the Developer Division, helping VS .NET developers be more productive and bringing new .NET features to Visual Studio',
                   ]}
       />
 
