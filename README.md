@@ -1,9 +1,10 @@
 # adamratzman.com
 
-This is my portfolio site, built as an Aspire-orchestrated TypeScript application:
+This is my portfolio site, built as an Aspire-orchestrated application:
 
 - a Vite and React frontend in `apps/web`;
 - a Fastify API in `services/api`;
+- an ASP.NET Core activity service in `services/activity`, which mirrors Komoot;
 - shared API contracts in `packages/contracts`;
 - a TypeScript Aspire AppHost in `apphost.mts`.
 
@@ -106,3 +107,56 @@ az containerapp hostname bind -n web -g personal-site-rg \
 Apex domains validate with `HTTP` and need an `A` record pointing at the
 environment's static IP; subdomains validate with `CNAME`. Both need an
 `asuid` TXT record holding the environment's custom-domain verification ID.
+
+### The activity service
+
+The activity service mirrors Komoot rather than proxying it. Komoot has no
+public API, no webhooks, and rate limits that a per-request proxy would hit, so
+the service authenticates once, crawls the full tour list on a timer, and holds
+an immutable snapshot in memory. A failed refresh keeps the previous snapshot,
+so a Komoot outage shows stale data instead of an empty page.
+
+It runs with internal-only ingress and is reached solely through the API's
+`/api/komoot` proxy, which allowlists two paths. Its startup probe reports
+healthy only once the first crawl has completed, which is what lets a new
+revision roll out without ever serving an empty response. There is deliberately
+no readiness probe: readiness is a monotonic latch, so once the startup probe
+passes it could never fail, and liveness watches `/health` instead. Pointing
+liveness at `/ready` would kill the container during its own cold start.
+
+This replaced a Kotlin service that ran on a separate App Service in a different
+subscription. The port was verified by diffing every endpoint against the live
+Kotlin service: the month endpoint matches on all 58 months and 1682 tours, with
+no value differences.
+
+Three behaviours were deliberately **preserved** rather than corrected, because
+the frontend already depends on them:
+
+- Tours are bucketed in UTC rather than a local timezone, because UTC was the
+  Kotlin container's system default.
+- Komoot's `hike` sport is reported as `Other`, because the original only ever
+  matched the string `hiking`. `mtb` is `Other` for the same reason.
+- Month names are emitted as numbers (`"8"`, not `"August"`). The Kotlin asked
+  the JDK for a stand-alone month name, and because CLDR has no distinct
+  stand-alone month names for English, the JDK falls back to the number. Day
+  names are unaffected and are still full English words, because CLDR *does*
+  have stand-alone day names. Changing this is a one-line change, but it is a
+  product decision rather than a migration one.
+
+Three were deliberately **changed**, and one of them is visible:
+
+- Weeks now run Monday to Sunday. The Kotlin bucketed Sunday to Saturday, so
+  historical weekly charts shift: activity recorded on a Sunday moves into the
+  following week's bucket.
+- Week boundaries are true local midnight. The Kotlin's were 380 seconds before
+  midnight, from an arithmetic bug.
+- The oldest week is no longer dropped, so the week endpoint returns 439 buckets
+  where the Kotlin returned 438.
+- Pagination clamps when `offset + limit` exceeds the total. The Kotlin threw
+  and returned a 500.
+
+The App Service is intentionally still running. Cutting traffic over is
+reversible in one deploy; deleting infrastructure is not, and it remains the
+rollback target. Deleting it, and the orphaned `appserviceacrqt7xxbcrr5sgc`
+registry that goes with it, should be a separate deliberate step once the new
+service has run for a week or two.
