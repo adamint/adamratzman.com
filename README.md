@@ -155,8 +155,12 @@ Three were deliberately **changed**, and one of them is visible:
 - Pagination clamps when `offset + limit` exceeds the total. The Kotlin threw
   and returned a 500.
 
-The App Service is intentionally still running. Cutting traffic over is
-reversible in one deploy; deleting infrastructure is not, and it remains the
-rollback target. Deleting it, and the orphaned `appserviceacrqt7xxbcrr5sgc`
-registry that goes with it, should be a separate deliberate step once the new
-service has run for a week or two.
+The App Service was kept running through the cutover as a live rollback target,
+and has since been deleted along with its B3 plan, its `appserviceacr5pjadlrxljbbk`
+registry, and the abandoned `appserviceacrqt7xxbcrr5sgc` registry left behind by
+an earlier App Service publish attempt. Nothing references
+`adamratzmancombackend.azurewebsites.net` any more.
+
+Rollback is therefore no longer a traffic switch. Reverting means reverting the
+commit and redeploying, which rebuilds the service from source rather than
+falling back to a still-warm instance.
