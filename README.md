@@ -84,6 +84,21 @@ That is how `SPOTIFY_CLIENT_SECRET` reached production as the literal string
 is quiet, because a one-character secret passes validation and only fails later,
 against Spotify.
 
+Changing a secret out of band takes two steps, not one. Container Apps injects
+secrets when a container starts, so `az containerapp secret set` alone updates
+the stored value while the running replicas keep serving the old one. The
+obvious follow-up, `az containerapp update` with no other arguments, does not
+help: with nothing to change it is a no-op and creates no revision. Restart the
+active revision instead, then poll until the endpoint recovers:
+
+```sh
+az containerapp secret set -n api -g personal-site-rg \
+  --secrets spotify-client-secret=<value>
+az containerapp revision restart -n api -g personal-site-rg \
+  --revision "$(az containerapp show -n api -g personal-site-rg \
+    --query properties.latestRevisionName -o tsv)"
+```
+
 ### Hosting notes
 
 The frontend image serves the built SPA with nginx rather than a static-site
