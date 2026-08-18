@@ -25,3 +25,7 @@ npm-debug.log*
 .aspire/
 dist/
 aspire-output/
+
+# planning artifacts, kept out of git on purpose
+.azure/
+
