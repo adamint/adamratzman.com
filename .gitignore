@@ -29,3 +29,7 @@ aspire-output/
 # planning artifacts, kept out of git on purpose
 .azure/
 
+# .NET build artifacts
+bin/
+obj/
+
