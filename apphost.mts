@@ -27,6 +27,29 @@ const backendSiteOrigin = await builder.addParameter(
   },
 );
 
+// Custom domains have to live in the app model. Azure Container Apps replaces
+// the whole ingress block on every deployment, so a hostname bound only with
+// `az containerapp hostname bind` is silently dropped the next time we deploy
+// and the site starts failing TLS until someone rebinds it by hand.
+//
+// Each entry pairs the hostname with the name of an existing managed
+// certificate in the Container Apps environment. Certificates are still
+// created out of band, because Azure has to serve the HTTP/CNAME validation
+// challenge before a certificate exists to reference.
+const webCustomDomains = [
+  {
+    key: 'apex',
+    domain: process.env.WEB_CUSTOM_DOMAIN,
+    certificate: process.env.WEB_CUSTOM_DOMAIN_CERTIFICATE_NAME,
+  },
+  {
+    key: 'www',
+    domain: process.env.WEB_WWW_CUSTOM_DOMAIN,
+    certificate: process.env.WEB_WWW_CUSTOM_DOMAIN_CERTIFICATE_NAME,
+  },
+].filter((entry): entry is { key: string; domain: string; certificate: string } =>
+  Boolean(entry.domain && entry.certificate));
+
 const api = await builder.addJavaScriptApp(
   'api',
   '.',
@@ -68,6 +91,27 @@ if (isPublishMode) {
       .withEntrypoint('/docker-entrypoint.sh')
       .withArgs(['nginx', '-g', 'daemon off;']);
   });
+
+  if (webCustomDomains.length > 0) {
+    const domainParameters = await Promise.all(
+      webCustomDomains.map(async (entry) => ({
+        domain: await builder.addParameter(
+          `web-custom-domain-${entry.key}`,
+          { value: entry.domain },
+        ),
+        certificate: await builder.addParameter(
+          `web-custom-domain-certificate-${entry.key}`,
+          { value: entry.certificate },
+        ),
+      })),
+    );
+
+    await web.publishAsAzureContainerApp(async (_infrastructure, containerApp) => {
+      for (const parameter of domainParameters) {
+        await containerApp.configureCustomDomain(parameter.domain, parameter.certificate);
+      }
+    });
+  }
 }
 
 if (isPublishMode) {

@@ -65,6 +65,8 @@ Both commands read the target from the environment:
 | `VITE_SPOTIFY_CLIENT_ID` | Spotify client id baked into the frontend |
 | `SPOTIFY_CLIENT_SECRET` | Spotify client secret used by the API |
 | `BACKEND_SITE_ORIGIN` | Upstream host for the activity proxy |
+| `WEB_CUSTOM_DOMAIN` / `WEB_CUSTOM_DOMAIN_CERTIFICATE_NAME` | Apex hostname and its managed certificate |
+| `WEB_WWW_CUSTOM_DOMAIN` / `WEB_WWW_CUSTOM_DOMAIN_CERTIFICATE_NAME` | `www` hostname and its managed certificate |
 
 Deployment runs as the signed-in Azure CLI user. Aspire's credential has a short
 shell timeout, so if `create-provisioning-context` fails with an authentication
@@ -82,3 +84,24 @@ Custom domains use Azure's free managed certificates. Those certificates require
 DNS records that resolve directly to Azure, so the `adamratzman.com` records must
 stay unproxied — routing them through an intermediate CNAME such as a Cloudflare
 proxy blocks both issuance and renewal.
+
+Custom domains are declared in the AppHost rather than bound only with
+`az containerapp hostname bind`. Container Apps replaces the entire ingress
+block on every deployment, so a hostname that exists only in Azure is dropped
+the next time you deploy and the site starts failing TLS. Keeping the hostnames
+in the model means `aspire deploy` re-asserts them every time.
+
+Certificates are still created out of band, because Azure has to serve the
+HTTP or CNAME validation challenge before a certificate exists to reference.
+Bind a new hostname once, then set the matching `WEB_*_CUSTOM_DOMAIN` and
+`WEB_*_CUSTOM_DOMAIN_CERTIFICATE_NAME` variables so future deploys keep it:
+
+```sh
+az containerapp hostname bind -n web -g personal-site-rg \
+  --hostname adamratzman.com --certificate <certificate-id> \
+  --validation-method HTTP
+```
+
+Apex domains validate with `HTTP` and need an `A` record pointing at the
+environment's static IP; subdomains validate with `CNAME`. Both need an
+`asuid` TXT record holding the environment's custom-domain verification ID.

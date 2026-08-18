@@ -1173,7 +1173,13 @@ describe('playlist creation modal', () => {
 
       submitPlaylist();
 
-      expect(await screen.findByText('Successfully created playlist.')).toBeVisible();
+      // The toast animates in, so it can be present but still at opacity 0 the
+      // moment findByText resolves. Retry the visibility assertion instead of
+      // sampling it once.
+      const successToast = await screen.findByText('Successfully created playlist.');
+      await waitFor(() => {
+        expect(successToast).toBeVisible();
+      });
       expect(screen.queryByText(
         'Failed to create playlist. Please reload the page and try again',
       )).not.toBeInTheDocument();
