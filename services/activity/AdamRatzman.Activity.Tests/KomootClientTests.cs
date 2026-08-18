@@ -100,6 +100,40 @@ public class KomootClientTests
     }
 
     [Fact]
+    public async Task SendsTheLoginEmailWithARawAtSignRatherThanPercentEncoded()
+    {
+        var handler = new StubHandler()
+            .When("v006/account/email", HttpStatusCode.OK, LoginBody)
+            .When("v007/users/42/tours", HttpStatusCode.OK, PageBody(1, null));
+
+        await BuildClient(handler).GetAllToursAsync(CancellationToken.None);
+
+        handler.CountFor("account/email/a@b.c/").Should().Be(1);
+        handler.CountFor("%40").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task StopsAtMaxPagesEvenWhenMorePagesAreAvailable()
+    {
+        const string page2 = "https://api.komoot.de/v007/users/42/tours/?page=2";
+        const string page3 = "https://api.komoot.de/v007/users/42/tours/?page=3";
+        var handler = new StubHandler()
+            .When("v006/account/email", HttpStatusCode.OK, LoginBody)
+            .When("page=2", HttpStatusCode.OK, PageBody(2, page3))
+            .When("page=3", HttpStatusCode.OK, PageBody(3, null))
+            .When("v007/users/42/tours", HttpStatusCode.OK, PageBody(1, page2));
+
+        var options = new ActivityOptions { KomootEmail = "a@b.c", KomootPassword = "pw", MaxPages = 2 };
+        var tours = await BuildClient(handler, options).GetAllToursAsync(CancellationToken.None);
+
+        // Distinct "next" URLs on every page, so the visited-URL guard never fires - only the
+        // MaxPages cap can be responsible for stopping the crawl here.
+        tours.Select(t => t.Id).Should().Equal(1, 2);
+        handler.CountFor("v007/users/42/tours").Should().Be(2);
+        handler.CountFor("page=3").Should().Be(0);
+    }
+
+    [Fact]
     public async Task StopsIfTheNextLinkPointsBackAtAPageAlreadyFetched()
     {
         const string self = "https://api.komoot.de/v007/users/42/tours/?type=tour_recorded&format=coordinate_array";

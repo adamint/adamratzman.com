@@ -37,7 +37,11 @@ public sealed class KomootClient(
 
     private async Task<KomootSession> LoginAsync(CancellationToken cancellationToken)
     {
-        var url = $"{_options.AccountApiBaseUrl.TrimEnd('/')}/account/email/{Uri.EscapeDataString(_options.KomootEmail)}/";
+        // The Kotlin interpolated the email into the URL raw, with no escaping at all. `@` is a
+        // legal pchar in a URI path segment, so keep it literal to match exactly what Komoot has
+        // always received; escape everything else that needs it.
+        var escapedEmail = Uri.EscapeDataString(_options.KomootEmail).Replace("%40", "@");
+        var url = $"{_options.AccountApiBaseUrl.TrimEnd('/')}/account/email/{escapedEmail}/";
 
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = BasicAuth(_options.KomootEmail, _options.KomootPassword);
@@ -64,8 +68,22 @@ public sealed class KomootClient(
         var tours = new List<KomootTour>();
         var visited = new HashSet<string>(StringComparer.Ordinal);
 
-        for (var page = 0; page < _options.MaxPages && url is not null; page++)
+        var page = 0;
+        while (url is not null)
         {
+            if (page >= _options.MaxPages)
+            {
+                // Unlike the visited-URL guard below, hitting the cap is not evidence the crawl is
+                // stuck - it may simply mean the account grew past MaxPages worth of tours. A silent
+                // truncation here would get baked into the served snapshot as if it were complete, so
+                // warn loudly and return what we have rather than throwing (which would blank a
+                // working chart over a pagination surprise).
+                logger.LogWarning(
+                    "Komoot pagination hit the {MaxPages}-page cap with {TourCount} tours collected so far; stopping the crawl",
+                    _options.MaxPages, tours.Count);
+                break;
+            }
+
             if (!visited.Add(url))
             {
                 logger.LogWarning("Komoot pagination revisited {Url}; stopping the crawl", url);
@@ -78,6 +96,7 @@ public sealed class KomootClient(
 
             tours.AddRange(parsed.Tours());
             url = parsed.Links?.Next?.Href;
+            page++;
         }
 
         return tours;
