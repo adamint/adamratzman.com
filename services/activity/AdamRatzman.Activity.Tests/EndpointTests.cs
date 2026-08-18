@@ -40,14 +40,21 @@ public class EndpointTests
         }
     }
 
-    private static async Task<HttpClient> ReadyClient()
+    private sealed class ReadyClientResult(Factory factory, HttpClient client) : IDisposable
+    {
+        public HttpClient Client { get; } = client;
+
+        public void Dispose() => factory.Dispose();
+    }
+
+    private static async Task<ReadyClientResult> ReadyClient()
     {
         var factory = new Factory(_ => Task.FromResult<IReadOnlyList<KomootTour>>(Sample));
         var client = factory.CreateClient();
 
         for (var i = 0; i < 100; i++)
         {
-            if ((await client.GetAsync("/ready")).StatusCode == HttpStatusCode.OK) return client;
+            if ((await client.GetAsync("/ready")).StatusCode == HttpStatusCode.OK) return new ReadyClientResult(factory, client);
             await Task.Delay(20);
         }
 
@@ -57,9 +64,9 @@ public class EndpointTests
     [Fact]
     public async Task RootRespondsWithTheGreeting()
     {
-        var client = await ReadyClient();
+        using var result = await ReadyClient();
 
-        (await client.GetStringAsync("/")).Should().Be("hi :)");
+        (await result.Client.GetStringAsync("/")).Should().Be("hi :)");
     }
 
     [Fact]
@@ -93,7 +100,8 @@ public class EndpointTests
     [Fact]
     public async Task ReturnsAPageOfMonths()
     {
-        var client = await ReadyClient();
+        using var result = await ReadyClient();
+        var client = result.Client;
 
         var json = await client.GetStringAsync("/latest-komoot-tours-by-month?offset=0&limit=2");
         using var document = JsonDocument.Parse(json);
@@ -109,7 +117,8 @@ public class EndpointTests
     [Fact]
     public async Task ReturnsWeeksAsFirstSecondPairs()
     {
-        var client = await ReadyClient();
+        using var result = await ReadyClient();
+        var client = result.Client;
 
         var json = await client.GetStringAsync("/activity-stats-by-week?offset=0&limit=1");
         using var document = JsonDocument.Parse(json);
@@ -131,15 +140,16 @@ public class EndpointTests
     [InlineData("/activity-stats-by-week?offset=abc&limit=1")]
     public async Task RejectsBadPaginationWith400(string url)
     {
-        var client = await ReadyClient();
+        using var result = await ReadyClient();
 
-        (await client.GetAsync(url)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await result.Client.GetAsync(url)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
     public async Task ClampsAnOverLongLimitInsteadOfFailing()
     {
-        var client = await ReadyClient();
+        using var result = await ReadyClient();
+        var client = result.Client;
 
         var response = await client.GetAsync("/latest-komoot-tours-by-month?offset=0&limit=1000");
 
