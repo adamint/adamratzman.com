@@ -1,7 +1,7 @@
 // Aspire TypeScript AppHost
 // For more information, see: https://aspire.dev
 
-import { createBuilder } from './.aspire/modules/aspire.mjs';
+import { createBuilder, ProbeType } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 const isPublishMode = await builder.executionContext().isPublishMode();
@@ -24,6 +24,20 @@ const backendSiteOrigin = await builder.addParameter(
   'backend-site-origin',
   {
     value: process.env.BACKEND_SITE_ORIGIN,
+  },
+);
+const komootEmail = await builder.addParameter(
+  'komoot-email',
+  {
+    secret: true,
+    value: process.env.KOMOOT_EMAIL,
+  },
+);
+const komootPassword = await builder.addParameter(
+  'komoot-password',
+  {
+    secret: true,
+    value: process.env.KOMOOT_PASSWORD,
   },
 );
 
@@ -50,6 +64,41 @@ const webCustomDomains = [
 ].filter((entry): entry is { key: string; domain: string; certificate: string } =>
   Boolean(entry.domain && entry.certificate));
 
+// Replaces the standalone Kotlin App Service at adamratzmancombackend.azurewebsites.net.
+// Deployed with no external ingress: only `api` talks to it, over the Container Apps
+// environment's internal network.
+const activity = await builder.addProject(
+  'activity',
+  'services/activity/AdamRatzman.Activity/AdamRatzman.Activity.csproj',
+);
+await activity.withEnvironment('Activity__KomootEmail', komootEmail);
+await activity.withEnvironment('Activity__KomootPassword', komootPassword);
+
+// Startup watches /ready, which only returns 200 once the first Komoot crawl has produced
+// a snapshot, so Container Apps holds traffic off the revision for the whole ~50s cold
+// start. There is deliberately no readiness probe: IsReady is a monotonic latch, so a
+// readiness probe on /ready could never fail once startup passed, and Aspire rejects two
+// probes sharing a path anyway. Liveness watches /health, which is process-alive only -
+// pointing liveness at /ready would kill the container mid-crawl and it would never boot.
+await activity.withHttpProbe(ProbeType.Startup, {
+  path: '/ready',
+  initialDelaySeconds: 5,
+  periodSeconds: 5,
+  timeoutSeconds: 5,
+  failureThreshold: 60,
+});
+await activity.withHttpProbe(ProbeType.Liveness, {
+  path: '/health',
+  initialDelaySeconds: 10,
+  periodSeconds: 30,
+  timeoutSeconds: 5,
+  failureThreshold: 5,
+});
+
+// Deliberately no `api.waitFor(activity)`. It has no effect on the Container Apps
+// rollout (which is why the cutover is two deploys), and in run mode it would block
+// the whole site's API on a ~50s Komoot crawl - and fail outright for anyone without
+// Komoot credentials. A cold `activity` just 503s the /activity route instead.
 const api = await builder.addJavaScriptApp(
   'api',
   '.',
@@ -124,6 +173,7 @@ if (isPublishMode) {
     );
   }
   await api.withReference(appInsights);
+  await activity.withReference(appInsights);
 
   const containerApps = await builder.addAzureContainerAppEnvironment('aca');
   await containerApps.withDashboard({ enable: false });
