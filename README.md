@@ -75,6 +75,15 @@ shell timeout, so if `create-provisioning-context` fails with an authentication
 timeout, run `az account get-access-token` once to warm the token cache and
 retry.
 
+Export every secret variable before deploying, not just the ones you changed.
+Each is declared as `value: process.env.<NAME>` in the AppHost, so an unset
+variable does not preserve whatever is already live in Azure — Aspire falls back
+to prompting, and the deployment overwrites the running secret with the answer.
+That is how `SPOTIFY_CLIENT_SECRET` reached production as the literal string
+`y`: a prompt got answered as though it were a yes/no confirmation. The failure
+is quiet, because a one-character secret passes validation and only fails later,
+against Spotify.
+
 ### Hosting notes
 
 The frontend image serves the built SPA with nginx rather than a static-site
