@@ -9,8 +9,9 @@ This is my portfolio site, built as an Aspire-orchestrated TypeScript applicatio
 
 ## Run locally
 
-Install Node.js 22 or later, npm, and the Aspire CLI. Set `SPOTIFY_CLIENT_ID`,
-`SPOTIFY_CLIENT_SECRET`, and `BACKEND_SITE_ORIGIN`, then run:
+Install Node.js 22 or later, the .NET 10 SDK, npm, and the Aspire CLI. Set
+`SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `KOMOOT_EMAIL`, and
+`KOMOOT_PASSWORD`, then run:
 
 ```sh
 npm install
@@ -64,7 +65,7 @@ Both commands read the target from the environment:
 | `AZURE_APPLICATION_INSIGHTS_NAME` | Existing App Insights to reuse |
 | `VITE_SPOTIFY_CLIENT_ID` | Spotify client id baked into the frontend |
 | `SPOTIFY_CLIENT_SECRET` | Spotify client secret used by the API |
-| `BACKEND_SITE_ORIGIN` | Upstream host for the activity proxy |
+| `KOMOOT_EMAIL` / `KOMOOT_PASSWORD` | Komoot credentials for the activity service |
 | `WEB_CUSTOM_DOMAIN` / `WEB_CUSTOM_DOMAIN_CERTIFICATE_NAME` | Apex hostname and its managed certificate |
 | `WEB_WWW_CUSTOM_DOMAIN` / `WEB_WWW_CUSTOM_DOMAIN_CERTIFICATE_NAME` | `www` hostname and its managed certificate |
 

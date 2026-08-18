@@ -20,12 +20,6 @@ const spotifyClientSecret = await builder.addParameter(
     value: process.env.SPOTIFY_CLIENT_SECRET,
   },
 );
-const backendSiteOrigin = await builder.addParameter(
-  'backend-site-origin',
-  {
-    value: process.env.BACKEND_SITE_ORIGIN,
-  },
-);
 const komootEmail = await builder.addParameter(
   'komoot-email',
   {
@@ -111,7 +105,10 @@ api.withHttpHealthCheck({ path: '/api/health' });
 api.withEnvironment('HOST', '0.0.0.0');
 api.withEnvironment('SPOTIFY_CLIENT_ID', spotifyClientId);
 api.withEnvironment('SPOTIFY_CLIENT_SECRET', spotifyClientSecret);
-api.withEnvironment('BACKEND_SITE_ORIGIN', backendSiteOrigin);
+// Points at the in-cluster activity service rather than an external hostname, so the
+// upstream is now part of the app model instead of an environment variable someone has
+// to remember to set. Resolves to https://activity.internal.${environment-domain}.
+api.withEnvironment('BACKEND_SITE_ORIGIN', activity.getEndpoint('http'));
 api.publishAsPackageScript({ scriptName: 'start:api' });
 if (isPublishMode) {
   await api.publishAsDockerFile(async (container) => {
