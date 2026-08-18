@@ -144,6 +144,25 @@ describe('Spotify route authentication', () => {
     expectButtonPalette(button, 'blue');
   });
 
+  it('shows the redirect uri actually used to build the login url', async () => {
+    authorizeMyTop();
+
+    renderWithRouter([{
+      path: '/projects/spotify/generate-token',
+      Component: () => (
+        <ChakraProvider theme={theme}>
+          <SpotifyGenerateTokenRoute />
+        </ChakraProvider>
+      ),
+    }], {
+      initialEntries: ['/projects/spotify/generate-token'],
+    });
+
+    expect(await screen.findByText(spotifyStoreState.spotifyRedirectUri())).toBeVisible();
+    expect(document.body).toHaveTextContent('The redirect uri used to generate this link was:');
+    expect(document.body).not.toHaveTextContent('https://adamratzman.com/projects/spotify/callback');
+  });
+
   it('shows a generic error when generated Spotify login URL creation fails', async () => {
     const tokenInfo: SpotifyTokenInfo = {
       expiry: Date.now() + 60_000,
