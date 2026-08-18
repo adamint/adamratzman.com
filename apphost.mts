@@ -100,7 +100,10 @@ const api = await builder.addJavaScriptApp(
 );
 api.withBuildScript('build:api');
 api.withHttpEndpoint({ env: 'PORT', name: 'http' });
-api.withExternalHttpEndpoints();
+// No external ingress. The API is reached only through nginx in the `web` container,
+// which proxies same-origin `/api` requests to it over the Container Apps internal
+// network. Publishing it externally would expose the Spotify and Komoot proxies on a
+// second, unrestricted hostname that bypasses the site entirely.
 api.withHttpHealthCheck({ path: '/api/health' });
 api.withEnvironment('HOST', '0.0.0.0');
 api.withEnvironment('SPOTIFY_CLIENT_ID', spotifyClientId);

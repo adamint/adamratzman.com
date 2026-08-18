@@ -106,6 +106,27 @@ host, because the SPA needs a filesystem fallback for deep links and a
 same-origin `/api` proxy. Keeping the API same-origin is why the service needs
 no CORS configuration.
 
+`web` is the only container app with external ingress. `api` and `activity` are
+internal, so the Spotify and Komoot proxies are reachable only through nginx and
+not on a second Azure hostname that bypasses the site. `api` was external until
+this was noticed, which meant anyone who found `api.<environment-domain>` could
+spend the Spotify quota directly.
+
+Point nginx at the *fully qualified* internal hostname, never the bare app name.
+Container Apps resolves a bare `api` inside the environment, and it works from
+anything that honours the search domains in `/etc/resolv.conf` — Node does. The
+nginx `resolver` directive does not: it queries the name exactly as written, so
+a bare app name produces `502` on every proxied request. `api.getEndpoint('http')`
+already yields the qualified name, which is the reason to keep the model
+reference rather than hardcoding anything.
+
+Flipping ingress from external to internal needs two deployments. Container Apps
+applies the ingress change to `api` before a new `web` revision is serving, so
+changing both at once leaves the running `web` proxying to a hostname that has
+stopped resolving. Move `web` onto the internal hostname first — it resolves
+while the target is still external — and flip the ingress in a second deploy,
+where the value `web` receives is one it is already using.
+
 Custom domains use Azure's free managed certificates. Those certificates require
 DNS records that resolve directly to Azure, so the `adamratzman.com` records must
 stay unproxied — routing them through an intermediate CNAME such as a Cloudflare
