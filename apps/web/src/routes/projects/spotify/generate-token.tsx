@@ -188,7 +188,7 @@ function SpotifyGenerateTokenRoute() {
           <AlertIcon />
           Spotify sign-in is temporarily unavailable. Please try again.
         </Alert>}
-        {<Text>The redirect uri used to generate this link was: <u>https://adamratzman.com/projects/spotify/callback</u></Text>}
+        <Text>The redirect uri used to generate this link was: <u>{spotifyRedirectUri()}</u></Text>
       </Box>
       </ProjectPage>
     </SpotifyRouteComponent>
