@@ -46,7 +46,7 @@ export function ViewActivityByWeek() {
     'Other',
   ];
 
-  const backendMicroserviceGithubLink = 'https://github.com/adamint/adamratzman-backend-microservice/blob/main/src/main/kotlin/com/adamratzman/api/komoot/KomootExternalApi.kt#L63';
+  const weeklyAggregationSourceLink = 'https://github.com/adamint/adamratzman.com/blob/main/services/activity/AdamRatzman.Activity/Komoot/WeekBuckets.cs';
 
   return <Pagination next={response.next}
                      nextText='Back in time'
@@ -62,7 +62,7 @@ export function ViewActivityByWeek() {
       <Box mb={2}>
         <Text fontSize='md'>Activity by week, split by sport.</Text>
         <Text fontSize='sm'>Data from Komoot, aggregation done by <ChakraRouterLink
-          href={backendMicroserviceGithubLink}><DashedSpan>myself</DashedSpan></ChakraRouterLink></Text>
+          href={weeklyAggregationSourceLink}><DashedSpan>myself</DashedSpan></ChakraRouterLink></Text>
       </Box>
 
       <TableContainer
@@ -73,7 +73,7 @@ export function ViewActivityByWeek() {
       >
         <Table
           aria-label='Weekly activity distance in miles'
-          size='sm'
+          size='md'
           variant='simple'
         >
           <Thead>

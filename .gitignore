@@ -21,6 +21,13 @@ node_modules/
 .env.production.local
 .env.production
 
+# Any nested service .env. The root .env is deliberately tracked and must stay
+# free of secrets: it holds only the Spotify client id, which is public because
+# it ships inside the frontend bundle. Real credentials belong in user-secrets
+# or the deploy environment file, never here.
+**/.env
+!/.env
+
 npm-debug.log*
 .aspire/
 dist/

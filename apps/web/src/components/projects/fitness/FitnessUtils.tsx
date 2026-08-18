@@ -64,7 +64,7 @@ export function Pagination({
   const buttons = switchPreviousAndNext ? [nextButton, previousButton] : [previousButton, nextButton];
 
   return <Box {...rest}>
-    <Box mb={0}>
+    <Box mb={5}>
       {children}
     </Box>
     <Flex>
